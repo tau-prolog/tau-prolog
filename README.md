@@ -1,4 +1,4 @@
-![Tau Prolog](http://tau-prolog.org/logo/tauprolog128.png "Tau Prolog")
+![Tau Prolog](http://tau-prolog.org/logo/tauprolog64.png "Tau Prolog")
 
 # Tau Prolog
 
