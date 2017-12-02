@@ -9,13 +9,13 @@ Tau Prolog is released under the [BSD 3-Clause License](http://tau-prolog.org/li
 ## A brief look
 
 Using the Tau Prolog library is simple. Just include a script tag in your html file, like this.
-```
+```html
 <script src="tau-prolog.js"></script>
 ```
-That's it! When the page loads, the window object is set with a pl object, which contains the logic related to Prolog.
+That's it! When the page loads, the `window` object is set with a `pl` object, which contains the logic related to Prolog.
 
-In order to really use the library, you must create a Session object, which will contain the methods for parsing programs, looking for answers, etc. This way, we'll use Session.consult() to read a program, Session.query() to determine the goal we want to satisfy and Session.answer() to check if the goal is satisfied within the present database, and what values make it true if there were any variables on the goal. For example:
-```
+In order to really use the library, you must create a `Session` object, which will contain the methods for parsing programs, looking for answers, etc. This way, we'll use `Session.consult()` to read a program, `Session.query()` to determine the goal we want to satisfy and `Session.answer()` to check if the goal is satisfied within the present database, and what values make it true if there were any variables on the goal. For example:
+```javascript
 var session = pl.create();
 session.consult( "
     likes(sam, salad).
@@ -24,14 +24,14 @@ session.consult( "
     likes(dean, whiskey).
 " );
 ```
-By calling the pl.create() method, we create a Session object, which contais a consult() method. This method receives the Prolog program. To set the goal we want to check, we need to call the query() method.
-```
+By calling the `pl.create()` method, we create a `Session` object, which contais a `consult()` method. This method receives the Prolog program. To set the goal we want to check, we need to call the `query()` method.
+```javascript
 session.query( "likes(sam, X)" );
 ```
-Now, when we call the answer() method on the session variable, the interpreter tries to compute an answer for the goal, looking for facts or rules which unify with the goal. If the search succeeds, a Substitution object is passed to the callback provided to answer() as an argument. This Substitution object contains the variables of the goal and their values. Using a pile of states, the interpreter remembers the last choice point, so it can continue looking for facts from that point in a future search. If there is not any computed answer, the callback invoked on answer() will return false.
+Now, when we call the `answer()` method on the session variable, the interpreter tries to compute an answer for the goal, looking for facts or rules which unify with the goal. If the search succeeds, a `Substitution` object is passed to the callback provided to `answer()` as an argument. This `Substitution` object contains the variables of the goal and their values. Using a pile of states, the interpreter remembers the last choice point, so it can continue looking for facts from that point in a future search. If there is not any computed answer, the callback invoked on `answer()` will return `false`.
 
-If answer() is called again after having unified the goal previously, the interpreter will continue looking for answers starting from the last choice point.
-```
+If `answer()` is called again after having unified the goal previously, the interpreter will continue looking for answers starting from the last choice point.
+```javascript
 session.answer(callback); // X = salad ;
 session.answer(callback); // X = apples ;
 session.answer(callback); // false.
