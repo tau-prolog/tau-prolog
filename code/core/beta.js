@@ -213,7 +213,12 @@
 				last_is_blank = false;
 			}
 
-			return tokens;
+			return {
+				tokens: tokens,
+				len: len,
+				start: start,
+				line: line
+			};
 		};
 
 	})();
