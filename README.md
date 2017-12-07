@@ -35,6 +35,7 @@ Now, when we call the `answer()` method on the session variable, the interpreter
 
 If `answer()` is called again after having unified the goal previously, the interpreter will continue looking for answers starting from the last choice point.
 ```javascript
+var callback = console.log;
 session.answer(callback); // X = salad ;
 session.answer(callback); // X = apples ;
 session.answer(callback); // false.
