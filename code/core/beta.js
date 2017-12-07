@@ -697,7 +697,7 @@
 				} else {
 					return {
 						type: ERROR,
-						value: pl.error.syntax(tokens[start], ". expected")
+						value: pl.error.syntax(tokens[expr_position - 1], ". expected")
 					};
 				}
 			} else {
