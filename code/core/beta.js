@@ -1,17 +1,17 @@
 (function() {
-
+	
 	// PARSER
 	
 	var reduce = function(array, fn) {
-		if(array.length == 0) return undefined;
+		if(array.length === 0) return undefined;
 		var elem = array[0];
 		for(var i = 1; i < array.length; i++) {
 			elem = fn(elem, array[i]);
 		}
 		return elem;
 	};
-
-
+	
+	
 	if(!Array.prototype.map) {
 		Array.prototype.map = function(fn) {
 			var arr = [];
@@ -21,34 +21,34 @@
 			return arr;
 		};
 	}
-
-
+	
+	
 	var ERROR = 0;
 	var SUCCESS = 1;
-
-
+	
+	
 	var regex_escape = /(\\a)|(\\b)|(\\f)|(\\n)|(\\r)|(\\t)|(\\v)|\\x([0-9a-fA-F]+)\\|\\([0-7]+)\\|(\\\\)|(\\')|(\\")|(\\`)|(\\.)|(.)/g;
 	var escape_map = {"\\a": 7, "\\b": 8, "\\f": 12, "\\n": 10, "\\r": 13, "\\t": 9, "\\v": 11};
 	function escape(str) {
 		var s = [];
 		str.replace(regex_escape, function(match, a, b, f, n, r, t, v, hex, octal, back, single, double, backquote, error, char) {
 			switch(true) {
-				case hex != undefined:
+				case hex !== undefined:
 					s.push( parseInt(hex, 16) );
 					return "";
-				case octal != undefined:
+				case octal !== undefined:
 					s.push( parseInt(octal, 8) );
 					return "";
-				case back != undefined:
-				case single != undefined:
-				case double != undefined:
-				case backquote != undefined:
+				case back !== undefined:
+				case single !== undefined:
+				case double !== undefined:
+				case backquote !== undefined:
 					s.push( match.substr(1).charCodeAt(0) );
 					return "";
-				case char != undefined:
+				case char !== undefined:
 					s.push( char.charCodeAt(0) );
 					return "";
-				case error != undefined:
+				case error !== undefined:
 					throw "escape";
 				default:
 					s.push(escape_map[match]);
@@ -57,13 +57,13 @@
 		});
 		return s;
 	}
-
-
+	
+	
 	function escapeStr(str) {
-		return escape(str).map(function(c) {return String.fromCharCode(c)}).join("");
+		return escape(str).map(function(c) { return String.fromCharCode(c); }).join("");
 	}
-
-
+	
+	
 	function convertNum(num) {
 		var n = num.substr(2);
 		switch(num.substr(0,2).toLowerCase()) {
@@ -79,10 +79,10 @@
 				return parseFloat(num);
 		}
 	}
-
-
+	
+	
 	var tokenize = (function() {
-
+	
 		var rules = {
 			whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?\*\/)|(?:\s+))\s*/,
 			variable: /^(?:[A-Z_][a-zA-Z0-9_]*)/,
@@ -98,9 +98,9 @@
 			bar: /^(?:\|)/,
 			l_paren: /^(?:\()/,
 			r_paren: /^(?:\))/,
-			point: /^\s*\.\s*/,
-			cut: /^(?:\!)/
-		}
+			cut: /^(?:\!)/,
+			error: /^./
+		};
 		
 		function replace( session, text ) {
 			if( session.flag.char_conversion.id === "on" ) {
@@ -111,28 +111,28 @@
 			return text;
 		}
 		
-
-
+	
+	
 		// start 0, line 1
 		return function ( session, text, position, start, line ) {
 			var tokens = [];
 			var len = position;
 			var last_is_blank = false;
 			text = replace( session, text.substr(position) );
-
-
-			while(text != "") {
+	
+	
+			while(text !== "") {
 				var matches = [];
-
+	
 				// Elimina los saltos de linea
-				if(/^\n/.exec(text) !== null) {
+				/*if(/^\n/.exec(text) !== null) {
 					line++;
 					start = 0;
 					len++;
 					text = text.replace(/\n/, "");
 					last_is_blank = true;
 					continue;
-				}
+				}*/
 				
 				// Busca todas las coincidencias
 				for(var rule in rules) {
@@ -152,63 +152,60 @@
 					return a.value.length >= b.value.length ? a : b;
 				} );
 				
+				token.start = start;
+				token.line = line;
 
-				if(token) {
-					token.start = start;
-					token.line = line;
+				text = text.replace(token.value, "");
+				start += token.value.length;
+				len += token.value.length;
+				var is_compound = false;
 
-					text = text.replace(token.value, "");
-					start += token.value.length;
-					len += token.value.length;
-					var is_compound = false;
+				switch(token.name) {
+					case "compound":
+						token.value = token.value.substr(0, token.value.length - 1).replace(/^'(.*)'$/, function(m, e) {return e;});
+						is_compound = true;
+						break;
+					case "atom":
+						if(token.value.charAt(0) == "'") {
+							token.value = escapeStr( token.value.substr(1, token.value.length - 2).replace(/''/g, "'").replace(/\\\n/g, "") );
+						}
+						break;
+					case "number":
+						token.float = token.value.match(/[.eE]/) !== null;
+						token.value = convertNum( token.value );
+						token.blank = last_is_blank;
+						break;
+					case "string":
+						if(token.value.charAt(0) == "`") token.value = token.value.replace(/``/g, "`");
+						else if(token.value.charAt(0) == '"') token.value = token.value.replace(/""/g, '"');
+						token.value = escape( token.value.substr(1, token.value.length - 2) );
+						break;
+					case "point":
+						tokens.push( token );
+						return {
+							tokens: tokens,
+							len: len,
+							start: start,
+							line: line
+						};
+					case "whitespace":
+						last_is_blank = true;
+						var ms = token.value.match(/\n/g);
+						if(ms) {
+							line += ms.length;
+							start = 0;
+						}
+						continue;
+				}
 
-					switch(token.name) {
-						case "compound":
-							token.value = token.value.substr(0, token.value.length - 1).replace(/^'(.*)'$/, function(m, e) {return e;});
-							is_compound = true;
-							break;
-						case "atom":
-							if(token.value.charAt(0) == "'") {
-								token.value = escapeStr( token.value.substr(1, token.value.length - 2).replace(/''/g, "'").replace(/\\\n/g, "") );
-							}
-							break;
-						case "number":
-							token.float = token.value.match(/[.eE]/) !== null;
-							token.value = convertNum( token.value );
-							token.blank = last_is_blank;
-							break;
-						case "string":
-							if(token.value.charAt(0) == "`") token.value = token.value.replace(/``/g, "`");
-							else if(token.value.charAt(0) == '"') token.value = token.value.replace(/""/g, '"');
-							token.value = escape( token.value.substr(1, token.value.length - 2) );
-							break;
-						case "point":
-							tokens.push( token );
-							return {
-								tokens: tokens,
-								len: len,
-								start: start,
-								line: line
-							};
-						case "whitespace":
-							last_is_blank = true;
-							continue;
-					}
-
-					tokens.push( token );
-					if(is_compound) {
-						tokens.push({
-							start: start - 1,
-							line: line,
-							value: "(",
-							name: "l_paren"
-						});
-					}
-				} else {
-					return pl.error.syntax({
-						start: start,
-						line: line
-					}, "unexpected input");
+				tokens.push( token );
+				if(is_compound) {
+					tokens.push({
+						start: start - 1,
+						line: line,
+						value: "(",
+						name: "l_paren"
+					});
 				}
 				last_is_blank = false;
 			}
@@ -220,25 +217,30 @@
 				line: line
 			};
 		};
-
+	
 	})();
-
-
-
+	
+	
+	
 	function parseOperator(session, tokens, start, priority) {
 		if(priority == "0") return parseExpr(session, tokens, start);
+		if(!tokens[start]) return {
+			type: ERROR,
+			value: pl.error.syntax(tokens[start - 1], "expression expected")
+		};
+
 		var error = null;
+		var expr, expr2, token, classes;
 		
 		var max_priority = session.__get_max_priority();
 		var next_priority = session.__get_next_priority(priority);
 		var aux_start = start;
-
+	
 		if(tokens[start] && tokens[start].name == "atom" && session.__lookup_operator_classes(priority, tokens[start].value)) {
-			var token = tokens[start];
+			token = tokens[start];
 			start++;
 
-			// Comprueba si representa un numero negativo
-			var classes = session.__lookup_operator_classes(priority, token.value);
+			classes = session.__lookup_operator_classes(priority, token.value);
 			if(classes.indexOf("fy") > -1 || classes.indexOf("fx") > -1) {
 				var number = tokens[start];
 				if(token.value == "-" && number && number.name == "number" && !number.blank) {
@@ -251,7 +253,7 @@
 			}
 			
 			if(classes.indexOf("fy") > -1) {
-				var expr = parseOperator(session, tokens, start, priority);
+				expr = parseOperator(session, tokens, start, priority);
 				if(expr.type != ERROR) {
 					return {
 						value: new Term(token.value, [expr.value]),
@@ -260,11 +262,12 @@
 					};
 				} else {
 					error = expr;
+					return expr;
 				}
 			}
 			
 			else if(classes.indexOf("fx") > -1) {
-				var expr = parseOperator(session, tokens, start, next_priority);
+				expr = parseOperator(session, tokens, start, next_priority);
 				if(expr.type != ERROR) {
 					return {
 						value: new Term(token.value, [expr.value]),
@@ -273,35 +276,40 @@
 					};
 				} else {
 					error = expr;
+					return expr;
 				}
 			}
 		}
-
-
+	
+	
 		start = aux_start;
-		var expr = parseOperator(session, tokens, start, next_priority);
-		if(expr.type != ERROR) {
+		expr = parseOperator(session, tokens, start, next_priority);
+		if(expr.type !== ERROR) {
 			start = expr.len;
-			var token = tokens[start];
-			if(tokens[start] && (tokens[start].name == "atom" || tokens[start].name == "compound") && session.__lookup_operator_classes(priority, token.value)) {
+			token = tokens[start];
 
-				var is_compound = tokens[start].name == "compound";
+			if(!token) return expr;
+
+			if((token.name == "atom" || token.name == "compound") && session.__lookup_operator_classes(priority, token.value)) {
+	
+				var is_compound = token.name == "compound";
 				var next_priority_lt = is_compound ? max_priority : next_priority;
 				var next_priority_eq = is_compound ? max_priority : priority;
-				is_compound ? session.__push_comma_state(false) : null;
-				var classes = session.__lookup_operator_classes(priority, token.value);
-
-
+		
+				if(is_compound) session.__push_comma_state(false);
+				classes = session.__lookup_operator_classes(priority, token.value);
+	
+	
 				if(classes.indexOf("xf") > -1) {
-					is_compound ? session.__pop_comma_state() : null;
+					if(is_compound) session.__pop_comma_state();
 					return {
 						value: new Term(token.value, [expr.value]),
 						len: ++expr.len,
 					};
 				}
 				else if (classes.indexOf("xfx") > -1) {
-					var expr2 = parseOperator(session, tokens, start + 1, next_priority_lt);
-					is_compound ? session.__pop_comma_state() : null;
+					expr2 = parseOperator(session, tokens, start + 1, next_priority_lt);
+					if(is_compound) session.__pop_comma_state();
 					if(expr2.type != ERROR) {
 						return {
 							value: new Term(token.value, [expr.value, expr2.value]),
@@ -309,12 +317,12 @@
 							type: SUCCESS
 						};
 					} else {
-						error = expr2;
+						return expr2;
 					}
 				}
 				else if (classes.indexOf("xfy") > -1) {
-					var expr2 = parseOperator(session, tokens, start + 1, next_priority_eq);
-					is_compound ? session.__pop_comma_state() : null;
+					expr2 = parseOperator(session, tokens, start + 1, next_priority_eq);
+					if(is_compound) session.__pop_comma_state();
 					if(expr2.type != ERROR) {
 						return {
 							value: new Term(token.value, [expr.value, expr2.value]),
@@ -322,16 +330,16 @@
 							type: SUCCESS
 						};
 					} else {
-						error = expr2;
+						return expr2;
 					}
 				}
-				else if(expr.type != ERROR) {
-					is_compound ? session.__pop_comma_state() : null;
+				else {
+					if(is_compound) session.__pop_comma_state();
 					while(true) {
 						start = expr.len;
-						var token = tokens[start];
+						token = tokens[start];
 						if(token && (token.name == "atom" || token.name == "compound") && session.__lookup_operator_classes(priority, token.value)) {
-							var classes = session.__lookup_operator_classes(priority, token.value);
+							classes = session.__lookup_operator_classes(priority, token.value);
 							if( classes.indexOf("yf") > -1 ) {
 								expr = {
 									value: new Term(token.value, [expr.value]),
@@ -340,7 +348,7 @@
 								};
 							}
 							else if( classes.indexOf("yfx") > -1 ) {
-								var expr2 = parseOperator(session, tokens, ++start, next_priority_lt);
+								expr2 = parseOperator(session, tokens, ++start, next_priority_lt);
 								if(expr2.type == ERROR) {
 									expr = expr2;
 									break;
@@ -360,238 +368,242 @@
 						}
 					}
 				}
-			} else {
-				error = {
-					type: ERROR,
-					value: pl.error.syntax(token, token ? "unexpected token" : "operator expected")
-				};
 			}
-
+	
 			return expr;
 		} else {
 			error = expr;
 		}
-
+	
 		return error;
 	}
-
-
+	
+	
 	function parseExpr(session, tokens, start) {
-		if(tokens[start]) {
-			var token = tokens[start++];
-			switch(token.name) {
-				case "variable":
+		var i, expr, expr2, priority, values;
+	
+		if(!tokens[start]) return {
+			type: ERROR,
+			value: pl.error.syntax(tokens[start], "expression expected")
+		};
+
+
+		var token = tokens[start++];
+		switch(token.name) {
+			case "variable":
+				return {
+					value: new Var(token.value),
+					len: start,
+					type: SUCCESS
+				};
+			case "cut":
+				return {
+					value: new Term(token.value),
+					len: start,
+					type: SUCCESS
+				};
+			case "string":
+				var string;
+				switch(session.flag.double_quotes.id) {
+					case "codes":
+						string = new Term("[]");
+						for(i = token.value.length - 1; i >= 0; i--) {
+							string = new Term(".", [new Num(token.value[i], false), string]);
+						}
+						break;
+					case "chars":
+						string = new Term("[]");
+						for(i = token.value.length - 1; i >= 0; i--) {
+							string = new Term(".", [new Term(String.fromCharCode(token.value[i])), string]);
+						}
+						break;
+					case "atom":
+						string = "";
+						for(i = 0; i < token.value.length; i++) {
+							string += String.fromCharCode(token.value[i]);
+						}
+						string = new Term( string );
+						break;
+				}
+				return {
+					value: string,
+					len: start,
+					type: SUCCESS
+				};
+			case "number":
+				return {
+					value: new Num(token.value, token.float),
+					len: start,
+					type: SUCCESS
+				};
+			case "l_bracket":
+				session.__push_comma_state(true);
+				var args = [];
+				expr = parseOperator(session, tokens, start, session.__get_max_priority());
+				session.__pop_comma_state();
+				if(expr.type != ERROR) {
+					args = [expr.value];
+					start = expr.len;
+				}
+				if(tokens[start] && tokens[start].name == "r_bracket") {
 					return {
-						value: new Var(token.value),
-						len: start,
+						value: new Term("{}", args),
+						len: ++start,
 						type: SUCCESS
 					};
-				case "cut":
+				} else {
+					token = tokens[start];
 					return {
-						value: new Term(token.value),
-						len: start,
-						type: SUCCESS
+						type: ERROR,
+						value: pl.error.syntax(token ? token : tokens[start-1], "} expected", !token)
 					};
-				case "string":
-					var string;
-					switch(session.flag.double_quotes.id) {
-						case "codes":
-							string = new Term("[]");
-							for(var i = token.value.length - 1; i >= 0; i--) {
-								string = new Term(".", [new Num(token.value[i], false), string]);
-							}
-							break;
-						case "chars":
-							string = new Term("[]");
-							for(var i = token.value.length - 1; i >= 0; i--) {
-								string = new Term(".", [new Term(String.fromCharCode(token.value[i])), string]);
-							}
-							break;
-						case "atom":
-							string = "";
-							for(var i = 0; i < token.value.length; i++) {
-								string += String.fromCharCode(token.value[i]);
-							}
-							string = new Term( string );
-							break;
-					}
-					return {
-						value: string,
-						len: start,
-						type: SUCCESS
-					};
-				case "number":
-					return {
-						value: new Num(token.value, token.float),
-						len: start,
-						type: SUCCESS
-					};
-				case "l_bracket":
-					session.__push_comma_state(true);
-					var args = [];
-					var expr = parseOperator(session, tokens, start, session.__get_max_priority());
-					session.__pop_comma_state();
-					if(expr.type != ERROR) {
-						args = [expr.value];
-						start = expr.len;
-					}
-					if(tokens[start] && tokens[start].name == "r_bracket") {
-						return {
-							value: new Term("{}", args),
-							len: ++start,
-							type: SUCCESS
-						};
+				}
+				break;
+			case "l_paren":
+				session.__push_comma_state(true);
+				expr = parseOperator(session, tokens, start, session.__get_max_priority());
+				session.__pop_comma_state();
+				if(expr.type != ERROR) {
+					start = expr.len;
+					if(tokens[start] && tokens[start].name == "r_paren") {
+						expr.len = ++start;
+						return expr;
 					} else {
+						token = tokens[start];
 						return {
 							type: ERROR,
-							value: pl.error.syntax(tokens[start], "} expected")
+							value: pl.error.syntax(token ? token : tokens[start-1], ", or ) expected", !token)
 						};
 					}
-				case "l_paren":
-					session.__push_comma_state(true);
-					var expr = parseOperator(session, tokens, start, session.__get_max_priority());
-					session.__pop_comma_state();
-					if(expr.type != ERROR) {
-						start = expr.len;
-						if(tokens[start] && tokens[start].name == "r_paren") {
-							expr.len = ++start;
-							return expr;
+				} else {
+					return expr;
+				}
+				break;
+			case "l_brace":
+				priority = session.__get_max_priority();
+				session.__push_comma_state(false);
+				expr = parseOperator(session, tokens, start, priority);
+				values = [];
+				var tail = new Term("[]");
+				if(expr.type != ERROR) {
+					values.push(expr.value);
+					start = expr.len;
+
+
+					while(tokens[start] && tokens[start].name == "atom" && tokens[start].value == ",") {
+						expr2 = parseOperator(session, tokens, ++start, priority);
+						if(expr2.type != ERROR) {
+							values.push(expr2.value);
+							start = expr2.len;
 						} else {
+							session.__pop_comma_state();
 							return {
 								type: ERROR,
-								value: pl.error.syntax(tokens[start], ", or ) expected")
+								value: pl.error.syntax(tokens[start], ", or ] expected")
 							};
 						}
-					} else {
-						return expr;
 					}
-				case "l_brace":
-					var priority = session.__get_max_priority();
-					session.__push_comma_state(false);
-					var expr = parseOperator(session, tokens, start, priority);
-					var values = [];
-					var tail = new Term("[]");
-					if(expr.type != ERROR) {
-						values.push(expr.value);
-						start = expr.len;
 
-
-						while(tokens[start] && tokens[start].name == "atom" && tokens[start].value == ",") {
-							var expr2 = parseOperator(session, tokens, ++start, priority);
-							if(expr2.type != ERROR) {
-								values.push(expr2.value);
-								start = expr2.len;
-							} else {
-								session.__pop_comma_state();
-								return {
-									type: ERROR,
-									value: pl.error.syntax(tokens[start], ", or ] expected")
-								};
-							}
+					if(tokens[start] && tokens[start].name == "bar") {
+						start++;
+						var expr3 = parseOperator(session, tokens, start, priority);
+						if(expr3.type != ERROR) {
+							tail = expr3.value;
+							start = expr3.len;
+						} else {
+							session.__pop_comma_state();
+							token = tokens[start];
+							return {
+								type: ERROR,
+								value: pl.error.syntax(token ? token : tokens[start-1], "expression expected", !token)
+							};
 						}
+					}
+				}
 
-						if(tokens[start] && tokens[start].name == "bar") {
-							start++;
-							var expr3 = parseOperator(session, tokens, start, priority);
-							if(expr3.type != ERROR) {
-								tail = expr3.value;
-								start = expr3.len;
-							} else {
-								session.__pop_comma_state();
-								return {
-									type: ERROR,
-									value: pl.error.syntax(tokens[start], "expression expected")
-								};
-							}
+				session.__pop_comma_state();
+				if(tokens[start] && tokens[start].name == "r_brace") {
+					start++;
+					for(i = values.length - 1; i >= 0; i--) {
+						tail = new Term(".", [values[i], tail]);
+					}
+					return {
+						value: tail,
+						len: start,
+						type: SUCCESS
+					};
+				} else {
+					token = tokens[start];
+					return {
+						type: ERROR,
+						value: pl.error.syntax(token ? token : tokens[start-1], values.length ? "|, ] or , expected" : "] expected", !token)
+					};
+				}
+				break;
+			case "atom":
+				if( token.value === "-" && tokens[start] && tokens[start].name === "number" && !tokens[start].blank) {
+					return {
+						value: new Num(-tokens[start].value, tokens[start].float),
+						len: ++start,
+						type: SUCCESS
+					};
+				}
+				return {
+					value: new Term(token.value),
+					len: start,
+					type: SUCCESS
+				};
+			case "compound":
+				start++;
+				priority = session.__get_max_priority();
+				session.__push_comma_state(false);
+				expr = parseOperator(session, tokens, start, priority);
+				if(expr.type != ERROR) {
+					values = [expr.value];
+					start = expr.len;
+					while(tokens[start] && tokens[start].name == "atom" && tokens[start].value == ",") {
+						expr2 = parseOperator(session, tokens, ++start, priority);
+						if(expr2.type != ERROR) {
+							values.push(expr2.value);
+							start = expr2.len;
+						} else {
+							session.__pop_comma_state();
+							return expr2;
 						}
 					}
 
 					session.__pop_comma_state();
-					if(tokens[start] && tokens[start].name == "r_brace") {
+					if(tokens[start] && tokens[start].name == "r_paren") {
 						start++;
-						for(var i = values.length - 1; i >= 0; i--) {
-							tail = new Term(".", [values[i], tail]);
-						}
 						return {
-							value: tail,
+							value: new Term(token.value, values),
 							len: start,
 							type: SUCCESS
 						};
 					} else {
+						token = tokens[start];
 						return {
 							type: ERROR,
-							value: pl.error.syntax(tokens[start], "] expected")
+							value: pl.error.syntax(token ? token : tokens[start-1], ", or ) expected", !token)
 						};
 					}
-				case "atom":
-					if( token.value === "-" && tokens[start] && tokens[start].name === "number" && !tokens[start].blank) {
-						return {
-							value: new Num(-tokens[start].value, tokens[start].float),
-							len: ++start,
-							type: SUCCESS
-						};
-					}
-					return {
-						value: new Term(token.value),
-						len: start,
-						type: SUCCESS
-					};
-				case "compound":
-					start++;
-					var priority = session.__get_max_priority();
-					session.__push_comma_state(false);
-					var expr = parseOperator(session, tokens, start, priority);
-					if(expr.type != ERROR) {
-						var values = [expr.value];
-						start = expr.len;
-						while(tokens[start] && tokens[start].name == "atom" && tokens[start].value == ",") {
-							var expr2 = parseOperator(session, tokens, ++start, priority);
-							if(expr2.type != ERROR) {
-								values.push(expr2.value);
-								start = expr2.len;
-							} else {
-								session.__pop_comma_state();
-								return {
-									type: ERROR,
-									value: pl.error.syntax(tokens[start], "expression expected")
-								};
-							}
-						}
 
-						session.__pop_comma_state();
-						if(tokens[start] && tokens[start].name == "r_paren") {
-							start++;
-							return {
-								value: new Term(token.value, values),
-								len: start,
-								type: SUCCESS
-							};
-						} else {
-							return {
-								type: ERROR,
-								value: pl.error.syntax(tokens[start], ", or ) expected")
-							};
-						}
-
-					} else {
-						session.__pop_comma_state();
-						return {
-							type: ERROR,
-							value: pl.error.syntax(tokens[start], "expression expected")
-						};
-					}
-			}
-
+				} else {
+					session.__pop_comma_state();
+					return expr;
+				}
+				break;
 		}
 
 		return {
 			type: ERROR,
-			value: pl.error.syntax(tokens[start], "expression expected")
+			value: pl.error.syntax(token, "unexpected token")
 		};
 	}
-
-
+	
+	
 	function parseRule(session, tokens, start) {
+	
 		var expr = parseOperator(session, tokens, start, session.__get_max_priority());
 		if(expr.type != ERROR) {
 			start = expr.len;
@@ -606,10 +618,11 @@
 						};
 					}
 					else if(expr.value.indicator == "-->/2") {
+						var dcg = rule_to_dcg(new Rule(expr.value.args[0], expr.value.args[1]), session);
 						return {
-							value: rule_to_dcg(new Rule(expr.value.args[0], expr.value.args[1])),
+							value: dcg,
 							len: start,
-							type: SUCCESS
+							type: pl.type.is_rule( dcg ) ? SUCCESS : ERROR
 						};
 					}
 					else {
@@ -627,22 +640,24 @@
 					};
 				}
 			} else {
+				var token = tokens[start];
 				return {
 					type: ERROR,
-					value: pl.error.syntax(tokens[start], ". expected")
+					value: pl.error.syntax(token ? token : tokens[start-1], ". or expression expected", !token)
 				};
 			}
 		}
 		return expr;
 	}
-
-
+	
+	
 	function parseProgram(session, string) {
 		session.__stack_comma = [true];
 		
 		var line = 1;
 		var start = 0;
 		var position = 0;
+		var result;
 		
 		do {
 			
@@ -652,28 +667,30 @@
 			start = tokenize_state.start;
 			position = tokenize_state.len;
 			
+			if(tokens.length === 0) break;
+			
 			var expr = parseRule(session, tokens, 0);
-
+	
 			if(expr.type !== ERROR) {
 				if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
-					var result = session.run_directive(expr.value.head.args[0]);
+					result = session.run_directive(expr.value.head.args[0]);
 				} else {
-					var result = session.add_rule(expr.value);
+					result = session.add_rule(expr.value);
 				}
-
+	
 				if(!result) {
-					return result;
+					return new Term("throw", [result.value]);
 				}
 			} else {
-				return expr;
+				return new Term("throw", [expr.value]);
 			}
 			
 		} while( string.length != position );
 		
 		return true;
 	}
-
-
+	
+	
 	function parseQuery(session, string) {
 		session.__stack_comma = [true];
 		
@@ -688,40 +705,118 @@
 			start = tokenize_state.start;
 			position = tokenize_state.len;
 			
+			if(tokens.length === 0) break;
+			
 			var expr = parseOperator(session, tokens, 0, session.__get_max_priority());
-
 			if(expr.type !== ERROR) {
 				var expr_position = expr.len;
 				if(tokens[expr_position] && tokens[expr_position].name === "point") {
 					session.add_goal(expr.value);
 				} else {
+					var token = tokens[expr_position];
 					return {
 						type: ERROR,
-						value: pl.error.syntax(tokens[expr_position - 1], ". expected")
+						value: pl.error.syntax(token ? token : tokens[expr_position-1], ". or expression expected", !token)
 					};
 				}
 			} else {
-				return expr;
+				return new Term("throw", [expr.value]);
 			}
 			
 		} while(string.length != position);
 		
 		return true;
 	}
-
-
-
-
+	
+	
+	
+	
+	
+	
+	
+	
 	// UTILS
 
 	// Rule to DCG
-	function rule_to_dcg(rule) {
+	function rule_to_dcg(rule, session) {
+		rule = rule.rename( session );
+		var begin = session.next_free_variable();
+		var dcg = body_to_dcg( rule.body, begin, session );
+		if( dcg.error ) return dcg.value;
+		rule.body = dcg.value;
+		rule.head.args = rule.head.args.concat([begin,dcg.variable]);
+		rule.head = new Term(rule.head.id, rule.head.args);
 		return rule;
 	}
 
 	// Body to DCG
-	function body_to_dcg(expr) {
-		return expr;
+	function body_to_dcg(expr, last, session) {
+		var free;
+		if( pl.type.is_term( expr ) && expr.indicator === ",/2" ) {
+			var left = body_to_dcg(expr.args[0], last, session);
+			if( left.error ) return left;
+			var right = body_to_dcg(expr.args[1], left.variable, session);
+			if( right.error ) return right;
+			return {
+				value: new Term(',', [left.value, right.value]),
+				variable: right.variable,
+				error: false
+			};
+		} else if( pl.type.is_term( expr ) && expr.indicator === "{}/1" ) {
+			return {
+				value: expr.args[0],
+				variable: last,
+				error: false
+			};
+		} else if( pl.type.is_empty_list( expr ) ) {
+			return {
+				value: new Term("true", []),
+				variable: last,
+				error: false
+			};
+		} else if( pl.type.is_list( expr ) ) {
+			free = session.next_free_variable();
+			var pointer = expr;
+			var prev;
+			while( pointer.indicator == "./2" ) {
+				prev = pointer;
+				pointer = pointer.args[1];
+			}
+			if( pl.type.is_variable( pointer ) ) {
+				return {
+					value: pl.error.instantiation("DCG"),
+					variable: last,
+					error: true
+				};
+			} else if( !pl.type.is_empty_list( pointer ) ) {
+				return {
+					value: pl.error.type("list", expr, "DCG"),
+					variable: last,
+					error: true
+				};
+			} else {
+				prev.args[1] = free;
+				return {
+					value: new Term("=", [last, expr]),
+					variable: free,
+					error: false
+				};
+			}
+		} else if( pl.type.is_callable( expr ) ) {
+			free = session.next_free_variable();
+			expr.args = expr.args.concat([last,free]);
+			return {
+				value: expr,
+				variable: free,
+				error: false
+			};
+		} else {
+			return {
+				value: pl.error.type( "callable", expr, "DCG" ),
+				variable: last,
+				error: true
+			};
+		}
 	}
 	
 	// String to Prolog number
@@ -747,7 +842,7 @@
 	function remove( array, element ) {
 		for( var i = array.length - 1; i >= 0; i-- ) {
 			if( array[i] === element ) {
-			   array.splice(i, 1);
+				array.splice(i, 1);
 			}
 		}
 	}
@@ -795,7 +890,7 @@
 
 	// Session
 	function Session( limit ) {
-		limit === undefined || limit <= 0 ? 1000 : limit;
+		limit = limit === undefined || limit <= 0 ? 1000 : limit;
 		this.rules = {};
 		this.rename = 0;
 		this.level = "top_level/0";
@@ -906,7 +1001,7 @@
 	
 	// Substitutions
 	Substitution.prototype.toString = function() {
-		str = "{";
+		var str = "{";
 		for( var link in this.links ) {
 			if( str != "{" ) {
 				str += ", ";
@@ -1004,15 +1099,16 @@
 	
 	// Substitutions
 	Substitution.prototype.equals = function( obj ) {
+	var link;
 		if( !pl.type.is_substitution( obj ) ) {
 			return false;
 		}
-		for( var link in this.links ) {
+		for( link in this.links ) {
 			if( !obj.links[link] || !this.links[link].equals( obj.links[link] ) ) {
 				return false;
 			}
 		}
-		for( var link in obj.links ) {
+		for( link in obj.links ) {
 			if( !this.links[link] ) {
 				return false;
 			}
@@ -1117,12 +1213,12 @@
 	
 	// Substitutions
 	Substitution.prototype.apply = function( subs ) {
-		var links = {};
-		for( var link in this.links ) {
+		var link, links = {};
+		for( link in this.links ) {
 			//links[link] = this.links[link];
 			links[link] = this.links[link].apply(subs);
 		}
-		for( var link in subs.links ) {
+		for( link in subs.links ) {
 			links[link] = subs.links[link];
 		}
 		return new Substitution( links );
@@ -1137,7 +1233,7 @@
 		if( occurs_check && obj.variables().indexOf( this.id ) !== -1 && !pl.type.is_variable( obj ) ) {
 			return null;
 		}
-		var links = {}
+		var links = {};
 		links[this.id] = obj;
 		return new State( obj, new Substitution( links ) );
 	};
@@ -1372,7 +1468,8 @@
 				} else if( this.rules[atom.indicator] ) {
 					var lx = new Term( "js:level", [new Term( atom.indicator, [] )] );
 					var ly = new Term( "js:level", [new Term( this.level, [] )] );
-					for( var rule of this.rules[atom.indicator] ) {
+					for( var _rule in this.rules[atom.indicator] ) {
+			var rule = this.rules[atom.indicator][_rule];
 						this.renamed_variables = {};
 						rule = rule.rename( this );
 						if( rule.body !== null ) {
@@ -1419,7 +1516,7 @@
 	
 	// Find all computed answers
 	Session.prototype.answers = function( limit, callback, answers ) {
-		var answers = answers || [];
+		answers = answers || [];
 		var session = this;
 		this.__calls = [];
 		if( limit > 0 ) {
@@ -1501,7 +1598,7 @@
 	};
 	
 	// Numbers
-	Num.prototype.compose = function( _, _ ) {
+	Num.prototype.compose = function( _1, _2 ) {
 		return this;
 	};
 	
@@ -1580,20 +1677,21 @@
 	// Filter variables
 	Substitution.prototype.filter = function( variables ) {
 		var links = {};
-		for( var variable of variables ) {
+		for( var _variable in variables ) {
+		var variable = variables[_variable];
 			if( this.links[variable] ) {
 				links[variable] = this.links[variable];
 			}
 		}
 		return new Substitution( links );
-	}
+	};
 	
 	// Add link
 	Substitution.prototype.add = function( variable, value ) {
 		var subs = new Substitution();
 		subs.links[variable] = value;
 		return this.apply( subs );
-	}
+	};
 	
 	
 	
@@ -1618,7 +1716,7 @@
 	
 	// Rules
 	Rule.prototype.compile = function() {
-		return 'new pl.type.Rule(' + this.head.compile() + ', ' + (this.body == null ? 'null' : this.body.compile()) + ')';
+		return 'new pl.type.Rule(' + this.head.compile() + ', ' + (this.body === null ? 'null' : this.body.compile()) + ')';
 	};
 	
 	
@@ -1659,11 +1757,6 @@
 				}
 			},
 			
-			// Is an object
-			is_object: function( obj ) {
-				return obj instanceof Obj;
-			},
-			
 			// Is a substitution
 			is_substitution: function( obj ) {
 				return obj instanceof Substitution;
@@ -1677,11 +1770,6 @@
 			// Is a rule
 			is_rule: function( obj ) {
 				return obj instanceof Rule;
-			},
-			
-			// Is a program
-			is_program: function( obj ) {
-				return obj instanceof Program;
 			},
 			
 			// Is a variable
@@ -1805,8 +1893,8 @@
 			// Is a valid value for a flag
 			is_value_flag: function( flag, obj ) {
 				if( !pl.type.is_flag( flag ) ) return false;
-				for( var value of pl.flag[flag.id].allowed ) {
-					if( value.equals( obj ) ) return true;
+				for( var value in pl.flag[flag.id].allowed ) {
+					if( pl.flag[flag.id].allowed[value].equals( obj ) ) return true;
 				}
 				return false;
 			},
@@ -1971,12 +2059,7 @@
 				"**/2": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, y, _ ) { return x ** y; }
-				},
-				"^/2": {
-					type_args: false,
-					type_result: false,
-					fn: function( x, y, _ ) { return x^y; }
+					fn: function( x, y, _ ) { return Math.pow(x, y); }
 				},
 				"<</2": {
 					type_args: false,
@@ -2040,12 +2123,12 @@
 				if( pl.type.is_variable( module ) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( module ) ) {
-					session.throwError( pl.error.type( "atom", indicator, atom.indicator ) );
+					session.throwError( pl.error.type( "atom", module, atom.indicator ) );
 				} else {
 					if( pl.type.is_module( module ) ) {
 						if( session.__loaded_modules.indexOf( module.id ) === -1 ) {
 							session.__loaded_modules.push( module.id );
-							get_module = pl.module[module.id].rules;
+							var get_module = pl.module[module.id].rules;
 							for( var predicate in get_module ) {
 								session.rules[predicate] = get_module[predicate];
 							}
@@ -2094,7 +2177,7 @@
 					session.throwError( pl.error.domain( "operator_specifier", type, atom.indicator ) );
 				} else {
 					var fix = { prefix: null, infix: null, postfix: null };
-					for( p in session.__operators ) {
+					for( var p in session.__operators ) {
 						var classes = session.__operators[p][operator.id];
 						if( classes ) {
 							if( classes.indexOf( "fx" ) !== -1 ) { fix.prefix = { priority: p, type: "fx" }; }
@@ -2113,7 +2196,7 @@
 						default: current_class = "infix"; break;
 					}
 					if( ((fix.prefix && current_class === "prefix" || fix.postfix && current_class === "postfix" || fix.infix && current_class === "infix")
-					 && fix[current_class].type !== type.id || fix.infix && current_class === "postfix" || fix.postfix && current_class === "infix") && priority.value !== 0 ) {
+						&& fix[current_class].type !== type.id || fix.infix && current_class === "postfix" || fix.postfix && current_class === "infix") && priority.value !== 0 ) {
 						session.throwError( pl.error.permission( "create", "operator", operator, atom.indicator ) );
 					} else {
 						if( fix[current_class] ) {
@@ -2186,7 +2269,7 @@
 			},
 			
 			// fail/0
-			"fail/0": function( _, _, _ ) {},
+			"fail/0": function( _1, _2, _3 ) {},
 			
 			// true/0
 			"true/0": function( session, point, _ ) {
@@ -2267,29 +2350,29 @@
 			// =/2 (unification)
 			"=/2": function( session, point, atom ) {
 				var state = pl.unify( atom.args[0], atom.args[1], false );
-                if( state !== null ) {
-                    state.goal = point.goal.apply( state.substitution ).replace( null );
-                    state.substitution = point.substitution.apply( state.substitution );
-                    session.prepend( [state] );
-                }
+				if( state !== null ) {
+					state.goal = point.goal.apply( state.substitution ).replace( null );
+					state.substitution = point.substitution.apply( state.substitution );
+					session.prepend( [state] );
+				}
 			},
 			
 			// unify_with_occurs_check/2
 			"unify_with_occurs_check/2": function( session, point, atom ) {
 				var state = pl.unify( atom.args[0], atom.args[1], true );
-                if( state !== null ) {
-                    state.goal = point.goal.apply( state.substitution ).replace( null );
-                    state.substitution = point.substitution.apply( state.substitution );
-                    session.prepend( [state] );
-                }
+				if( state !== null ) {
+					state.goal = point.goal.apply( state.substitution ).replace( null );
+					state.substitution = point.substitution.apply( state.substitution );
+					session.prepend( [state] );
+				}
 			},
 			
 			// \=/2
 			"\\=/2": function( session, point, atom ) {
 				var state = pl.unify( atom.args[0], atom.args[1] );
-                if( state === null ) {
-                    session.true( point );
-                }
+				if( state === null ) {
+					session.true( point );
+				}
 			},
 			
 			// ALL SOLUTIONS
@@ -2342,7 +2425,7 @@
 			
 			// bagof/3
 			"bagof/3": function( session, point, atom ) {
-				var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
+				var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
 				if( pl.type.is_variable( goal ) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( goal ) ) {
@@ -2381,7 +2464,8 @@
 							var match = false;
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
-							for( elem of answers ) {
+							for( var _elem in answers ) {
+								var elem = answers[_elem];
 								if( elem.variables.equals( arg_vars ) ) {
 									elem.answers.push( arg_template );
 									match = true;
@@ -2403,7 +2487,7 @@
 							} else if( session.current_limit > 0 ) {
 								var states = [];
 								for( var i = 0; i < answers.length; i++ ) {
-									var answer = answers[i].answers;
+									answer = answers[i].answers;
 									var list = new Term( "[]" );
 									for( var j = answer.length - 1; j >= 0; j-- ) {
 										list = new Term( ".", [answer[j], list] );
@@ -2420,7 +2504,7 @@
 	
 			// setof/3
 			"setof/3": function( session, point, atom ) {
-				var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
+				var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
 				if( pl.type.is_variable( goal ) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( goal ) ) {
@@ -2459,7 +2543,8 @@
 							var match = false;
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
-							for( elem of answers ) {
+							for( var _elem in answers ) {
+								var elem = answers[_elem];
 								if( elem.variables.equals( arg_vars ) ) {
 									elem.answers.push( arg_template );
 									match = true;
@@ -2481,7 +2566,7 @@
 							} else if( session.current_limit > 0 ) {
 								var states = [];
 								for( var i = 0; i < answers.length; i++ ) {
-									var answer = answers[i].answers.sort( pl.compare );
+									answer = answers[i].answers.sort( pl.compare );
 									var list = new Term( "[]" );
 									for( var j = answer.length - 1; j >= 0; j-- ) {
 										list = new Term( ".", [answer[j], list] );
@@ -2500,6 +2585,7 @@
 			
 			// functor/3
 			"functor/3": function( session, point, atom ) {
+				var subs;
 				if( pl.type.is_variable( atom.args[0] ) && (pl.type.is_variable( atom.args[1] ) || pl.type.is_variable( atom.args[2] )) ) {
 					session.throwError( pl.error.instantiation( "functor/3" ) );
 				} else if( !pl.type.is_variable( atom.args[2] ) && !pl.type.is_integer( atom.args[2] ) ) {
@@ -2508,7 +2594,7 @@
 					session.throwError( pl.error.type( "atomic", atom.args[1], "functor/3" ) );
 				} else if( pl.type.is_variable( atom.args[0] ) ) {
 					if( atom.args[2].value >= 0 ) {
-						var subs = new Substitution();
+						subs = new Substitution();
 						var args = [];
 						for( var i = 0; i < atom.args[2].value; i++ ) {
 							session.rename++;
@@ -2517,7 +2603,7 @@
 							}
 							args.push( new Var( pl.format_variable( session.rename ) ) );
 						}
-						var subs = new Substitution().add( atom.args[0].id, new Term( atom.args[1].id, args ) );
+						subs = new Substitution().add( atom.args[0].id, new Term( atom.args[1].id, args ) );
 						session.prepend( [new State( point.goal.apply( subs ).replace( null ), point.substitution.apply( subs ) )] );
 					}
 				} else {
@@ -2547,13 +2633,13 @@
 			
 			// =../2 (univ)
 			"=../2": function( session, point, atom ) {
+				var list;
 				if( pl.type.is_variable( atom.args[0] ) && (pl.type.is_variable( atom.args[1] )
 				|| pl.type.is_non_empty_list( atom.args[1] ) && pl.type.is_variable( atom.args[1].args[0] )) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_fully_list( atom.args[1] ) ) {
 					session.throwError( pl.error.type( "list", atom.args[1], atom.indicator ) );
 				} else if( !pl.type.is_variable( atom.args[0] ) ) {
-					var list;
 					if( pl.type.is_atomic( atom.args[0] ) ) {
 						list = new Term( ".", [atom.args[0], new Term( "[]" )] );
 					} else {
@@ -2565,8 +2651,8 @@
 					}
 					session.prepend( [new State( point.goal.replace( new Term( "=", [list, atom.args[1]] ) ), point.substitution )] );
 				} else if( !pl.type.is_variable( atom.args[1] ) ) {
-					var list = atom.args[1].args[1];
 					var args = [];
+					list = atom.args[1].args[1];
 					while( list.indicator === "./2" ) {
 						args.push( list.args[0] );
 						list = list.args[1];
@@ -2590,17 +2676,17 @@
 			// copy_term/2
 			"copy_term/2": function( session, point, atom ) {
 				var state = pl.unify( atom.args[0], atom.args[1], false );
-                if( state !== null ) {
+				if( state !== null ) {
 					var subs = state.substitution.filter( atom.args[1].variables() );
 					for( var variable in subs.links ) {
 						if( pl.type.is_variable( subs.links[variable] ) ) {
 							delete subs.links[variable];
 						}
 					}
-                    state.goal = point.goal.apply( subs ).replace( null );
-                    state.substitution = point.substitution.apply( subs );
-                    session.prepend( [state] );
-                }
+					state.goal = point.goal.apply( subs ).replace( null );
+					state.substitution = point.substitution.apply( subs );
+					session.prepend( [state] );
+				}
 			},
 			
 			// CLAUSE RETRIEVAL AND INFORMATION
@@ -2616,7 +2702,8 @@
 				} else if( session.rules[atom.args[0].indicator] !== undefined ) {
 					if( session.is_public_predicate( atom.args[0].indicator ) ) {
 						var states = [];
-						for( var rule of session.rules[atom.args[0].indicator] ) {
+						for( var _rule in session.rules[atom.args[0].indicator] ) {
+							var rule = session.rules[atom.args[0].indicator][_rule];
 							session.renamed_variables = {};
 							rule = rule.rename( session );
 							if( rule.body === null ) {
@@ -2738,7 +2825,7 @@
 						if( session.rules[head.indicator] !== undefined ) {
 							for( var i = 0; i < session.rules[atom.args[0].indicator].length; i++ ) {
 								session.renamed_variables = {};
-								rule = session.rules[atom.args[0].indicator][i].rename( session );
+								var rule = session.rules[atom.args[0].indicator][i].rename( session );
 								var state = pl.unify( head, rule.head );
 								if( state !== null ) {
 									if( body === null ) {
@@ -2809,7 +2896,7 @@
 			
 			// atom_concat/3
 			"atom_concat/3": function( session, point, atom ) {
-				var start = atom.args[0], end = atom.args[1], whole = atom.args[2];
+				var str, goal, start = atom.args[0], end = atom.args[1], whole = atom.args[2];
 				if( pl.type.is_variable( whole ) && (pl.type.is_variable( start ) || pl.type.is_variable( end )) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( start ) && !pl.type.is_atom( start ) ) {
@@ -2821,20 +2908,20 @@
 				} else {
 					var v1 = pl.type.is_variable( start );
 					var v2 = pl.type.is_variable( end );
-					var v3 = pl.type.is_variable( whole );
+					//var v3 = pl.type.is_variable( whole );
 					if( !v1 && !v2 ) {
-						var goal = new Term( "=", [whole, new Term( start.id + end.id )] );
+						goal = new Term( "=", [whole, new Term( start.id + end.id )] );
 						session.prepend( [new State( point.goal.replace( goal ), point.substitution )] );
 					} else if( v1 && !v2 ) {
-						var str = whole.id.substr( 0, whole.id.length - end.id.length );
+						str = whole.id.substr( 0, whole.id.length - end.id.length );
 						if( str + end.id === whole.id ) {
-							var goal = new Term( "=", [start, new Term( str )] );
+							goal = new Term( "=", [start, new Term( str )] );
 							session.prepend( [new State( point.goal.replace( goal ), point.substitution )] );
 						}
 					} else if( v2 && !v1 ) {
-						var str = whole.id.substr( start.id.length );
+						str = whole.id.substr( start.id.length );
 						if( start.id + str === whole.id ) {
-							var goal = new Term( "=", [end, new Term( str )] );
+							goal = new Term( "=", [end, new Term( str )] );
 							session.prepend( [new State( point.goal.replace( goal ), point.substitution )] );
 						}
 					} else {
@@ -2842,7 +2929,7 @@
 						for( var i = 0; i <= whole.id.length; i++ ) {
 							var atom1 = new Term( whole.id.substr( 0, i ) );
 							var atom2 = new Term( whole.id.substr( i ) );
-							var goal = new Term( ",", [new Term( "=", [atom1, start] ), new Term( "=", [atom2, end] )] );
+							goal = new Term( ",", [new Term( "=", [atom1, start] ), new Term( "=", [atom2, end] )] );
 							states.push( new State( point.goal.replace( goal ), point.substitution ) );
 						}
 						session.prepend( states );
@@ -2852,7 +2939,7 @@
 			
 			// sub_atom/5
 			"sub_atom/5": function( session, point, atom ) {
-				var atom1 = atom.args[0], before = atom.args[1], length = atom.args[2], after = atom.args[3], subatom = atom.args[4];
+				var i, atom1 = atom.args[0], before = atom.args[1], length = atom.args[2], after = atom.args[3], subatom = atom.args[4];
 				if( pl.type.is_variable( atom1 ) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( before ) && !pl.type.is_integer( before ) ) {
@@ -2870,29 +2957,31 @@
 				} else {
 					var bs = [], ls = [], as = [];
 					if( pl.type.is_variable( before ) ) {
-						for( var i = 0; i <= atom1.id.length; i++ ) {
+						for( i = 0; i <= atom1.id.length; i++ ) {
 							bs.push( i );
 						}
 					} else {
 						bs.push( before.value );
 					}
 					if( pl.type.is_variable( length ) ) {
-						for( var i = 0; i <= atom1.id.length; i++ ) {
+						for( i = 0; i <= atom1.id.length; i++ ) {
 							ls.push( i );
 						}
 					} else {
 						ls.push( length.value );
 					}
 					if( pl.type.is_variable( after ) ) {
-						for( var i = 0; i <= atom1.id.length; i++ ) {
+						for( i = 0; i <= atom1.id.length; i++ ) {
 							as.push( i );
 						}
 					} else {
 						as.push( after.value );
 					}
 					var states = [];
-					for( var i of bs ) {
-						for( var j of ls ) {
+					for( var _i in bs ) {
+						i = bs[_i];
+						for( var _j in ls ) {
+							var j = ls[_j];
 							var k = atom1.id.length - i - j;
 							if( as.indexOf( k ) !== -1 ) {
 							if( i+j+k === atom1.id.length ) {
@@ -2902,7 +2991,7 @@
 										var pl2 = new Term( "=", [before, new Num( i )] );
 										var pl3 = new Term( "=", [length, new Num( j )] );
 										var pl4 = new Term( "=", [after, new Num( k )] );
-										var goal = new Term( ",", [ new Term( ",", [ new Term( ",", [pl2, pl3] ), pl4] ), pl1] ) 
+										var goal = new Term( ",", [ new Term( ",", [ new Term( ",", [pl2, pl3] ), pl4] ), pl1] );
 										states.push( new State( point.goal.replace( goal ), point.substitution ) );
 									}
 								}
@@ -3023,7 +3112,7 @@
 			
 			// number_chars/2
 			"number_chars/2": function( session, point, atom ) {
-				var num = atom.args[0], list = atom.args[1];
+				var str, num = atom.args[0], list = atom.args[1];
 				if( pl.type.is_variable( num ) && pl.type.is_variable( list ) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
@@ -3032,7 +3121,7 @@
 					if( !pl.type.is_variable( list ) ) {	
 						var pointer = list;
 						var v = pl.type.is_variable( num );
-						var str = "";
+						str = "";
 						while( pointer.indicator === "./2" ) {
 							if( !pl.type.is_character( pointer.args[0] ) ) {
 								if( pl.type.is_variable( pointer.args[0] ) && v ) {
@@ -3046,6 +3135,7 @@
 									return;
 								}
 							} else {
+
 								str += pointer.args[0].id;
 							}
 							pointer = pointer.args[1];
@@ -3067,7 +3157,7 @@
 						}
 					}
 					if( !pl.type.is_variable( num ) ) {
-						var str = num.toString();
+						str = num.toString();
 						var list2 = new Term( "[]" );
 						for( var i = str.length - 1; i >= 0; i-- ) {
 							list2 = new Term( ".", [ new Term( str.charAt( i ) ), list2 ] );
@@ -3079,7 +3169,7 @@
 			
 			// number_codes/2
 			"number_codes/2": function( session, point, atom ) {
-				var num = atom.args[0], list = atom.args[1];
+				var str, num = atom.args[0], list = atom.args[1];
 				if( pl.type.is_variable( num ) && pl.type.is_variable( list ) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
@@ -3088,7 +3178,7 @@
 					if( !pl.type.is_variable( list ) ) {	
 						var pointer = list;
 						var v = pl.type.is_variable( num );
-						var str = "";
+						str = "";
 						while( pointer.indicator === "./2" ) {
 							if( !pl.type.is_character_code( pointer.args[0] ) ) {
 								if( pl.type.is_variable( pointer.args[0] ) && v ) {
@@ -3123,7 +3213,7 @@
 						}
 					}
 					if( !pl.type.is_variable( num ) ) {
-						var str = num.toString();
+						str = num.toString();
 						var list2 = new Term( "[]" );
 						for( var i = str.length - 1; i >= 0; i-- ) {
 							list2 = new Term( ".", [ new Num( str.charCodeAt( i ), false ), list2 ] );
@@ -3539,12 +3629,10 @@
 			},
 			
 			// Syntax error
-			//syntax: function( expected, found, line, char ) {
-				//return new Term( "error", [new Term( "syntax_error", [new Term( expected ), new Term( found )] ), new Term( "stream", [new Term( "line", [new Num( line )] ), new Term( "character", [new Num( char )] )] )] );
-			//},
-			syntax: function( token, expected ) {
-				return {t: token, e: expected};
-				return new Term( "error", [new Term( "syntax_error", [new Term( expected )] )] );
+			syntax: function( token, expected, last ) {
+				var position = last ? token.start + token.value.length : token.start;
+				var found = last ? new Term("token_not_found") : new Term("found", [new Term(token.value)]);
+				return new Term( "error", [new Term( "syntax_error", [new Term( "line", [new Num(token.line)] ), new Term( "column", [new Num(position+1)] ), found, new Term( "cause", [new Term( expected )] )] )] );
 			},
 			
 			// Syntax error by predicate
@@ -3571,14 +3659,14 @@
 				var i = 0;
 				var str = "";
 				for( var link in answer.links ) {
-					i++
-					if( str != "" ) {
+					i++;
+					if( str !== "" ) {
 						str += ", ";
 					}
 					str += link.toString() + " = " + answer.links[link].toString();
 				}
 				if( i === 0 ) {
-					return "true ;"
+					return "true ;";
 				} else {
 					return str + " ;";
 				}
