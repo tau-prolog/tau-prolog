@@ -714,10 +714,7 @@
 					session.add_goal(expr.value);
 				} else {
 					var token = tokens[expr_position];
-					return {
-						type: ERROR,
-						value: pl.error.syntax(token ? token : tokens[expr_position-1], ". or expression expected", !token)
-					};
+					return new Term("throw", [pl.error.syntax(token ? token : tokens[expr_position-1], ". or expression expected", !token)]);
 				}
 			} else {
 				return new Term("throw", [expr.value]);
