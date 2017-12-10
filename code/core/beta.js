@@ -2262,7 +2262,7 @@
 			"!/0": function( session, point, atom ) {
 				var parent_cut, states = [];
 				parent_cut = point;
-				while( parent_cut !== null && parent_cut.parent.goal.search( atom ) )
+				while( parent_cut.parent !== null && parent_cut.parent.goal.search( atom ) )
 					parent_cut = parent_cut.parent;
 				for( var i = 0; i < session.points.length; i++ ) {
 					var state = session.points[i];
