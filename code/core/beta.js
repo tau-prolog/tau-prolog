@@ -2270,7 +2270,7 @@
 					while( node !== null && node !== parent_cut.parent ) {
 						node = node.parent;
 					}
-					if( node === null )
+					if( node === null && node !== parent_cut.parent )
 						states.push( state );
 				}
 				session.points = [new State( point.goal.replace( null ), point.substitution, point )].concat( states );
