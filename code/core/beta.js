@@ -1220,7 +1220,6 @@
 	Substitution.prototype.apply = function( subs ) {
 		var link, links = {};
 		for( link in this.links ) {
-			//links[link] = this.links[link];
 			links[link] = this.links[link].apply(subs);
 		}
 		for( link in subs.links ) {
@@ -1297,6 +1296,8 @@
 	Term.prototype.search = function( expr ) {
 		if( this.indicator === ",/2" ) {
 			return this.args[0].search( expr ) || this.args[1].search( expr );
+		} else if( this.indicator === "catch/3" ) {
+			return this.args[0].search( expr );
 		} else {
 			return this === expr;
 		}
@@ -1379,7 +1380,7 @@
 
 	// Add a goal
 	Session.prototype.add_goal = function( goal ) {
-		this.points.push( new State( goal, new Substitution(), null ) );
+		this.points.push( new State( goal, new Substitution(), null, null ) );
 		this.variables = goal.variables();
 	};
 
@@ -1452,12 +1453,12 @@
 	
 	// Remove the selected term and prepend the current state
 	Session.prototype.true = function( point ) {
-		this.prepend( [new State( point.goal.replace( null ), point.substitution, point.parent) ] );
+		this.prepend( [new State( point.goal.replace( null ), point.substitution, point.parent ) ] );
 	};
 	
 	// Throw error
 	Session.prototype.throwError = function( error ) {
-		this.points = [new State( new Term( "throw", [error] ), new Substitution() )];
+		this.prepend( [new State( new Term( "throw", [error] ), new Substitution(), null, null )] );
 	};
 	
 	// Resolution step
@@ -1548,10 +1549,11 @@
 
 	// Again finding next computed answer
 	Session.prototype.again = function() {
+		var answer;
 		while( this.__calls.length > 0 ) {
 			this.warnings = [];
 			this.current_limit = this.limit;
-			while( this.current_limit > 0 && this.points.length > 0 && this.points[0].goal !== null ) {
+			while( this.current_limit > 0 && this.points.length > 0 && this.points[0].goal !== null && !pl.type.is_error( this.points[0].goal ) ) {
 				this.current_limit--;
 				if( this.step() === true ) {
 					return;
@@ -1562,8 +1564,12 @@
 				success( null );
 			} else if( this.points.length === 0 ) {
 				success( false );
+			} else if( pl.type.is_error( this.points[0].goal ) ) {
+				answer = this.points.shift().goal;
+				this.points = [];
+				success( answer );
 			} else {
-				var answer = this.points.shift().substitution;
+				answer = this.points.shift().substitution;
 				if( pl.type.is_substitution( answer ) ) {
 					answer = answer.filter( this.variables );
 				}
@@ -2355,13 +2361,63 @@
 				if( pl.type.is_variable( atom.args[0] ) ) {
 					session.throwError( pl.error.instantiation( session.level ) );
 				} else {
-					session.points = [new State( null, atom, point )];
+					session.throwError( atom.args[0] );
 				}
 			},
 			
 			// catch/3
 			"catch/3": function( session, point, atom ) {
-
+				var points = session.points;
+				session.points = [];
+				session.prepend( [new State( atom.args[0], point.substitution, point )] );
+				var callback = function( answer ) {
+					var call_points = session.points;
+					session.points = points;
+					if( pl.type.is_error( answer ) ) {
+						var states = [];
+						for( var i = 0; i < session.points.length; i++ ) {
+							var state = session.points[i];
+							var node = state.parent;
+							while( node !== null && node !== point.parent ) {
+								node = node.parent;
+							}
+							if( node === null && node !== point.parent )
+								states.push( state );
+						}
+						session.points = states;
+						var state = pl.unify( answer.args[0], atom.args[1], false );
+						if( state !== null ) {
+							state.substitution = state.substitution.apply( point.substitution.exclude( point.exclude ? point.exclude : [] ) );
+							state.goal = point.goal.replace( atom.args[2] ).apply( state.substitution );
+							session.prepend( [state] );
+						} else {
+							session.throwError( answer.args[0] );
+						}
+					} else if( answer !== false ) {
+						var answer_state = answer === null ? [] : [new State(
+							point.goal.apply( answer ).replace( null ),
+							point.substitution.apply( answer ),
+							point
+						)];
+						var catch_points = call_points.map( function( state ) {
+							if( state.goal === null )
+								state.goal = new Term( "true", [] );
+							state = new State(
+								point.goal.replace( new Term( "catch", [state.goal, atom.args[1], atom.args[2]] ) ),
+								point.substitution.apply( state.substitution ),
+								state.parent
+							);
+							state.exclude = atom.args[0].variables();
+							return state;
+						} );
+						session.prepend( answer_state.concat( catch_points ) );
+						if( answer === null ) {
+							this.current_limit = 0;
+							session.__calls.shift()( null );
+						}
+					}
+				};
+				session.__calls.unshift( callback );
 			},
 			
 			// UNIFICATION
@@ -2411,19 +2467,15 @@
 					var points = session.points;
 					var variables = session.variables;
 					var limit = session.limit;
-					var calls = session.__calls;
 					session.points = [new State( newGoal, new Substitution(), point )];
 					session.variables = [variable.id];
 					var answers = [];
 					var callback = function( answer ) {
-						calls = calls.concat( session.__calls.splice( 1 ) );
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							session.__calls = [callback];
+							session.__calls.unshift( callback );
 							answers.push( answer.links[variable.id] );
 							session.limit = session.current_limit;
-							session.answer( callback );
 						} else {
-							session.__calls = calls;
 							session.points = points;
 							session.variables = variables;
 							session.limit = limit;
@@ -2438,7 +2490,7 @@
 							}
 						}
 					};
-					session.__calls = [callback].concat( session.__calls );
+					session.__calls.unshift( callback );
 				}
 			},
 			
@@ -2472,14 +2524,12 @@
 					var points = session.points;
 					var variables = session.variables;
 					var limit = session.limit;
-					var calls = session.__calls;
 					session.points = [new State( newGoal, new Substitution(), point )];
 					session.variables = [variable.id];
 					var answers = [];
 					var callback = function( answer ) {
-						calls = calls.concat( session.__calls.splice( 1 ) );
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							session.__calls = [callback];
+							session.__calls.unshift( callback );
 							var match = false;
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
@@ -2495,9 +2545,7 @@
 								answers.push( {variables: arg_vars, answers: [arg_template]} );
 							}
 							session.limit = session.current_limit;
-							session.answer( callback );
 						} else {
-							session.__calls = calls;
 							session.points = points;
 							session.variables = variables;
 							session.limit = limit;
@@ -2520,7 +2568,7 @@
 							}
 						}
 					};
-					session.__calls = [callback].concat( session.__calls );
+					session.__calls.unshift( callback );
 				}
 			},
 	
@@ -2554,14 +2602,12 @@
 					var points = session.points;
 					var variables = session.variables;
 					var limit = session.limit;
-					var calls = session.__calls;
 					session.points = [new State( newGoal, new Substitution(), point )];
 					session.variables = [variable.id];
 					var answers = [];
 					var callback = function( answer ) {
-						calls = calls.concat( session.__calls.splice( 1 ) );
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							session.__calls = [callback];
+							session.__calls.unshift( callback );
 							var match = false;
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
@@ -2577,9 +2623,7 @@
 								answers.push( {variables: arg_vars, answers: [arg_template]} );
 							}
 							session.limit = session.current_limit;
-							session.answer( callback );
 						} else {
-							session.__calls = calls;
 							session.points = points;
 							session.variables = variables;
 							session.limit = limit;
@@ -2602,7 +2646,7 @@
 							}
 						}
 					};
-					session.__calls = [callback].concat( session.__calls );
+					session.__calls.unshift( callback );
 				}
 			},
 			
@@ -2690,9 +2734,9 @@
 						session.throwError( pl.error.type( "atom", atom.args[1].args[0], atom.indicator ) );
 					} else {
 						if( args.length === 0 ) {
-							session.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[1].args[0], atom.args[0]], point ) ), point.substitution )] );
+							session.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[1].args[0], atom.args[0]], point ) ), point.substitution, point )] );
 						} else {
-							session.prepend( [new State( point.goal.replace( new Term( "=", [new Term( atom.args[1].args[0].id, args ), atom.args[0]], point ) ), point.substitution )] );
+							session.prepend( [new State( point.goal.replace( new Term( "=", [new Term( atom.args[1].args[0].id, args ), atom.args[0]] ) ), point.substitution, point )] );
 						}
 					}
 				}
