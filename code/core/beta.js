@@ -1747,6 +1747,23 @@
 		return 'new pl.type.Rule(' + this.head.compile() + ', ' + (this.body === null ? 'null' : this.body.compile()) + ')';
 	};
 	
+	// Sessions
+	Session.prototype.compile = function() {
+		var str, obj = [], rules;
+		for( var _indicator in this.rules ) {
+			var indicator = this.rules[_indicator];
+			rules = [];
+			str = "\"" + _indicator + "\": [";
+			for( var i = 0; i < indicator.length; i++ ) {
+				rules.push( indicator[i].compile() );
+			}
+			str += rules.join();
+			str += "]";
+			obj.push( str );
+		}
+		return "{" + obj.join() + "};";
+	};
+	
 	
 	
 	// PROLOG
@@ -1873,6 +1890,14 @@
 				return obj instanceof Var || obj instanceof Term && obj.indicator === "[]/0";
 			},
 			
+			// Is a instantiated list
+			is_instantiated_list: function( obj ) {
+				while( obj instanceof Term && obj.indicator === "./2" ) {
+					obj = obj.args[1];
+				}
+				return obj instanceof Term && obj.indicator === "[]/0";
+			},
+			
 			// Is an unitary list
 			is_unitary_list: function( obj ) {
 				return obj instanceof Term && obj.indicator === "./2" && obj.args[1] instanceof Term && obj.args[1].indicator === "[]/0";
@@ -1932,9 +1957,9 @@
 				return pl.type.is_flag( obj ) && pl.flag[obj.id].changeable;
 			},
 			
-			// Is a existing module
+			// Is an existing module
 			is_module: function( obj ) {
-				return obj instanceof Term && obj.args.length === 0 && pl.module[obj.id] !== undefined;
+				return obj instanceof Term && obj.indicator === "library/1" && obj.args[0] instanceof Term && obj.args[0].args.length === 0 && pl.module[obj.args[0].id] !== undefined;
 			}
 			
 		},
@@ -2150,13 +2175,14 @@
 				var module = atom.args[0];
 				if( pl.type.is_variable( module ) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_atom( module ) ) {
-					session.throwError( pl.error.type( "atom", module, atom.indicator ) );
+				} else if( !pl.type.is_term( module ) ) {
+					session.throwError( pl.error.type( "term", module, atom.indicator ) );
 				} else {
 					if( pl.type.is_module( module ) ) {
-						if( session.__loaded_modules.indexOf( module.id ) === -1 ) {
-							session.__loaded_modules.push( module.id );
-							var get_module = pl.module[module.id].rules;
+						var name = module.args[0].id;
+						if( session.__loaded_modules.indexOf( name ) === -1 ) {
+							session.__loaded_modules.push( name );
+							var get_module = pl.module[name].rules;
 							for( var predicate in get_module ) {
 								session.rules[predicate] = get_module[predicate];
 							}
