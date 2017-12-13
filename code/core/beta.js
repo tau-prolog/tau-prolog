@@ -1296,8 +1296,6 @@
 	Term.prototype.search = function( expr ) {
 		if( this.indicator === ",/2" ) {
 			return this.args[0].search( expr ) || this.args[1].search( expr );
-		} else if( this.indicator === "catch/3" ) {
-			return this.args[0].search( expr );
 		} else {
 			return this === expr;
 		}
@@ -1453,7 +1451,7 @@
 	
 	// Remove the selected term and prepend the current state
 	Session.prototype.true = function( point ) {
-		this.prepend( [new State( point.goal.replace( null ), point.substitution, point.parent ) ] );
+		this.prepend( [new State( point.goal.replace( null ), point.substitution, point ) ] );
 	};
 	
 	// Throw error
@@ -2454,6 +2452,7 @@
 				if( state !== null ) {
 					state.goal = point.goal.apply( state.substitution ).replace( null );
 					state.substitution = point.substitution.apply( state.substitution );
+					state.parent = point;
 					session.prepend( [state] );
 				}
 			},
@@ -2464,6 +2463,7 @@
 				if( state !== null ) {
 					state.goal = point.goal.apply( state.substitution ).replace( null );
 					state.substitution = point.substitution.apply( state.substitution );
+					state.parent = point;
 					session.prepend( [state] );
 				}
 			},
@@ -2471,6 +2471,7 @@
 			// \=/2
 			"\\=/2": function( session, point, atom ) {
 				var state = pl.unify( atom.args[0], atom.args[1] );
+				state.parent = point;
 				if( state === null ) {
 					session.true( point );
 				}
