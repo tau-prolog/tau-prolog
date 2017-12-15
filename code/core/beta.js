@@ -2314,16 +2314,20 @@
 				} else if( !pl.type.is_callable( goal ) ) {
 					session.throwError( pl.error.type( "callable", goal, session.level ) );
 				} else {
-					var session2 = session.program.session( goal, session.limit );
-					session2.level = atom.indicator;
-					session2.copy_context( session );
-					var answer = session2.answer();
-					if( answer === false ){
-						session.true( point );
-					} else if( pl.type.is_error( answer ) ) {
-						session.throwError( answer.args[0] );
-					}
-					session.copy_context( session2 );
+					var points = session.points;
+					session.points = [new State( atom.args[0], point.substitution, point )];
+					var callback = function( answer ) {
+						if( answer === false )
+							session.true( point );
+						else if( pl.type.is_error( answer ) )
+							session.throwError( answer.args[0] );
+						else if( answer === null ) {
+							session.points = [point].concat( points );
+							session.__calls.shift()( null );
+						} else
+							session.points = points;
+					};
+					session.__calls.unshift( callback );
 				}
 			},
 			
