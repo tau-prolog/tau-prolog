@@ -1,6 +1,28 @@
 (function() {
 	
 	// PARSER
+
+	if(!Object.keys) {
+		Object.keys = function(obj) {
+			var k = [];
+			for(var key in obj) k.push(key);
+			return k;
+		};
+	}
+
+	var indexOf;
+	if(!Array.indexOf) {
+		indexOf = function(array, elem) {
+			for(var i = 0; i < array.length; i++) {
+				if(elem === array[i]) return i;
+			}
+			return -1;
+		};
+	} else {
+		indexOf = function(array, elem) {
+			return array.indexOf(elem);
+		};
+	}
 	
 	var reduce = function(array, fn) {
 		if(array.length === 0) return undefined;
@@ -240,7 +262,7 @@
 			start++;
 
 			classes = session.__lookup_operator_classes(priority, token.value);
-			if(classes.indexOf("fy") > -1 || classes.indexOf("fx") > -1) {
+			if(indexOf(classes, "fy") > -1 || indexOf(classes, "fx") > -1) {
 				var number = tokens[start];
 				if(token.value == "-" && number && number.name == "number" && !number.blank) {
 					return {
@@ -251,7 +273,7 @@
 				}
 			}
 			
-			if(classes.indexOf("fy") > -1) {
+			if(indexOf(classes, "fy") > -1) {
 				expr = parseOperator(session, tokens, start, priority);
 				if(expr.type != ERROR) {
 					return {
@@ -265,7 +287,7 @@
 				}
 			}
 			
-			else if(classes.indexOf("fx") > -1) {
+			else if(indexOf(classes, "fx") > -1) {
 				expr = parseOperator(session, tokens, start, next_priority);
 				if(expr.type != ERROR) {
 					return {
@@ -299,14 +321,14 @@
 				classes = session.__lookup_operator_classes(priority, token.value);
 	
 	
-				if(classes.indexOf("xf") > -1) {
+				if(indexOf(classes, "xf") > -1) {
 					if(is_compound) session.__pop_comma_state();
 					return {
 						value: new Term(token.value, [expr.value]),
-						len: ++expr.len,
+						len: ++expr.len
 					};
 				}
-				else if (classes.indexOf("xfx") > -1) {
+				else if (indexOf(classes, "xfx") > -1) {
 					expr2 = parseOperator(session, tokens, start + 1, next_priority_lt);
 					if(is_compound) session.__pop_comma_state();
 					if(expr2.type != ERROR) {
@@ -319,7 +341,7 @@
 						return expr2;
 					}
 				}
-				else if (classes.indexOf("xfy") > -1) {
+				else if (indexOf(classes, "xfy") > -1) {
 					expr2 = parseOperator(session, tokens, start + 1, next_priority_eq);
 					if(is_compound) session.__pop_comma_state();
 					if(expr2.type != ERROR) {
@@ -339,14 +361,14 @@
 						token = tokens[start];
 						if(token && (token.name == "atom" || token.name == "compound") && session.__lookup_operator_classes(priority, token.value)) {
 							classes = session.__lookup_operator_classes(priority, token.value);
-							if( classes.indexOf("yf") > -1 ) {
+							if( indexOf(classes, "yf") > -1 ) {
 								expr = {
 									value: new Term(token.value, [expr.value]),
 									len: ++start,
 									type: SUCCESS
 								};
 							}
-							else if( classes.indexOf("yfx") > -1 ) {
+							else if( indexOf(classes, "yfx") > -1 ) {
 								expr2 = parseOperator(session, tokens, ++start, next_priority_lt);
 								if(expr2.type == ERROR) {
 									expr = expr2;
@@ -827,7 +849,7 @@
 				case "x": return new Num( parseInt( sub, 16 ), false );
 			}
 		}
-		if( string.indexOf( "." ) !== -1 ) {
+		if( indexOf(string, "." ) !== -1 ) {
 			return new Num( parseFloat( string ), true );
 		} else {
 			return new Num( parseInt( string ), false );
@@ -954,7 +976,7 @@
 	
 	// Numbers
 	Num.prototype.toString = function() {
-		return this.is_float && this.value.toString().indexOf(".") === -1 ? this.value + ".0" : this.value.toString();
+		return this.is_float && indexOf(this.value.toString(), ".") === -1 ? this.value + ".0" : this.value.toString();
 	};
 	
 	// Terms
@@ -1234,7 +1256,7 @@
 	
 	// Variables
 	Var.prototype.unify = function( obj, occurs_check ) {
-		if( occurs_check && obj.variables().indexOf( this.id ) !== -1 && !pl.type.is_variable( obj ) ) {
+		if( occurs_check && indexOf( obj.variables(), this.id ) !== -1 && !pl.type.is_variable( obj ) ) {
 			return null;
 		}
 		var links = {};
@@ -1398,7 +1420,7 @@
 	Session.prototype.get_free_variable = function( variable ) {
 		if( variable.id === "_" || this.renamed_variables[variable.id] === undefined ) {
 			this.rename++;
-			while( this.variables.indexOf( pl.format_variable( this.rename ) ) !== -1 ) {
+			while( indexOf( this.variables, pl.format_variable( this.rename ) ) !== -1 ) {
 				this.rename++;
 			}
 			if( variable.id === "_" ) {
@@ -1413,7 +1435,7 @@
 	// Get next free variable
 	Session.prototype.next_free_variable = function() {
 		this.rename++;
-		while( this.variables.indexOf( pl.format_variable( this.rename ) ) !== -1 ) {
+		while( indexOf( this.variables, pl.format_variable( this.rename ) ) !== -1 ) {
 			this.rename++;
 		}
 		return new Var( pl.format_variable( this.rename ) );
@@ -1421,7 +1443,7 @@
 	
 	// Check if a predicate is public
 	Session.prototype.is_public_predicate = function( indicator ) {
-		return this.public.indexOf( indicator ) !== -1;
+		return indexOf( this.public, indicator ) !== -1;
 	};
 	
 	// Copy context from other session
@@ -1450,7 +1472,7 @@
 	};
 	
 	// Remove the selected term and prepend the current state
-	Session.prototype.true = function( point ) {
+	Session.prototype["true"] = function( point ) {
 		this.prepend( [new State( point.goal.replace( null ), point.substitution, point ) ] );
 	};
 	
@@ -1479,6 +1501,7 @@
 					var lx = new Term( "$tau:level", [new Term( atom.indicator, [] )] );
 					var ly = new Term( "$tau:level", [new Term( this.level, [] )] );
 					for( var _rule in this.rules[atom.indicator] ) {
+						if(!this.rules[atom.indicator].hasOwnProperty(_rule)) continue;
 						var rule = this.rules[atom.indicator][_rule];
 						this.renamed_variables = {};
 						rule = rule.rename( this );
@@ -1705,7 +1728,7 @@
 	Substitution.prototype.exclude = function( variables ) {
 		var links = {};
 		for( var variable in this.links ) {
-			if( variables.indexOf( variable ) === -1 ) {
+			if( indexOf( variables, variable ) === -1 ) {
 				links[variable] = this.links[variable];
 			}
 		}
@@ -1789,8 +1812,8 @@
 			
 			// Compare types
 			compare: function( x, y ) {
-				var ord_x = pl.type.order.indexOf( x.constructor );
-				var ord_y = pl.type.order.indexOf( y.constructor );
+				var ord_x = indexOf( pl.type.order, x.constructor );
+				var ord_y = indexOf( pl.type.order, y.constructor );
 				if( ord_x < ord_y ) {
 					return -1;
 				} else if( ord_x > ord_y ) {
@@ -2178,7 +2201,7 @@
 				} else {
 					if( pl.type.is_module( module ) ) {
 						var name = module.args[0].id;
-						if( session.__loaded_modules.indexOf( name ) === -1 ) {
+						if( indexOf( session.__loaded_modules, name ) === -1 ) {
 							session.__loaded_modules.push( name );
 							var get_module = pl.module[name].rules;
 							for( var predicate in get_module ) {
@@ -2232,13 +2255,13 @@
 					for( var p in session.__operators ) {
 						var classes = session.__operators[p][operator.id];
 						if( classes ) {
-							if( classes.indexOf( "fx" ) !== -1 ) { fix.prefix = { priority: p, type: "fx" }; }
-							if( classes.indexOf( "fy" ) !== -1 ) { fix.prefix = { priority: p, type: "fy" }; }
-							if( classes.indexOf( "xf" ) !== -1 ) { fix.postfix = { priority: p, type: "xf" }; }
-							if( classes.indexOf( "yf" ) !== -1 ) { fix.postfix = { priority: p, type: "yf" }; }
-							if( classes.indexOf( "xfx" ) !== -1 ) { fix.infix = { priority: p, type: "xfx" }; }
-							if( classes.indexOf( "xfy" ) !== -1 ) { fix.infix = { priority: p, type: "xfy" }; }
-							if( classes.indexOf( "yfx" ) !== -1 ) { fix.infix = { priority: p, type: "yfx" }; }
+							if( indexOf( classes, "fx" ) !== -1 ) { fix.prefix = { priority: p, type: "fx" }; }
+							if( indexOf( classes, "fy" ) !== -1 ) { fix.prefix = { priority: p, type: "fy" }; }
+							if( indexOf( classes, "xf" ) !== -1 ) { fix.postfix = { priority: p, type: "xf" }; }
+							if( indexOf( classes, "yf" ) !== -1 ) { fix.postfix = { priority: p, type: "yf" }; }
+							if( indexOf( classes, "xfx" ) !== -1 ) { fix.infix = { priority: p, type: "xfx" }; }
+							if( indexOf( classes, "xfy" ) !== -1 ) { fix.infix = { priority: p, type: "xfy" }; }
+							if( indexOf( classes, "yfx" ) !== -1 ) { fix.infix = { priority: p, type: "yfx" }; }
 						}
 					}
 					var current_class;
@@ -2276,7 +2299,7 @@
 			// $tau:level/1
 			"$tau:level/1": function( session, point, atom ) {
 				session.level = atom.args[0].id;
-				session.true( point );
+				session["true"]( point );
 			},
 		
 			// LOGIC AND CONTROL STRUCTURES
@@ -2318,7 +2341,7 @@
 					session.points = [new State( atom.args[0], point.substitution, point )];
 					var callback = function( answer ) {
 						if( answer === false )
-							session.true( point );
+							session["true"]( point );
 						else if( pl.type.is_error( answer ) )
 							session.throwError( answer.args[0] );
 						else if( answer === null ) {
@@ -2342,7 +2365,7 @@
 			
 			// true/0
 			"true/0": function( session, point, _ ) {
-				session.true( point );
+				session["true"]( point );
 			},
 			
 			// call/1
@@ -2477,7 +2500,7 @@
 				var state = pl.unify( atom.args[0], atom.args[1] );
 				state.parent = point;
 				if( state === null ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
@@ -2545,7 +2568,7 @@
 					}
 					template_vars = template_vars.concat( template.variables() );
 					var free_vars = goal.variables().filter( function( v ){
-						return template_vars.indexOf( v ) === -1;
+						return indexOf( template_vars, v ) === -1;
 					} );
 					var list_vars = new Term( "[]" );
 					for( var i = free_vars.length - 1; i >= 0; i-- ) {
@@ -2623,7 +2646,7 @@
 					}
 					template_vars = template_vars.concat( template.variables() );
 					var free_vars = goal.variables().filter( function( v ){
-						return template_vars.indexOf( v ) === -1;
+						return indexOf( template_vars, v ) === -1;
 					} );
 					var list_vars = new Term( "[]" );
 					for( var i = free_vars.length - 1; i >= 0; i-- ) {
@@ -2698,7 +2721,7 @@
 						var args = [];
 						for( var i = 0; i < atom.args[2].value; i++ ) {
 							session.rename++;
-							while( session.variables.indexOf( pl.format_variable( session.rename ) ) !== -1 ) {
+							while( indexOf( session.variables, pl.format_variable( session.rename ) ) !== -1 ) {
 								session.rename++;
 							}
 							args.push( new Var( pl.format_variable( session.rename ) ) );
@@ -2868,7 +2891,7 @@
 							session.rules[head.indicator] = [];
 						}
 						session.rules[head.indicator] = [new Rule( head, body )].concat( session.rules[head.indicator] );
-						session.true( point );
+						session["true"]( point );
 					} else {
 						session.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
 					}
@@ -2899,7 +2922,7 @@
 							session.rules[head.indicator] = [];
 						}
 						session.rules[head.indicator].push( new Rule( head, body ) );
-						session.true( point );
+						session["true"]( point );
 					} else {
 						session.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
 					}
@@ -2937,7 +2960,7 @@
 									var subs = state.substitution;
 									if( pl.unify( rule.body.apply( subs ), body.apply( subs ) ) !== null ) {
 										session.rules[atom.args[0].indicator].splice( i, 1 );
-										session.true( point );
+										session["true"]( point );
 										return;
 									}
 								}
@@ -2969,7 +2992,7 @@
 					var indicator = atom.args[0].args[0].id + "/" + atom.args[0].args[1].value;
 					if( session.is_public_predicate( indicator ) ) {
 						delete session.rules[indicator];
-						session.true( point );
+						session["true"]( point );
 					} else {
 						session.throwError( pl.error.permission( "modify", "static_procedure", indicator, atom.indicator ) );
 					}
@@ -3083,7 +3106,7 @@
 						for( var _j in ls ) {
 							var j = ls[_j];
 							var k = atom1.id.length - i - j;
-							if( as.indexOf( k ) !== -1 ) {
+							if( indexOf( as, k ) !== -1 ) {
 							if( i+j+k === atom1.id.length ) {
 									var str = atom1.id.substr( i, j );
 									if( atom1.id === atom1.id.substr( 0, i ) + str + atom1.id.substr( i+j, k ) ) {
@@ -3327,37 +3350,37 @@
 			
 			"@=</2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) <= 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			"==/2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) === 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			"\\==/2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) !== 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			"@</2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) < 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			"@>/2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) > 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			"@>=/2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) >= 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
@@ -3379,7 +3402,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp === 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
@@ -3389,7 +3412,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp !== 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
@@ -3399,7 +3422,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp < 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
@@ -3409,7 +3432,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp <= 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
@@ -3419,7 +3442,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp > 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
@@ -3429,7 +3452,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp >= 0 ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
@@ -3438,56 +3461,56 @@
 			// var/1
 			"var/1": function( session, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			// atom/1
 			"atom/1": function( session, point, atom ) {
 				if( pl.type.is_atom( atom.args[0] ) ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			// atomic/1
 			"atomic/1": function( session, point, atom ) {
 				if( pl.type.is_atomic( atom.args[0] ) ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			// compound/1
 			"compound/1": function( session, point, atom ) {
 				if( pl.type.is_compound( atom.args[0] ) ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			// integer/1
 			"integer/1": function( session, point, atom ) {
 				if( pl.type.is_integer( atom.args[0] ) ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			// float/1
 			"float/1": function( session, point, atom ) {
 				if( pl.type.is_float( atom.args[0] ) ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			// number/1
 			"number/1": function( session, point, atom ) {
 				if( pl.type.is_number( atom.args[0] ) ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
 			// nonvar/1
 			"nonvar/1": function( session, point, atom ) {
 				if( !pl.type.is_variable( atom.args[0] ) ) {
-					session.true( point );
+					session["true"]( point );
 				}
 			},
 			
@@ -3542,7 +3565,7 @@
 					session.throwError( pl.error.permission( "modify", "flag", flag ) );
 				} else {
 					session.flag[flag.id] = value;
-					session.true( point );
+					session["true"]( point );
 				}
 			}
 			
@@ -3625,7 +3648,7 @@
 				return new State( obj1, new Substitution());
 			} else if( this.type.is_variable( obj2 ) ) {
 				var links = {};
-				if( occurs_check && obj1.variables().indexOf( obj2.id ) !== -1 && !pl.type.is_variable( obj1 ) ) {
+				if( occurs_check && indexOf( obj1.variables(), obj2.id ) !== -1 && !pl.type.is_variable( obj1 ) ) {
 					return null;
 				}
 				links[obj2.id] = obj1;
