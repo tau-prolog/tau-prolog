@@ -1472,7 +1472,7 @@
 	};
 	
 	// Remove the selected term and prepend the current state
-	Session.prototype["true"] = function( point ) {
+	Session.prototype.success = function( point ) {
 		this.prepend( [new State( point.goal.replace( null ), point.substitution, point ) ] );
 	};
 	
@@ -2299,7 +2299,7 @@
 			// $tau:level/1
 			"$tau:level/1": function( session, point, atom ) {
 				session.level = atom.args[0].id;
-				session["true"]( point );
+				session.success( point );
 			},
 		
 			// LOGIC AND CONTROL STRUCTURES
@@ -2341,7 +2341,7 @@
 					session.points = [new State( atom.args[0], point.substitution, point )];
 					var callback = function( answer ) {
 						if( answer === false )
-							session["true"]( point );
+							session.success( point );
 						else if( pl.type.is_error( answer ) )
 							session.throwError( answer.args[0] );
 						else if( answer === null ) {
@@ -2365,7 +2365,7 @@
 			
 			// true/0
 			"true/0": function( session, point, _ ) {
-				session["true"]( point );
+				session.success( point );
 			},
 			
 			// call/1
@@ -2500,7 +2500,7 @@
 				var state = pl.unify( atom.args[0], atom.args[1] );
 				state.parent = point;
 				if( state === null ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
@@ -2891,7 +2891,7 @@
 							session.rules[head.indicator] = [];
 						}
 						session.rules[head.indicator] = [new Rule( head, body )].concat( session.rules[head.indicator] );
-						session["true"]( point );
+						session.success( point );
 					} else {
 						session.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
 					}
@@ -2922,7 +2922,7 @@
 							session.rules[head.indicator] = [];
 						}
 						session.rules[head.indicator].push( new Rule( head, body ) );
-						session["true"]( point );
+						session.success( point );
 					} else {
 						session.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
 					}
@@ -2960,7 +2960,7 @@
 									var subs = state.substitution;
 									if( pl.unify( rule.body.apply( subs ), body.apply( subs ) ) !== null ) {
 										session.rules[atom.args[0].indicator].splice( i, 1 );
-										session["true"]( point );
+										session.success( point );
 										return;
 									}
 								}
@@ -2992,7 +2992,7 @@
 					var indicator = atom.args[0].args[0].id + "/" + atom.args[0].args[1].value;
 					if( session.is_public_predicate( indicator ) ) {
 						delete session.rules[indicator];
-						session["true"]( point );
+						session.success( point );
 					} else {
 						session.throwError( pl.error.permission( "modify", "static_procedure", indicator, atom.indicator ) );
 					}
@@ -3350,37 +3350,37 @@
 			
 			"@=</2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) <= 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			"==/2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) === 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			"\\==/2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) !== 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			"@</2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) < 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			"@>/2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) > 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			"@>=/2": function( session, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) >= 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
@@ -3402,7 +3402,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp === 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
@@ -3412,7 +3412,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp !== 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
@@ -3422,7 +3422,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp < 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
@@ -3432,7 +3432,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp <= 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
@@ -3442,7 +3442,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp > 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
@@ -3452,7 +3452,7 @@
 				if( pl.type.is_term( cmp ) ) {
 					session.throwError( cmp );
 				} else if( cmp >= 0 ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
@@ -3461,56 +3461,56 @@
 			// var/1
 			"var/1": function( session, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			// atom/1
 			"atom/1": function( session, point, atom ) {
 				if( pl.type.is_atom( atom.args[0] ) ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			// atomic/1
 			"atomic/1": function( session, point, atom ) {
 				if( pl.type.is_atomic( atom.args[0] ) ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			// compound/1
 			"compound/1": function( session, point, atom ) {
 				if( pl.type.is_compound( atom.args[0] ) ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			// integer/1
 			"integer/1": function( session, point, atom ) {
 				if( pl.type.is_integer( atom.args[0] ) ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			// float/1
 			"float/1": function( session, point, atom ) {
 				if( pl.type.is_float( atom.args[0] ) ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			// number/1
 			"number/1": function( session, point, atom ) {
 				if( pl.type.is_number( atom.args[0] ) ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
 			// nonvar/1
 			"nonvar/1": function( session, point, atom ) {
 				if( !pl.type.is_variable( atom.args[0] ) ) {
-					session["true"]( point );
+					session.success( point );
 				}
 			},
 			
@@ -3565,7 +3565,7 @@
 					session.throwError( pl.error.permission( "modify", "flag", flag ) );
 				} else {
 					session.flag[flag.id] = value;
-					session["true"]( point );
+					session.success( point );
 				}
 			}
 			
