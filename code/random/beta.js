@@ -3,7 +3,7 @@ new pl.type.Module( "random", {
 	// maybe/0
 	"maybe/0": function( session, point, _ ) {
 		if( Math.random() < 0.5 ) {
-			session.true( point );
+			session.success( point );
 		}
 	},
 	
@@ -11,7 +11,7 @@ new pl.type.Module( "random", {
 	"maybe/1": function( session, point, atom ) {
 		var num = atom.args[0];
 		if( Math.random() < num.value ) {
-			session.true( point );
+			session.success( point );
 		}
 	},
 	
