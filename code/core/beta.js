@@ -2,18 +2,11 @@
 	
 	// PARSER
 
-	if(!Object.keys) {
-		Object.keys = function(obj) {
-			var k = [];
-			for(var key in obj) k.push(key);
-			return k;
-		};
-	}
-
 	var indexOf;
-	if(!Array.indexOf) {
+	if(!Array.prototype.indexOf) {
 		indexOf = function(array, elem) {
-			for(var i = 0; i < array.length; i++) {
+			var len = array.length;
+			for(var i = 0; i < len; i++) {
 				if(elem === array[i]) return i;
 			}
 			return -1;
@@ -27,19 +20,26 @@
 	var reduce = function(array, fn) {
 		if(array.length === 0) return undefined;
 		var elem = array[0];
-		for(var i = 1; i < array.length; i++) {
+		var len = array.length;
+		for(var i = 1; i < len; i++) {
 			elem = fn(elem, array[i]);
 		}
 		return elem;
 	};
 	
+	var map;
 	if(!Array.prototype.map) {
-		Array.prototype.map = function(fn) {
-			var arr = [];
-			for(var i = 0; i < this.length; i++) {
-				arr.push( fn(this[i]) );
+		map = function(array, fn) {
+			var a = [];
+			var len = array.length;
+			for(var i = 0; i < len; i++) {
+				a.push( fn(array[i]) );
 			}
-			return arr;
+			return a;
+		};
+	} else {
+		map = function(array, fn) {
+			return array.map(fn);
 		};
 	}
 	
@@ -81,7 +81,7 @@
 	
 	
 	function escapeStr(str) {
-		return escape(str).map(function(c) { return String.fromCharCode(c); }).join("");
+		return map(escape(str), function(c) { return String.fromCharCode(c); }).join("");
 	}
 	
 	
@@ -1023,6 +1023,7 @@
 	Substitution.prototype.toString = function() {
 		var str = "{";
 		for( var link in this.links ) {
+			if(!this.links.hasOwnProperty(link)) continue;
 			if( str != "{" ) {
 				str += ", ";
 			}
@@ -1068,7 +1069,7 @@
 	Term.prototype.clone = function() {
 		if( this.args.length === 0 )
 			return this;
-		return new Term( this.id, this.args.map( function( arg ) {
+		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.clone();
 		} ) );
 	};
@@ -1077,6 +1078,7 @@
 	Substitution.prototype.clone = function() {
 		var links = {};
 		for( var link in this.links ) {
+			if(!this.links.hasOwnProperty(link)) continue;
 			links[link] = this.links[link].clone();
 		}
 		return new Substitution( links );
@@ -1127,11 +1129,13 @@
 			return false;
 		}
 		for( link in this.links ) {
+			if(!this.links.hasOwnProperty(link)) continue;
 			if( !obj.links[link] || !this.links[link].equals( obj.links[link] ) ) {
 				return false;
 			}
 		}
 		for( link in obj.links ) {
+			if(!obj.links.hasOwnProperty(link)) continue;
 			if( !this.links[link] ) {
 				return false;
 			}
@@ -1167,7 +1171,7 @@
 	Term.prototype.rename = function( session ) {
 		if( this.args.length === 0 )
 			return this;
-		return new Term( this.id, this.args.map( function( arg ) {
+		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.rename( session );
 		} ) );
 	};
@@ -1193,7 +1197,7 @@
 	
 	// Terms
 	Term.prototype.variables = function() {
-		return [].concat.apply( [], this.args.map( function( arg ) {
+		return [].concat.apply( [], map( this.args, function( arg ) {
 			return arg.variables();
 		} ) );
 	};
@@ -1228,7 +1232,7 @@
 	Term.prototype.apply = function( subs ) {
 		if( this.args.length === 0 )
 			return this;
-		return new Term( this.id, this.args.map( function( arg ) {
+		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.apply( subs );
 		} ) );
 	};
@@ -1242,9 +1246,11 @@
 	Substitution.prototype.apply = function( subs ) {
 		var link, links = {};
 		for( link in this.links ) {
+			if(!this.links.hasOwnProperty(link)) continue;
 			links[link] = this.links[link].apply(subs);
 		}
 		for( link in subs.links ) {
+			if(!subs.links.hasOwnProperty(link)) continue;
 			links[link] = subs.links[link];
 		}
 		return new Substitution( links );
@@ -1362,11 +1368,10 @@
 	
 	// Get maximum priority of the operators
 	Session.prototype.__get_max_priority = function() {
-		var keys = Object.keys( this.__operators );
 		var max = 0;
-		for( var i = 0; i < keys.length; i++ ) {
-			if( !this.__operators.hasOwnProperty( keys[i] ) ) continue;
-			var n = parseInt( keys[i] );
+		for( var key in this.__operators ) {
+			if( !this.__operators.hasOwnProperty(key) ) continue;
+			var n = parseInt(key);
 			if( n > max ) max = n;
 		}
 		return max.toString();
@@ -1374,12 +1379,11 @@
 	
 	// Get next priority of the operators
 	Session.prototype.__get_next_priority = function( priority ) {
-		var keys = Object.keys( this.__operators );
 		var max = 0;
 		priority = parseInt( priority );
-		for( var i = 0; i < keys.length; i++ ) {
-			if( !this.__operators.hasOwnProperty( keys[i] ) ) continue;
-			var n = parseInt( keys[i] );
+		for( var key in this.__operators ) {
+			if( !this.__operators.hasOwnProperty(key) ) continue;
+			var n = parseInt(key);
 			if( n > max && n < priority ) max = n;
 		}
 		return max.toString();
@@ -1642,7 +1646,7 @@
 	
 	// Terms
 	Term.prototype.compose = function( subs, variable ) {
-		return new Term( this.id, this.args.map( function( arg ) {
+		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.compose( subs, variable );
 		} ) );
 	};
@@ -1651,6 +1655,7 @@
 	Substitution.prototype.compose = function( subs ) {
 		var links = {};
 		for( var link in this.links ) {
+			if(!this.links.hasOwnProperty(link)) continue;
 			links[link] = this.links[link].compose( subs, link );
 		}
 		return new Substitution( links );
@@ -1716,6 +1721,7 @@
 	Substitution.prototype.filter = function( variables ) {
 		var links = {};
 		for( var _variable in variables ) {
+			if(!variables.hasOwnProperty(_variable)) continue;
 			var variable = variables[_variable];
 			if( this.links[variable] ) {
 				links[variable] = this.links[variable];
@@ -1728,6 +1734,7 @@
 	Substitution.prototype.exclude = function( variables ) {
 		var links = {};
 		for( var variable in this.links ) {
+			if(!this.links.hasOwnProperty(variable)) continue;
 			if( indexOf( variables, variable ) === -1 ) {
 				links[variable] = this.links[variable];
 			}
@@ -1758,7 +1765,7 @@
 	
 	// Terms
 	Term.prototype.compile = function() {
-		return 'new pl.type.Term("' + this.id.replace(/"/g, '\\"') + '", [' + this.args.map( function( arg ) {
+		return 'new pl.type.Term("' + this.id.replace(/"/g, '\\"') + '", [' + map( this.args, function( arg ) {
 			return arg.compile();
 		} ) + '])';
 	};
@@ -1772,6 +1779,7 @@
 	Session.prototype.compile = function() {
 		var str, obj = [], rules;
 		for( var _indicator in this.rules ) {
+			if(!this.rules.hasOwnProperty(_indicator)) continue;
 			var indicator = this.rules[_indicator];
 			rules = [];
 			str = "\"" + _indicator + "\": [";
@@ -1968,6 +1976,7 @@
 			is_value_flag: function( flag, obj ) {
 				if( !pl.type.is_flag( flag ) ) return false;
 				for( var value in pl.flag[flag.id].allowed ) {
+					if(!pl.flag[flag.id].allowed.hasOwnProperty(value)) continue;
 					if( pl.flag[flag.id].allowed[value].equals( obj ) ) return true;
 				}
 				return false;
@@ -2205,6 +2214,7 @@
 							session.__loaded_modules.push( name );
 							var get_module = pl.module[name].rules;
 							for( var predicate in get_module ) {
+								if(!get_module.hasOwnProperty(predicate)) continue;
 								session.rules[predicate] = get_module[predicate];
 							}
 						}
@@ -2253,6 +2263,7 @@
 				} else {
 					var fix = { prefix: null, infix: null, postfix: null };
 					for( var p in session.__operators ) {
+						if(!session.__operators.hasOwnProperty(p)) continue;
 						var classes = session.__operators[p][operator.id];
 						if( classes ) {
 							if( indexOf( classes, "fx" ) !== -1 ) { fix.prefix = { priority: p, type: "fx" }; }
@@ -2450,7 +2461,7 @@
 							point.substitution.apply( answer ),
 							point
 						)];
-						var catch_points = call_points.map( function( state ) {
+						var catch_points = map( call_points, function( state ) {
 							if( state.goal === null )
 								state.goal = new Term( "true", [] );
 							state = new State(
@@ -2588,6 +2599,7 @@
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
 							for( var _elem in answers ) {
+								if(!answers.hasOwnProperty(_elem)) continue;
 								var elem = answers[_elem];
 								if( elem.variables.equals( arg_vars ) ) {
 									elem.answers.push( arg_template );
@@ -2666,6 +2678,7 @@
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
 							for( var _elem in answers ) {
+								if(!answers.hasOwnProperty(_elem)) continue;
 								var elem = answers[_elem];
 								if( elem.variables.equals( arg_vars ) ) {
 									elem.answers.push( arg_template );
@@ -2802,6 +2815,7 @@
 				if( state !== null ) {
 					var subs = state.substitution.filter( atom.args[1].variables() );
 					for( var variable in subs.links ) {
+						if(!subs.links.hasOwnProperty(variable)) continue;
 						if( pl.type.is_variable( subs.links[variable] ) ) {
 							delete subs.links[variable];
 						}
@@ -2826,6 +2840,7 @@
 					if( session.is_public_predicate( atom.args[0].indicator ) ) {
 						var states = [];
 						for( var _rule in session.rules[atom.args[0].indicator] ) {
+							if(!session.rules[atom.args[0].indicator].hasOwnProperty(_rule)) continue;
 							var rule = session.rules[atom.args[0].indicator][_rule];
 							session.renamed_variables = {};
 							rule = rule.rename( session );
@@ -2854,6 +2869,7 @@
 				} else {
 					var states = [];
 					for( var i in session.rules ) {
+						if(!session.rules.hasOwnProperty(i)) continue;
 						var index = i.lastIndexOf( "/" );
 						var name = i.substr( 0, index );
 						var arity = parseInt( i.substr( index+1, i.length-(index+1) ) );
@@ -3102,8 +3118,10 @@
 					}
 					var states = [];
 					for( var _i in bs ) {
+						if(!bs.hasOwnProperty(_i)) continue;
 						i = bs[_i];
 						for( var _j in ls ) {
+							if(!ls.hasOwnProperty(_j)) continue;
 							var j = ls[_j];
 							var k = atom1.id.length - i - j;
 							if( indexOf( as, k ) !== -1 ) {
@@ -3543,6 +3561,7 @@
 				} else {
 					var states = [];
 					for( var name in pl.flag ) {
+						if(!pl.flag.hasOwnProperty(name)) continue;
 						var goal = new Term( ",", [new Term( "=", [new Term( name ), flag] ), new Term( "=", [session.flag[name], value] )] );
 						states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
 					}
@@ -3782,6 +3801,7 @@
 				var i = 0;
 				var str = "";
 				for( var link in answer.links ) {
+					if(!answer.links.hasOwnProperty(link)) continue;
 					i++;
 					if( str !== "" ) {
 						str += ", ";
