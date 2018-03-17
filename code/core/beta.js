@@ -108,8 +108,8 @@
 			whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?\*\/)|(?:\s+))\s*/,
 			variable: /^(?:[A-Z_][a-zA-Z0-9_]*)/,
 			point: /^\./,
-			compound: /^((,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+-\.\/\:<=>\?@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')\()/,
-			atom: /^(,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+-\.\/\:<=>\?@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')/,
+			compound: /^(([a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')\()/,
+			atom: /^(,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')/,
 			number: /^(?:0o[0-7]+|0x[0-9a-f]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|.)|\d+(?:\.\d+(?:e[+-]?\d+)?)?)/i,
 			string: /^(?:"([^"]|""|\\")*"|`([^`]|``|\\`)*`)/,
 			l_brace: /^(?:\[)/,
@@ -3792,7 +3792,7 @@
 		// Format of computed answers
 		format_answer: function( answer ) {
 			if( pl.type.is_error( answer ) ) {
-				return "uncaugth exception: " + answer.args[0].toString();
+				return "uncaught exception: " + answer.args[0].toString();
 			} else if( answer === false ) {
 				return "false.";
 			} else if( answer === null ) {
