@@ -163,7 +163,7 @@ new pl.type.Module( "lists", {
 	
 	// take/3
 	"take/3": function( exec, point, atom ) {
-		var list = atom.args[0], number = atom.args[1], take = atom.args[2];
+		var number = atom.args[0], list = atom.args[1], take = atom.args[2];
 		if( pl.type.is_variable( list ) || pl.type.is_variable( number ) ) {
 			exec.throwError( pl.error.instantiation( atom.indicator ) );
 		} else if( !pl.type.is_list( list ) ) {
@@ -193,7 +193,7 @@ new pl.type.Module( "lists", {
 	
 	// drop/3
 	"drop/3": function( exec, point, atom ) {
-		var list = atom.args[0], number = atom.args[1], drop = atom.args[2];
+		var number = atom.args[0], list = atom.args[1], drop = atom.args[2];
 		if( pl.type.is_variable( list ) || pl.type.is_variable( number ) ) {
 			exec.throwError( pl.error.instantiation( atom.indicator ) );
 		} else if( !pl.type.is_list( list ) ) {
