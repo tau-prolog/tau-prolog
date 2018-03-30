@@ -1553,23 +1553,15 @@
 	};
 	
 	// Find all computed answers
-	Session.prototype.answers = function( limit, callback, answers ) {
-		answers = answers || [];
+	Session.prototype.answers = function( callback, max ) {
+		answers = max || 1000;
 		var session = this;
-		this.__calls = [];
-		if( limit > 0 ) {
-			this.answer( function( answer ) {
-				answers.push( answer );
-				if( answer !== null && answer !== false ) {
-					session.answers( limit - 1, callback, answers );
-				} else {
-					callback( answers );
-				}
-			} );
-		} else {
-			answers.push( null );
-			callback( answers );
-		}
+		if( max <= 0 ) return;
+		this.answer( function( answer ) {
+			callback( answer );
+			if( answer !== false )
+				session.answers( callback, max-1 );
+		} );
 	};
 
 	// Again finding next computed answer
