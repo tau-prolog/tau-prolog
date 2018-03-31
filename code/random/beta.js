@@ -76,6 +76,28 @@ new pl.type.Module( "random", {
 		}
 	},
 	
+	// random_member/2
+	"random_member/2": function( session, point, atom ) {
+		var member = atom.args[0], list = atom.args[1];
+		if( pl.type.is_variable( list ) ) {
+			session.throwError( pl.error.instantiation( atom.indicator ) );
+		} else {
+			var array = [];
+			var pointer = list;
+			while( pointer.indicator == "./2" ) {
+				array.push(pointer.args[0]);
+				pointer = pointer.args[1];
+			}
+			if( array.length > 0 ) {
+				var gen = Math.floor(Math.random() * array.length);
+				session.prepend( [new pl.type.State(
+					point.goal.replace( new pl.type.Term( "=", [member, array[gen]] ) ),
+					point.substitution, point 
+				)] );
+			}
+		}
+	},
+	
 	// random_permutation/2
 	"random_permutation/2": function( session, point, atom ) {
 		var i;
