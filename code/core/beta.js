@@ -856,6 +856,14 @@
 		}
 	}
 	
+	// List to Prolog list
+	function arrayToList( array ) {
+		var list = new pl.type.Term( "[]", [] );
+		for(var i = array.length-1; i >= 0; i-- )
+			list = new pl.type.Term( ".", [array[i], list] );
+		return list;
+	}
+	
 	// Remove element from array
 	function remove( array, element ) {
 		for( var i = array.length - 1; i >= 0; i-- ) {
