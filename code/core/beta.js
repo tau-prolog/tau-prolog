@@ -1409,8 +1409,32 @@
 	};
 
 	// Consult a program from a string
-	Session.prototype.consult = function( string ) {
+	Session.prototype.consult = function( program ) {
 		this.__stack_comma = [true];
+		var string = "";
+		if( typeof program === "string" ) {
+			string = program;
+			var len = string.length;
+			if( string.substring( len-3, len ) === ".pl" && document.getElementById( string ) ) {
+				var script = document.getElementById( string );
+				var type = script.getAttribute( "type" );
+				if( type !== null && type.replace( / /g, "" ).toLowerCase() === "text/prolog" ) {
+					string = script.text;
+				}
+			}
+		} else if( program.nodeName ) {
+			switch( program.nodeName.toLowerCase() ) {
+				case "input":
+				case "textarea":
+					string = program.value;
+					break;
+				default:
+					string = program.innerHTML;
+					break;
+			}
+		} else {
+			return false;
+		}
 		return parseProgram( this, string );
 	};
 
@@ -1544,7 +1568,7 @@
 	
 	// Find next computed answer
 	Session.prototype.answer = function( success ) {
-		success = success || console.log;
+		success = success || function( _ ) { };
 		this.__calls.push( success );
 		if( this.__calls.length > 1 ) {
 			return;
