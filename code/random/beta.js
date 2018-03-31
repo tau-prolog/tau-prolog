@@ -54,6 +54,28 @@ new pl.type.Module( "random", {
 		}
 	},
 	
+	//random_between/3
+	"random_between/3": function( session, point, atom ) {
+		var lower = atom.args[0], upper = atom.args[1], rand = atom.args[2];
+		if( pl.type.is_variable( lower ) || pl.type.is_variable( upper ) ) {
+			session.throwError( pl.error.instantiation( atom.indicator ) );
+		} else if( !pl.type.is_integer( lower ) ) {
+			session.throwError( pl.error.type( "integer", lower, atom.indicator ) );
+		} else if( !pl.type.is_integer( upper ) ) {
+			session.throwError( pl.error.type( "integer", upper, atom.indicator ) );
+		} else if( !pl.type.is_variable( rand ) && !pl.type.is_integer( rand ) ) {
+			session.throwError( pl.error.type( "integer", rand, atom.indicator ) );
+		} else {
+			if( lower.value < upper.value ) {
+				var gen = Math.floor(lower.value + Math.random() * (upper.value - lower.value + 1));
+				session.prepend( [new pl.type.State(
+					point.goal.replace( new pl.type.Term( "=", [rand, new pl.type.Num( gen, false )] ) ),
+					point.substitution, point 
+				)] );
+			}
+		}
+	},
+	
 	// random_permutation/2
 	"random_permutation/2": function( session, point, atom ) {
 		var i;
