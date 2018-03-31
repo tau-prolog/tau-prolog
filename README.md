@@ -37,7 +37,7 @@ session.consult( "likes.pl" );
 
 By calling the `pl.create()` method, we create a `Session` object, which contais a `consult()` method. This method receives the Prolog program. To set the goal we want to check, we need to call the `query()` method.
 ```javascript
-session.query( "likes(sam, X)" );
+session.query( "likes(sam, X)." );
 ```
 Now, when we call the `answer()` method on the session variable, the interpreter tries to compute an answer for the goal, looking for facts or rules which unify with the goal. If the search succeeds, a `Substitution` object is passed to the callback provided to `answer()` as an argument. This `Substitution` object contains the variables of the goal and their values. Using a pile of states, the interpreter remembers the last choice point, so it can continue looking for facts from that point in a future search. If there is not any computed answer, the callback invoked on `answer()` will return `false`.
 
