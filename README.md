@@ -20,15 +20,21 @@ Using the Tau Prolog library is simple. Just include a script tag in your html f
 That's it! When the page loads, the `window` object is set with a `pl` object, which contains the logic related to Prolog.
 
 In order to really use the library, you must create a `Session` object, which will contain the methods for parsing programs, looking for answers, etc. This way, we'll use `Session.consult()` to read a program, `Session.query()` to determine the goal we want to satisfy and `Session.answer()` to check if the goal is satisfied within the present database, and what values make it true if there were any variables on the goal. For example:
-```javascript
-var session = pl.create();
-session.consult( "
+
+```html
+<script id="likes.pl" type="text/prolog">
     likes(sam, salad).
     likes(dean, pie).
     likes(sam, apples).
     likes(dean, whiskey).
-" );
+</script>
 ```
+
+```javascript
+var session = pl.create();
+session.consult( "likes.pl" );
+```
+
 By calling the `pl.create()` method, we create a `Session` object, which contais a `consult()` method. This method receives the Prolog program. To set the goal we want to check, we need to call the `query()` method.
 ```javascript
 session.query( "likes(sam, X)" );
