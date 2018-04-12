@@ -2375,6 +2375,7 @@
 					var points = session.points;
 					session.points = [new State( atom.args[0], point.substitution, point )];
 					var callback = function( answer ) {
+						session.points = points;
 						if( answer === false )
 							session.success( point );
 						else if( pl.type.is_error( answer ) )
