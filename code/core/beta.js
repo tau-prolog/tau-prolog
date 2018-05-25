@@ -3888,6 +3888,10 @@
 		
 	};
 
-	window.pl = pl;
+	if( typeof module !== 'undefined' ) {
+		module.exports = pl;
+	} else {
+		window.pl = pl;
+	}
 	
 })();
