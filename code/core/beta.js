@@ -3815,7 +3815,7 @@
 		},
 		
 		// Format of computed answers
-		format_answer: function( answer ) {
+		format_answer: function( answer, session ) {
 			if( pl.type.is_error( answer ) ) {
 				return "uncaught exception: " + answer.args[0].toString();
 			} else if( answer === false ) {
@@ -3833,10 +3833,11 @@
 					}
 					str += link.toString() + " = " + answer.links[link].toString();
 				}
+				var delimiter = typeof session === "undefined" || session.points.length > 0 ? " ;" : "."; 
 				if( i === 0 ) {
-					return "true ;";
+					return "true" + delimiter;
 				} else {
-					return str + " ;";
+					return str + delimiter;
 				}
 			}
 		},
