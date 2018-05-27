@@ -1508,8 +1508,9 @@
 	};
 	
 	// Remove the selected term and prepend the current state
-	Session.prototype.success = function( point ) {
-		this.prepend( [new State( point.goal.replace( null ), point.substitution, point ) ] );
+	Session.prototype.success = function( point, parent ) {
+		var parent = typeof parent === "undefined" ? point : parent;
+		this.prepend( [new State( point.goal.replace( null ), point.substitution, parent ) ] );
 	};
 	
 	// Throw error
@@ -2334,16 +2335,35 @@
 			// $tau:level/1
 			"$tau:level/1": function( session, point, atom ) {
 				session.level = atom.args[0].id;
-				session.success( point );
+				session.success( point, point.parent );
 			},
 		
 			// LOGIC AND CONTROL STRUCTURES
 		
 			// ;/2 (disjunction)
 			";/2": function( session, point, atom ) {
-				var left = new State( point.goal.replace( atom.args[0] ), point.substitution, point );
-				var right = new State( point.goal.replace( atom.args[1] ), point.substitution, point );
-				session.prepend( [left, right] );
+				if( pl.type.is_term( atom.args[0] ) && atom.args[0].indicator === "->/2" ) {
+					var points = session.points;
+					session.points = [new State( atom.args[0].args[0], point.substitution, point.parent )];
+					var callback = function( answer ) {
+						session.points = points;
+						if( answer === false ) {
+							session.points = [new State( point.goal.replace( atom.args[1] ), point.substitution, point.parent )].concat( points );
+						} else if( pl.type.is_error( answer ) )
+							session.throwError( answer.args[0] );
+						else if( answer === null ) {
+							session.points = [point].concat( points );
+							session.__calls.shift()( null );
+						} else {
+							session.points = [new State( point.goal.replace( atom.args[0].args[1] ), point.substitution, point.parent )].concat( points );
+						}
+					};
+					session.__calls.unshift( callback );
+				} else {
+					var left = new State( point.goal.replace( atom.args[0] ), point.substitution, point.parent );
+					var right = new State( point.goal.replace( atom.args[1] ), point.substitution, point.parent );
+					session.prepend( [left, right] );
+				}
 			},
 			
 			// !/0 (cut)
@@ -2393,7 +2413,7 @@
 			// ->/2 (implication)
 			"->/2": function( session, point, atom ) {
 				var goal = point.goal.replace( new Term( ",", [atom.args[0], new Term( ",", [new Term( "!" ), atom.args[1]] )] ) );
-				session.prepend( [new State( goal, point.substitution, point )] );
+				session.prepend( [new State( goal, point.substitution, point.parent )] );
 			},
 			
 			// fail/0
