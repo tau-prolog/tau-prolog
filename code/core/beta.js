@@ -3818,7 +3818,7 @@
 			// Syntax error
 			syntax: function( token, expected, last ) {
 				var position = last ? token.start + token.value.length : token.start;
-				var found = last ? new Term("token_not_found") : new Term("found", [new Term(token.value)]);
+				var found = last ? new Term("token_not_found") : new Term("found", [new Term(token.value.toString())]);
 				var info = new Term( ".", [new Term( "line", [new Num(token.line)] ), new Term( ".", [new Term( "column", [new Num(position+1)] ), new Term( ".", [found, new Term( "[]", [] )] )] )] );
 				return new Term( "error", [new Term( "syntax_error", [new Term( expected )] ), info] );
 			},
