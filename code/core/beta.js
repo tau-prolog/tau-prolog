@@ -3819,7 +3819,8 @@
 			syntax: function( token, expected, last ) {
 				var position = last ? token.start + token.value.length : token.start;
 				var found = last ? new Term("token_not_found") : new Term("found", [new Term(token.value)]);
-				return new Term( "error", [new Term( "syntax_error", [new Term( "line", [new Num(token.line)] ), new Term( "column", [new Num(position+1)] ), found, new Term( "cause", [new Term( expected )] )] )] );
+				var info = new Term( ".", [new Term( "line", [new Num(token.line)] ), new Term( ".", [new Term( "column", [new Num(position+1)] ), new Term( ".", [found, new Term( "[]", [] )] )] )] );
+				return new Term( "error", [new Term( "syntax_error", [new Term( expected )] ), info] );
 			},
 			
 			// Syntax error by predicate
@@ -3883,10 +3884,15 @@
 				obj.expected = error.args[0].args[0].id;
 				obj.found = error.args[0].args[1].toString();
 			} else if( obj.type == "syntax_error" ) {
-				obj.expected = error.args[0].args[3].args[0].id;
-				obj.found = error.args[0].args[2].id == "token_not_found" ? "token_not_found" : error.args[0].args[2].args[0].id;
-				obj.line = error.args[0].args[0].args[0].value;
-				obj.column = error.args[0].args[1].args[0].value;
+				if( error.args[1].indicator === "./2" ) {
+					obj.expected = error.args[0].args[0].id;
+					obj.found = error.args[1].args[1].args[1].args[0];
+					obj.found = obj.found.id === "token_not_found" ? obj.found.id : obj.found.args[0].id;
+					obj.line = error.args[1].args[0].args[0].value;
+					obj.column = error.args[1].args[1].args[0].args[0].value;
+				} else {
+					obj.thrown = error.args[1].id;
+				}
 			} else if( obj.type == "permission_error" ) {
 				obj.found = error.args[0].args[2].toString();
 				obj.permission_operation = error.args[0].args[0].id;
