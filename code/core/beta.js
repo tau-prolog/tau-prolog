@@ -1,7 +1,7 @@
 (function() {
 	
 	// PARSER
-
+	
 	var indexOf;
 	if(!Array.prototype.indexOf) {
 		indexOf = function(array, elem) {
@@ -16,7 +16,7 @@
 			return array.indexOf(elem);
 		};
 	}
-	
+
 	var reduce = function(array, fn) {
 		if(array.length === 0) return undefined;
 		var elem = array[0];
@@ -26,7 +26,7 @@
 		}
 		return elem;
 	};
-	
+
 	var map;
 	if(!Array.prototype.map) {
 		map = function(array, fn) {
@@ -42,49 +42,52 @@
 			return array.map(fn);
 		};
 	}
-	
-	
+
+
 	var ERROR = 0;
 	var SUCCESS = 1;
-	
-	
+
 	var regex_escape = /(\\a)|(\\b)|(\\f)|(\\n)|(\\r)|(\\t)|(\\v)|\\x([0-9a-fA-F]+)\\|\\([0-7]+)\\|(\\\\)|(\\')|(\\")|(\\`)|(\\.)|(.)/g;
 	var escape_map = {"\\a": 7, "\\b": 8, "\\f": 12, "\\n": 10, "\\r": 13, "\\t": 9, "\\v": 11};
 	function escape(str) {
 		var s = [];
+		var _error = false;
 		str.replace(regex_escape, function(match, a, b, f, n, r, t, v, hex, octal, back, single, double, backquote, error, char) {
 			switch(true) {
-				case hex !== undefined:
+				case hex != undefined:
 					s.push( parseInt(hex, 16) );
 					return "";
-				case octal !== undefined:
+				case octal != undefined:
 					s.push( parseInt(octal, 8) );
 					return "";
-				case back !== undefined:
-				case single !== undefined:
-				case double !== undefined:
-				case backquote !== undefined:
+				case back != undefined:
+				case single != undefined:
+				case double != undefined:
+				case backquote != undefined:
 					s.push( match.substr(1).charCodeAt(0) );
 					return "";
-				case char !== undefined:
+				case char != undefined:
 					s.push( char.charCodeAt(0) );
 					return "";
-				case error !== undefined:
-					throw "escape";
+				case error != undefined:
+					_error = true;
 				default:
 					s.push(escape_map[match]);
 					return "";
 			}
 		});
+		if(_error)
+			return null;
 		return s;
 	}
-	
-	
+
+	// Escape string
 	function escapeStr(str) {
-		return map(escape(str), function(c) { return String.fromCharCode(c); }).join("");
+		return map(escape(str), function(c) {return String.fromCharCode(c)}).join("");
 	}
-	
-	
+
+
+	// String to num
 	function convertNum(num) {
 		var n = num.substr(2);
 		switch(num.substr(0,2).toLowerCase()) {
@@ -100,658 +103,530 @@
 				return parseFloat(num);
 		}
 	}
-	
-	
-	var tokenize = (function() {
-	
-		var rules = {
-			whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?\*\/)|(?:\s+))\s*/,
-			variable: /^(?:[A-Z_][a-zA-Z0-9_]*)/,
-			point: /^\./,
-			compound: /^(([a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')\()/,
-			atom: /^(,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')/,
-			number: /^(?:0o[0-7]+|0x[0-9a-f]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|.)|\d+(?:\.\d+(?:e[+-]?\d+)?)?)/i,
-			string: /^(?:"([^"]|""|\\")*"|`([^`]|``|\\`)*`)/,
-			l_brace: /^(?:\[)/,
-			r_brace: /^(?:\])/,
-			l_bracket: /^(?:\{)/,
-			r_bracket: /^(?:\})/,
-			bar: /^(?:\|)/,
-			l_paren: /^(?:\()/,
-			r_paren: /^(?:\))/,
-			cut: /^(?:\!)/,
-			error: /^./
-		};
-		
-		function replace( session, text ) {
-			if( session.flag.char_conversion.id === "on" ) {
-				return text.replace(/./g, function(char) {
-					return session.__char_conversion[char] || char;
-				});
-			}
-			return text;
+
+	// Regular expressions for tokens
+	var rules = {
+		whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?\*\/)|(?:\s+))\s*/,
+		variable: /^(?:[A-Z_][a-zA-Z0-9_]*)/,
+		atom: /^(\!|,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')/,
+		number: /^(?:0o[0-7]+|0x[0-9a-f]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|.)|\d+(?:\.\d+(?:e[+-]?\d+)?)?)/i,
+		string: /^(?:"([^"]|""|\\")*"|`([^`]|``|\\`)*`)/,
+		l_brace: /^(?:\[)/,
+		r_brace: /^(?:\])/,
+		l_bracket: /^(?:\{)/,
+		r_bracket: /^(?:\})/,
+		bar: /^(?:\|)/,
+		l_paren: /^(?:\()/,
+		r_paren: /^(?:\))/
+	};
+
+	// Replace chars of char_conversion session
+	function replace( session, text ) {
+		if( session.flag.char_conversion.id === "on" ) {
+			return text.replace(/./g, function(char) {
+				return session.__char_conversion[char] || char;
+			});
 		}
-		
-	
-	
-		// start 0, line 1
-		return function ( session, text, position, start, line ) {
-			var tokens = [];
-			var len = position;
-			var last_is_blank = false;
-			text = replace( session, text.substr(position) );
-	
-	
-			while(text !== "") {
-				var matches = [];
-	
-				// Elimina los saltos de linea
-				/*if(/^\n/.exec(text) !== null) {
-					line++;
-					start = 0;
-					len++;
-					text = text.replace(/\n/, "");
-					last_is_blank = true;
-					continue;
-				}*/
-				
-				// Busca todas las coincidencias
-				for(var rule in rules) {
-					if(rules.hasOwnProperty(rule)) {
-						var matchs = rules[rule].exec( text );
-						var match = matchs ? matchs[0] : "";
+		return text;
+	}
+
+	// Tokenize strings
+	function Tokenizer(session) {
+		this.session = session;
+		this.text = ""; // Current text to be analized
+		this.tokens = []; // Consumed tokens
+	}
+
+	Tokenizer.prototype.set_last_tokens = function(tokens) {
+		return this.tokens = tokens;
+	};
+
+	Tokenizer.prototype.new_text = function(text) {
+		this.text = text;
+		this.tokens = [];
+	};
+
+	Tokenizer.prototype.get_tokens = function(init) {
+		var text;
+		var len = 0; // Total length respect to text
+		var line = 0;
+		var start = 0;
+		var tokens = [];
+		var last_in_blank = false;
+
+		if(init) {
+			var token = this.tokens[init-1];
+			len = token.len;
+			text = replace( this.session, this.text.substr(token.len) );
+			line = token.line;
+			start = token.start;
+		}
+		else
+			text = this.text;
+
+
+		// If there is nothing to be analized, return null
+		if(/^\s*$/.test(text))
+			return null;
+
+		while(text !== "") {
+			var matches = [];
+
+			if(/^\n/.exec(text) !== null) {
+				line++;
+				start = 0;
+				len++;
+				text = text.replace(/\n/, "");
+				last_in_blank = true;
+				continue;
+			}
+
+			for(var rule in rules) {
+				if(rules.hasOwnProperty(rule)) {
+					var matchs = rules[rule].exec( text );
+					if(matchs) {
 						matches.push({
-							value: match,
+							value: matchs[0],
 							name: rule,
 							matches: matchs
 						});
 					}
 				}
-				
-				// Filtra la coincidencia mas larga
-				var token = reduce( matches, function(a, b) {
-					return a.value.length >= b.value.length ? a : b;
-				} );
-				
-				token.start = start;
-				token.line = line;
-
-				text = text.replace(token.value, "");
-				start += token.value.length;
-				len += token.value.length;
-				var is_compound = false;
-
-				switch(token.name) {
-					case "compound":
-						token.value = token.value.substr(0, token.value.length - 1).replace(/^'(.*)'$/, function(m, e) {return e;});
-						is_compound = true;
-						break;
-					case "atom":
-						if(token.value.charAt(0) == "'") {
-							token.value = escapeStr( token.value.substr(1, token.value.length - 2).replace(/''/g, "'").replace(/\\\n/g, "") );
-						}
-						break;
-					case "number":
-						token.float = token.value.match(/[.eE]/) !== null;
-						token.value = convertNum( token.value );
-						token.blank = last_is_blank;
-						break;
-					case "string":
-						if(token.value.charAt(0) == "`") token.value = token.value.replace(/``/g, "`");
-						else if(token.value.charAt(0) == '"') token.value = token.value.replace(/""/g, '"');
-						token.value = escape( token.value.substr(1, token.value.length - 2) );
-						break;
-					case "point":
-						tokens.push( token );
-						return {
-							tokens: tokens,
-							len: len,
-							start: start,
-							line: line
-						};
-					case "whitespace":
-						last_is_blank = true;
-						var ms = token.value.match(/\n/g);
-						if(ms) {
-							line += ms.length;
-							start = 0;
-						}
-						continue;
-				}
-
-				tokens.push( token );
-				if(is_compound) {
-					tokens.push({
-						start: start - 1,
-						line: line,
-						value: "(",
-						name: "l_paren"
-					});
-				}
-				last_is_blank = false;
 			}
 
-			return {
-				tokens: tokens,
-				len: len,
-				start: start,
-				line: line
-			};
-		};
-	
-	})();
-	
-	
-	
-	function parseOperator(session, tokens, start, priority) {
-		if(priority == "0") return parseExpr(session, tokens, start);
-		if(!tokens[start]) return {
-			type: ERROR,
-			value: pl.error.syntax(tokens[start - 1], "expression expected")
-		};
+			// Lexical error
+			if(!matches.length)
+				return this.set_last_tokens( [{ value: text, matches: [], name: "lexical", line: line, start: start }] );
 
-		var error = null;
-		var expr, expr2, token, classes;
-		
+			var token = reduce( matches, function(a, b) {
+				return a.value.length >= b.value.length ? a : b;
+			} );
+
+			token.start = start;
+			token.line = line;
+
+			text = text.replace(token.value, "");
+			start += token.value.length;
+			len += token.value.length;
+			var is_compound = false;
+
+
+			switch(token.name) {
+				case "compound":
+					token.value = token.value.substr(0, token.value.length - 1).replace(/^'(.*)'$/, function(m, e) {return e;});
+					is_compound = true;
+					break;
+				case "atom":
+					token.raw = token.value;
+					if(token.value.charAt(0) == "'") {
+						token.value = token.value.substr(1, token.value.length - 2).replace(/''/g, "'").replace(/\\'/g, "'").replace(/\\\n/g, "");
+					}
+					break;
+				case "number":
+					token.float = token.value.match(/[.eE]/) !== null;
+					token.value = convertNum( token.value );
+					token.blank = last_is_blank;
+					break;
+				case "string":
+					if(token.value.charAt(0) == "`") token.value = token.value.replace(/``/g, "`");
+					else if(token.value.charAt(0) == '"') token.value = token.value.replace(/""/g, '"');
+					token.value = escape( token.value.substr(1, token.value.length - 2) );
+					if( token.value === null ) {
+						token.name = "lexical";
+						token.value = "unknown escape sequence";
+					}
+					break;
+				case "whitespace":
+					var last = tokens[tokens.length-1];
+					if(last) last.space = true;
+					last_is_blank = true;
+					continue;
+			}
+			token.len = len;
+			tokens.push( token );
+			if(is_compound) {
+				tokens.push({
+					start: start - 1,
+					line: line,
+					value: "(",
+					name: "l_paren",
+					len: len
+				});
+			}
+			last_is_blank = false;
+		}
+
+		return this.set_last_tokens( tokens );
+	};
+
+	// Parse an expression
+	function parseExpr(session, tokens, start, priority, toplevel) {
+		if(!tokens[start]) return {type: ERROR, value: pl.error.syntax(tokens[start-1], "expression expected", true)};
+		var error;
+
+		if(priority == "0") {
+			var token = tokens[start];
+			switch(token.name) {
+				case "number":
+					return {type: SUCCESS, len: start+1, value: new pl.type.Num(token.value, token.float)};
+				case "variable":
+					return {type: SUCCESS, len: start+1, value: new pl.type.Var(token.value)};
+				case "string":
+					var str;
+					switch( session.flag.double_quotes.id ) {
+						case "atom":
+							str = "";
+							for(var i = 0; i < token.value.length; i++ )
+								str += String.fromCharCode(token.value[i]);
+							str = new Term( str, [] );
+							break;
+						case "codes":
+							str = new Term( "[]", [] );
+							for(var i = token.value.length-1; i >= 0; i-- )
+								str = new Term( ".", [new pl.type.Num( token.value[i], false ), str] );
+							break;
+						case "chars":
+							str = new Term( "[]", [] );
+							for(var i = token.value.length-1; i >= 0; i-- )
+								str = new Term( ".", [new pl.type.Term( String.fromCharCode(token.value[i]), [] ), str] );
+							break;
+					}
+					return {type: SUCCESS, len: start+1, value: str};
+				case "l_paren":
+					var expr = parseExpr(session, tokens, start+1, session.__get_max_priority(), true);
+					if(expr.type !== SUCCESS) return expr;
+					if(tokens[expr.len] && tokens[expr.len].name === "r_paren") {
+						expr.len++;
+						return expr;
+					}
+					return {type: ERROR, derived: true, value: pl.error.syntax(tokens[expr.len] ? tokens[expr.len] : tokens[expr.len-1], ") or operator expected", !tokens[expr.len])}
+				case "l_bracket":
+					var expr = parseExpr(session, tokens, start+1, session.__get_max_priority(), true);
+					if(expr.type !== SUCCESS) return expr;
+					if(tokens[expr.len] && tokens[expr.len].name === "r_bracket") {
+						expr.len++;
+						expr.value = new Term( "{}", [expr.value] );
+						return expr;
+					}
+					return {type: ERROR, derived: true, value: pl.error.syntax(tokens[expr.len] ? tokens[expr.len] : tokens[expr.len-1], "} or operator expected", !tokens[expr.len])}
+			}
+			// Compound term
+			var result = parseTerm(session, tokens, start, toplevel);
+			if(result.type === SUCCESS || result.derived)
+				return result;
+			// List
+			result = parseList(session, tokens, start);
+			if(result.type === SUCCESS || result.derived)
+				return result;
+			// Unexpected
+			return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start], "unexpected token")};
+		}
+
 		var max_priority = session.__get_max_priority();
 		var next_priority = session.__get_next_priority(priority);
 		var aux_start = start;
-	
-		if(tokens[start] && tokens[start].name == "atom" && session.__lookup_operator_classes(priority, tokens[start].value)) {
-			token = tokens[start];
-			start++;
-
-			classes = session.__lookup_operator_classes(priority, token.value);
-			if(indexOf(classes, "fy") > -1 || indexOf(classes, "fx") > -1) {
+		
+		// Prefix operators
+		if(tokens[start].name === "atom") {
+			var token = tokens[start++];
+			var classes = session.__lookup_operator_classes(priority, token.value);
+			
+			// Signed number
+			if(token.value === "-" || token.value === "+") {
 				var number = tokens[start];
-				if(token.value == "-" && number && number.name == "number" && !number.blank) {
+				if(number && number.name == "number" && !number.blank) {
 					return {
-						value: new Num( -number.value, number.float ),
+						value: new pl.type.Num( token.value==="-" ? -number.value : number.value, number.float ),
 						len: ++start,
 						type: SUCCESS
 					};
 				}
 			}
 			
-			if(indexOf(classes, "fy") > -1) {
-				expr = parseOperator(session, tokens, start, priority);
+			// Associative prefix operator
+			if(classes && classes.indexOf("fy") > -1) {
+				var expr = parseExpr(session, tokens, start, priority, toplevel);
 				if(expr.type != ERROR) {
 					return {
-						value: new Term(token.value, [expr.value]),
+						value: new pl.type.Term(token.value, [expr.value]),
 						len: expr.len,
 						type: SUCCESS
 					};
 				} else {
 					error = expr;
-					return expr;
 				}
-			}
-			
-			else if(indexOf(classes, "fx") > -1) {
-				expr = parseOperator(session, tokens, start, next_priority);
+			// Non-associative prefix operator
+			} else if(classes && classes.indexOf("fx") > -1) {
+				var expr = parseExpr(session, tokens, start, next_priority, toplevel);
 				if(expr.type != ERROR) {
 					return {
-						value: new Term(token.value, [expr.value]),
+						value: new pl.type.Term(token.value, [expr.value]),
 						len: expr.len,
 						type: SUCCESS
 					};
 				} else {
 					error = expr;
-					return expr;
 				}
 			}
 		}
-	
-	
+
 		start = aux_start;
-		expr = parseOperator(session, tokens, start, next_priority);
-		if(expr.type !== ERROR) {
+		var expr = parseExpr(session, tokens, start, next_priority, toplevel);
+		if(expr.type === SUCCESS) {
 			start = expr.len;
-			token = tokens[start];
+			var token = tokens[start];
+			if(tokens[start] && tokens[start].name == "atom" && session.__lookup_operator_classes(priority, token.value)) {
 
-			if(!token) return expr;
+				var next_priority_lt = next_priority;
+				var next_priority_eq = priority;
+				var classes = session.__lookup_operator_classes(priority, token.value);
 
-			if((token.name == "atom" || token.name == "compound") && session.__lookup_operator_classes(priority, token.value)) {
-	
-				var is_compound = token.name == "compound";
-				var next_priority_lt = is_compound ? max_priority : next_priority;
-				var next_priority_eq = is_compound ? max_priority : priority;
-		
-				if(is_compound) session.__push_comma_state(false);
-				classes = session.__lookup_operator_classes(priority, token.value);
-	
-	
-				if(indexOf(classes, "xf") > -1) {
-					if(is_compound) session.__pop_comma_state();
+				if(classes.indexOf("xf") > -1) {
 					return {
-						value: new Term(token.value, [expr.value]),
-						len: ++expr.len
+						value: new pl.type.Term(token.value, [expr.value]),
+						len: ++expr.len,
+						type: SUCCESS
 					};
-				}
-				else if (indexOf(classes, "xfx") > -1) {
-					expr2 = parseOperator(session, tokens, start + 1, next_priority_lt);
-					if(is_compound) session.__pop_comma_state();
-					if(expr2.type != ERROR) {
+				} else if(classes.indexOf("xfx") > -1) {
+					var expr2 = parseExpr(session, tokens, start + 1, next_priority_lt, toplevel);
+					if(expr2.type === SUCCESS) {
 						return {
-							value: new Term(token.value, [expr.value, expr2.value]),
+							value: new pl.type.Term(token.value, [expr.value, expr2.value]),
 							len: expr2.len,
 							type: SUCCESS
 						};
 					} else {
+						expr2.derived = true;
 						return expr2;
 					}
-				}
-				else if (indexOf(classes, "xfy") > -1) {
-					expr2 = parseOperator(session, tokens, start + 1, next_priority_eq);
-					if(is_compound) session.__pop_comma_state();
-					if(expr2.type != ERROR) {
+				} else if(classes.indexOf("xfy") > -1) {
+					var expr2 = parseExpr(session, tokens, start + 1, next_priority_eq, toplevel);
+					if(expr2.type === SUCCESS) {
 						return {
-							value: new Term(token.value, [expr.value, expr2.value]),
+							value: new pl.type.Term(token.value, [expr.value, expr2.value]),
 							len: expr2.len,
 							type: SUCCESS
 						};
 					} else {
+						expr2.derived = true;
 						return expr2;
 					}
-				}
-				else {
-					if(is_compound) session.__pop_comma_state();
+				} else if(expr.type != ERROR) {
 					while(true) {
 						start = expr.len;
-						token = tokens[start];
+						var token = tokens[start];
 						if(token && (token.name == "atom" || token.name == "compound") && session.__lookup_operator_classes(priority, token.value)) {
-							classes = session.__lookup_operator_classes(priority, token.value);
-							if( indexOf(classes, "yf") > -1 ) {
+							var classes = session.__lookup_operator_classes(priority, token.value);
+							if( classes.indexOf("yf") > -1 ) {
 								expr = {
-									value: new Term(token.value, [expr.value]),
+									value: new pl.type.Term(token.value, [expr.value]),
 									len: ++start,
 									type: SUCCESS
 								};
-							}
-							else if( indexOf(classes, "yfx") > -1 ) {
-								expr2 = parseOperator(session, tokens, ++start, next_priority_lt);
+							} else if( classes.indexOf("yfx") > -1 ) {
+								var expr2 = parseExpr(session, tokens, ++start, next_priority_lt, toplevel);
 								if(expr2.type == ERROR) {
-									expr = expr2;
-									break;
+									expr2.derived = true;
+									return expr2;
 								}
 								start = expr2.len;
 								expr = {
-									value: new Term(token.value, [expr.value, expr2.value]),
+									value: new pl.type.Term(token.value, [expr.value, expr2.value]),
 									len: start,
 									type: SUCCESS
 								};
-							}
-							else {
-								break;
-							}
-						} else {
-							break;
-						}
+							} else { break; }
+						} else { break; }
 					}
 				}
+			} else {
+				error = {type: ERROR, value: pl.error.syntax(tokens[expr.len-1], "operator expected")};
 			}
-	
 			return expr;
-		} else {
-			error = expr;
 		}
-	
-		return error;
+		return expr;
 	}
-	
-	
-	function parseExpr(session, tokens, start) {
-		var i, expr, expr2, priority, values;
-	
-		if(!tokens[start]) return {
-			type: ERROR,
-			value: pl.error.syntax(tokens[start], "expression expected")
-		};
 
-
-		var token = tokens[start++];
-		switch(token.name) {
-			case "variable":
-				return {
-					value: new Var(token.value),
-					len: start,
-					type: SUCCESS
-				};
-			case "cut":
-				return {
-					value: new Term(token.value),
-					len: start,
-					type: SUCCESS
-				};
-			case "string":
-				var string;
-				switch(session.flag.double_quotes.id) {
-					case "codes":
-						string = new Term("[]");
-						for(i = token.value.length - 1; i >= 0; i--) {
-							string = new Term(".", [new Num(token.value[i], false), string]);
-						}
-						break;
-					case "chars":
-						string = new Term("[]");
-						for(i = token.value.length - 1; i >= 0; i--) {
-							string = new Term(".", [new Term(String.fromCharCode(token.value[i])), string]);
-						}
-						break;
-					case "atom":
-						string = "";
-						for(i = 0; i < token.value.length; i++) {
-							string += String.fromCharCode(token.value[i]);
-						}
-						string = new Term( string );
-						break;
-				}
-				return {
-					value: string,
-					len: start,
-					type: SUCCESS
-				};
-			case "number":
-				return {
-					value: new Num(token.value, token.float),
-					len: start,
-					type: SUCCESS
-				};
-			case "l_bracket":
-				session.__push_comma_state(true);
-				var args = [];
-				expr = parseOperator(session, tokens, start, session.__get_max_priority());
-				session.__pop_comma_state();
-				if(expr.type != ERROR) {
-					args = [expr.value];
-					start = expr.len;
-				}
-				if(tokens[start] && tokens[start].name == "r_bracket") {
-					return {
-						value: new Term("{}", args),
-						len: ++start,
-						type: SUCCESS
-					};
-				} else {
-					token = tokens[start];
-					return {
-						type: ERROR,
-						value: pl.error.syntax(token ? token : tokens[start-1], "} expected", !token)
-					};
-				}
-				break;
-			case "l_paren":
-				session.__push_comma_state(true);
-				expr = parseOperator(session, tokens, start, session.__get_max_priority());
-				session.__pop_comma_state();
-				if(expr.type != ERROR) {
-					start = expr.len;
-					if(tokens[start] && tokens[start].name == "r_paren") {
-						expr.len = ++start;
+	// Parse a compound term
+	function parseTerm(session, tokens, start, toplevel) {
+		if(!tokens[start] || (tokens[start].name === "atom" && tokens[start].raw === "." && !toplevel && (tokens[start].space || !tokens[start+1] || tokens[start+1].name !== "l_paren")))
+			return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start-1], "unfounded token")};
+		var atom = tokens[start];
+		var exprs = [];
+		if(tokens[start].name === "atom" && tokens[start].raw !== ",") {
+			start++;
+			if(tokens[start-1].space) return {type: SUCCESS, len: start, value: new pl.type.Term(atom.value, exprs)};
+			if(tokens[start] && tokens[start].name === "l_paren") {
+				if(tokens[start+1] && tokens[start+1].name === "r_paren") 
+					return {type: ERROR, derived: true, value: pl.error.syntax(tokens[start+1], "argument expected")};
+				var expr = parseExpr(session, tokens, ++start, "999", true);
+				if(expr.type === ERROR) {
+					if( expr.derived )
 						return expr;
-					} else {
-						token = tokens[start];
-						return {
-							type: ERROR,
-							value: pl.error.syntax(token ? token : tokens[start-1], ", or ) expected", !token)
-						};
-					}
-				} else {
-					return expr;
+					else
+						return {type: ERROR, derived: true, value: pl.error.syntax(tokens[start] ? tokens[start] : tokens[start-1], "argument expected", !tokens[start])};
 				}
-				break;
-			case "l_brace":
-				priority = session.__get_max_priority();
-				session.__push_comma_state(false);
-				expr = parseOperator(session, tokens, start, priority);
-				values = [];
-				var tail = new Term("[]");
-				if(expr.type != ERROR) {
-					values.push(expr.value);
+				exprs.push(expr.value);
+				start = expr.len;
+				while(tokens[start] && tokens[start].name === "atom" && tokens[start].value === ",") {
+					expr = parseExpr(session, tokens, start+1, "999", true);
+					if(expr.type === ERROR) {
+						if( expr.derived )
+							return expr;
+						else
+							return {type: ERROR, derived: true, value: pl.error.syntax(tokens[start+1] ? tokens[start+1] : tokens[start], "argument expected", !tokens[start+1])};
+					}
+					exprs.push(expr.value);
 					start = expr.len;
-
-
-					while(tokens[start] && tokens[start].name == "atom" && tokens[start].value == ",") {
-						expr2 = parseOperator(session, tokens, ++start, priority);
-						if(expr2.type != ERROR) {
-							values.push(expr2.value);
-							start = expr2.len;
-						} else {
-							session.__pop_comma_state();
-							return {
-								type: ERROR,
-								value: pl.error.syntax(tokens[start], ", or ] expected")
-							};
-						}
-					}
-
-					if(tokens[start] && tokens[start].name == "bar") {
-						start++;
-						var expr3 = parseOperator(session, tokens, start, priority);
-						if(expr3.type != ERROR) {
-							tail = expr3.value;
-							start = expr3.len;
-						} else {
-							session.__pop_comma_state();
-							token = tokens[start];
-							return {
-								type: ERROR,
-								value: pl.error.syntax(token ? token : tokens[start-1], "expression expected", !token)
-							};
-						}
-					}
 				}
-
-				session.__pop_comma_state();
-				if(tokens[start] && tokens[start].name == "r_brace") {
-					start++;
-					for(i = values.length - 1; i >= 0; i--) {
-						tail = new Term(".", [values[i], tail]);
-					}
-					return {
-						value: tail,
-						len: start,
-						type: SUCCESS
-					};
-				} else {
-					token = tokens[start];
-					return {
-						type: ERROR,
-						value: pl.error.syntax(token ? token : tokens[start-1], values.length ? "|, ] or , expected" : "] expected", !token)
-					};
-				}
-				break;
-			case "atom":
-				if( token.value === "-" && tokens[start] && tokens[start].name === "number" && !tokens[start].blank) {
-					return {
-						value: new Num(-tokens[start].value, tokens[start].float),
-						len: ++start,
-						type: SUCCESS
-					};
-				}
-				return {
-					value: new Term(token.value),
-					len: start,
-					type: SUCCESS
-				};
-			case "compound":
-				start++;
-				priority = session.__get_max_priority();
-				session.__push_comma_state(false);
-				expr = parseOperator(session, tokens, start, priority);
-				if(expr.type != ERROR) {
-					values = [expr.value];
-					start = expr.len;
-					while(tokens[start] && tokens[start].name == "atom" && tokens[start].value == ",") {
-						expr2 = parseOperator(session, tokens, ++start, priority);
-						if(expr2.type != ERROR) {
-							values.push(expr2.value);
-							start = expr2.len;
-						} else {
-							session.__pop_comma_state();
-							return expr2;
-						}
-					}
-
-					session.__pop_comma_state();
-					if(tokens[start] && tokens[start].name == "r_paren") {
-						start++;
-						return {
-							value: new Term(token.value, values),
-							len: start,
-							type: SUCCESS
-						};
-					} else {
-						token = tokens[start];
-						return {
-							type: ERROR,
-							value: pl.error.syntax(token ? token : tokens[start-1], ", or ) expected", !token)
-						};
-					}
-
-				} else {
-					session.__pop_comma_state();
-					return expr;
-				}
-				break;
+				if(tokens[start] && tokens[start].name === "r_paren") start++;
+				else return {type: ERROR, derived: true, value: pl.error.syntax(tokens[start] ? tokens[start] : tokens[start-1], ", or ) expected", !tokens[start])};
+			}
+			return {type: SUCCESS, len: start, value: new pl.type.Term(atom.value, exprs)};
 		}
-
-		return {
-			type: ERROR,
-			value: pl.error.syntax(token, "unexpected token")
-		};
+		return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start], "term expected")};
 	}
-	
-	
+
+	// Parse a list
+	function parseList(session, tokens, start) {
+		if(!tokens[start]) 
+			return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start-1], "[ expected")};
+		if(tokens[start] && tokens[start].name === "l_brace") {
+			var expr = parseExpr(session, tokens, ++start, "999", true);
+			var exprs = [expr.value];
+			var cons = undefined;
+
+			if(expr.type === ERROR) {
+				if(tokens[start] && tokens[start].name === "r_brace") {
+					return {type: SUCCESS, len: start+1, value: new pl.type.Term("[]", [])};
+				}
+				return {type: ERROR, derived: true, value: pl.error.syntax(tokens[start], "] expected")};
+			}
+			
+			start = expr.len;
+
+			while(tokens[start] && tokens[start].name === "atom" && tokens[start].value === ",") {
+				expr = parseExpr(session, tokens, start+1, "999", true);
+				if(expr.type === ERROR) {
+					if( expr.derived )
+						return expr;
+					else
+						return {type: ERROR, derived: true, value: pl.error.syntax(tokens[start+1] ? tokens[start+1] : tokens[start], "argument expected", !tokens[start+1])};
+				}
+				exprs.push(expr.value);
+				start = expr.len;
+			}
+			var bar = false
+			if(tokens[start] && tokens[start].name === "bar") {
+				bar = true;
+				expr = parseExpr(session, tokens, start+1, "999", true);
+				if(expr.type === ERROR) {
+					if( expr.derived )
+						return expr;
+					else
+						return {type: ERROR, derived: true, value: pl.error.syntax(tokens[start+1] ? tokens[start+1] : tokens[start], "argument expected", !tokens[start+1])};
+				}
+				cons = expr.value;
+				start = expr.len;
+			}
+			if(tokens[start] && tokens[start].name === "r_brace")
+				return {type: SUCCESS, len: start+1, value: arrayToList(exprs, cons) };
+			else
+				return {type: ERROR, derived: true, value: pl.error.syntax(tokens[start] ? tokens[start] : tokens[start-1], bar ? "] expected" : ", or | or ] expected", !tokens[start])};
+		}
+		return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start], "list expected")};
+	}
+
+	// Parse a rule
 	function parseRule(session, tokens, start) {
-	
-		var expr = parseOperator(session, tokens, start, session.__get_max_priority());
+		var expr = parseExpr(session, tokens, start, session.__get_max_priority(), false);
 		if(expr.type != ERROR) {
 			start = expr.len;
-			if(tokens[start] && tokens[start].name == "point") {
+			if(tokens[start] && tokens[start].name === "atom" && tokens[start].raw === ".") {
 				start++;
 				if( pl.type.is_term(expr.value) ) {
 					if(expr.value.indicator == ":-/2") {
 						return {
-							value: new Rule(expr.value.args[0], expr.value.args[1]),
+							value: new pl.type.Rule(expr.value.args[0], expr.value.args[1]),
 							len: start,
 							type: SUCCESS
 						};
-					}
-					else if(expr.value.indicator == "-->/2") {
-						var dcg = rule_to_dcg(new Rule(expr.value.args[0], expr.value.args[1]), session);
+					} else if(expr.value.indicator == "-->/2") {
+						var dcg = rule_to_dcg(new pl.type.Rule(expr.value.args[0], expr.value.args[1]), session);
 						return {
 							value: dcg,
 							len: start,
 							type: pl.type.is_rule( dcg ) ? SUCCESS : ERROR
 						};
-					}
-					else {
+					} else {
 						return {
-							value: new Rule(expr.value, null),
+							value: new pl.type.Rule(expr.value, null),
 							len: start,
 							type: SUCCESS
 						};
 					}
-				}
-				else {
-					return {
-						type: ERROR,
-						value: pl.error.syntax(tokens[start], "callable expected")
-					};
+				} else {
+					return { type: ERROR, value: pl.error.syntax(tokens[start], "callable expected") };
 				}
 			} else {
-				var token = tokens[start];
-				return {
-					type: ERROR,
-					value: pl.error.syntax(token ? token : tokens[start-1], ". or expression expected", !token)
-				};
+				return { type: ERROR, value: pl.error.syntax(tokens[start] ? tokens[start] : tokens[start-1], ". or operator expected") };
 			}
 		}
 		return expr;
 	}
-	
-	
+
+	// Parse a program
 	function parseProgram(session, string) {
-		session.__stack_comma = [true];
-		
-		var line = 1;
-		var start = 0;
-		var position = 0;
-		var result;
-		
+		var tokenizer = new Tokenizer( session );
+		tokenizer.new_text( string );
+		var n = 0;
 		do {
-			
-			var tokenize_state = tokenize( session, string, position, start, line );
-			var tokens = tokenize_state.tokens;
-			line = tokenize_state.line;
-			start = tokenize_state.start;
-			position = tokenize_state.len;
-			
-			if(tokens.length === 0) break;
-			
+			var tokens = tokenizer.get_tokens( n );
+			if( tokens === null ) break;
 			var expr = parseRule(session, tokens, 0);
-	
-			if(expr.type !== ERROR) {
-				if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
-					result = session.run_directive(expr.value.head.args[0]);
-				} else {
-					result = session.add_rule(expr.value);
-				}
-	
-				if(!result) {
-					return new Term("throw", [result.value]);
-				}
-			} else {
+			if( expr.type === ERROR ) {
 				return new Term("throw", [expr.value]);
+			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
+				var result = session.run_directive(expr.value.head.args[0]);
+			} else {
+				var result = session.add_rule(expr.value);
 			}
-			
-		} while( string.length != position );
-		
+			if(!result) {
+				return result;
+			}
+			n = expr.len;
+		} while( true );
 		return true;
 	}
 	
-	
+	// Parse a query
 	function parseQuery(session, string) {
-		session.__stack_comma = [true];
-		
-		var line = 1;
-		var start = 0;
-		var position = 0;
-		
+		var tokenizer = new Tokenizer( session );
+		tokenizer.new_text( string );
+		var n = 0;
 		do {
-			var tokenize_state = tokenize( session, string, position, start, line );
-			var tokens = tokenize_state.tokens;
-			line = tokenize_state.line;
-			start = tokenize_state.start;
-			position = tokenize_state.len;
-			
-			if(tokens.length === 0) break;
-			
-			var expr = parseOperator(session, tokens, 0, session.__get_max_priority());
+			var tokens = tokenizer.get_tokens( n );
+			if( tokens === null ) break;
+			var expr = parseExpr(session, tokens, 0, session.__get_max_priority(), false);
 			if(expr.type !== ERROR) {
 				var expr_position = expr.len;
-				if(tokens[expr_position] && tokens[expr_position].name === "point") {
+				tokens_pos = expr_position;
+				if(tokens[expr_position] && tokens[expr_position].name === "atom" && tokens[expr_position].raw === ".") {
 					session.add_goal(expr.value);
 				} else {
 					var token = tokens[expr_position];
-					return new Term("throw", [pl.error.syntax(token ? token : tokens[expr_position-1], ". or expression expected", !token)]);
+					return new Term("throw", [pl.error.syntax(token ? token : tokens[expr_position-1], ". or operator expected", !token)] );
 				}
+				
+				n = expr.len + 1;
 			} else {
 				return new Term("throw", [expr.value]);
 			}
-			
-		} while(string.length != position);
-		
+		} while( true );
 		return true;
 	}
-	
-	
-	
-	
-	
-	
-	
+
+
 	
 	// UTILS
 
@@ -823,6 +698,7 @@
 		} else if( pl.type.is_callable( expr ) ) {
 			free = session.next_free_variable();
 			expr.args = expr.args.concat([last,free]);
+			expr = new Term( expr.id, expr.args );
 			return {
 				value: expr,
 				variable: free,
@@ -857,8 +733,8 @@
 	}
 	
 	// List to Prolog list
-	function arrayToList( array ) {
-		var list = new pl.type.Term( "[]", [] );
+	function arrayToList( array, cons ) {
+		var list = cons ? cons : new pl.type.Term( "[]", [] );
 		for(var i = array.length-1; i >= 0; i-- )
 			list = new pl.type.Term( ".", [array[i], list] );
 		return list;
@@ -923,7 +799,6 @@
 		this.rename = 0;
 		this.level = "top_level/0";
 		this.points = [];
-		this.variables = [];
 		this.renamed_variables = {};
 		this.public = [];
 		this.limit = limit;
@@ -954,15 +829,14 @@
 				"=..": ["xfx"], "is": ["xfx"], "=:=": ["xfx"], "=\\=": ["xfx"],
 				"<": ["xfx"], "=<": ["xfx"], ">": ["xfx"], ">=": ["xfx"]
 			},
+			600: { ":": ["xfy"] },
 			500: { "+": ["yfx"], "-": ["yfx"], "/\\": ["yfx"], "\\/": ["yfx"] },
 			400: {
 				"*": ["yfx"], "/": ["yfx"], "//": ["yfx"], "rem": ["yfx"],
 				"mod": ["yfx"], "<<": ["yfx"], ">>": ["yfx"]
 			},
-			200: { "**": ["xfx"], "^": ["xfy"], "-": ["fy"], "\\": ["fy"] }
+			200: { "**": ["xfx"], "^": ["xfy"], "-": ["fy"], "+": ["fy"], "\\": ["fy"] }
 		};
-		this.__stack_comma = [true];
-		this.__minus_operator = true;
 		this.__calls = [];
 	}
 	
@@ -989,15 +863,6 @@
 	
 	// Terms
 	Term.prototype.toString = function() {
-		if( pl.type.is_operator( this ) ) {
-			if (this.args.length === 0) {
-				return this.id;
-			} else if (this.args.length === 1) {
-				return this.id + "(" + this.args[0] + ")";
-			} else {
-				return "(" + this.args[0] + this.id + this.args[1] + ")";
-			}
-		}
 		switch( this.indicator ){
 			case "[]/0":
 			case "!/0":
@@ -1015,14 +880,11 @@
 				list += "]";
 				return list;
 			case ",/2":
-			case ";/2":
-				return "(" + this.args[0] + this.id + this.args[1] + ")";
+				return "(" + this.args[0].toString() + ", " + this.args[1].toString() + ")";
 			default:
 				var id = this.id;
-				var first = id.charAt(0);
-				if( first !== first.toLowerCase() || first === first.toUpperCase() ) {
-					id = "'" + id + "'";
-				}
+				if( ! /^(!|,|;|[a-z][0-9a-zA-Z_]*)$/.test( id ) )
+					id = "'" + id.replace(/'/g, "''") + "'";
 				return id + (this.args.length ? "(" + this.args.join(", ") + ")" : "");
 		}
 	};
@@ -1257,10 +1119,6 @@
 			if(!this.links.hasOwnProperty(link)) continue;
 			links[link] = this.links[link].apply(subs);
 		}
-		for( link in subs.links ) {
-			if(!subs.links.hasOwnProperty(link)) continue;
-			links[link] = subs.links[link];
-		}
 		return new Substitution( links );
 	};
 	
@@ -1295,6 +1153,7 @@
 				if( state === null ) {
 					return null;
 				}
+				for( var x in state.substitution.links ) subs.links[x] = state.substitution.links[x];
 				subs = subs.apply( state.substitution );
 			}
 			return new State( this.apply( subs ), subs );
@@ -1359,30 +1218,9 @@
 		return false;
 	};
 	
-	// Push comma state
-	Session.prototype.__push_comma_state = function( new_state ) {
-		this.__stack_comma.push( new_state );
-		if( new_state ) this.__operators[1000][","] = ["xfy"];
-		else delete this.__operators[1000][","];
-	};
-	
-	// Pop comma state
-	Session.prototype.__pop_comma_state = function() {
-		this.__stack_comma.pop();
-		var value = this.__stack_comma[this.__stack_comma.length - 1];
-		if( value ) this.__operators[1000][","] = ["xfy"];
-		else delete this.__operators[1000][","];
-	};
-	
 	// Get maximum priority of the operators
 	Session.prototype.__get_max_priority = function() {
-		var max = 0;
-		for( var key in this.__operators ) {
-			if( !this.__operators.hasOwnProperty(key) ) continue;
-			var n = parseInt(key);
-			if( n > max ) max = n;
-		}
-		return max.toString();
+		return "1200";
 	};
 	
 	// Get next priority of the operators
@@ -1411,14 +1249,18 @@
 	};
 
 	// Add a goal
-	Session.prototype.add_goal = function( goal ) {
-		this.points.push( new State( goal, new Substitution(), null, null ) );
-		this.variables = goal.variables();
+	Session.prototype.add_goal = function( goal, unique ) {
+		if( unique === true )
+			this.points = [];
+		var vars = goal.variables();
+		var links = {};
+		for( var i = 0; i < vars.length; i++ )
+			links[vars[i]] = new Var(vars[i]);
+		this.points.push( new State( goal, new Substitution(links), null, null ) );
 	};
 
 	// Consult a program from a string
 	Session.prototype.consult = function( program ) {
-		this.__stack_comma = [true];
 		var string = "";
 		if( typeof program === "string" ) {
 			string = program;
@@ -1448,15 +1290,18 @@
 
 	// Query goal from a string (without ?-)
 	Session.prototype.query = function( string ) {
-		this.__stack_comma = [true];
+		this.points = [];
 		return parseQuery( this, string );
 	};
 	
 	// Get free variable
 	Session.prototype.get_free_variable = function( variable ) {
+		var variables = [];
 		if( variable.id === "_" || this.renamed_variables[variable.id] === undefined ) {
 			this.rename++;
-			while( indexOf( this.variables, pl.format_variable( this.rename ) ) !== -1 ) {
+			if( this.points.length > 0 )
+				variables = this.points[0].substitution.domain();
+			while( indexOf( variables, pl.format_variable( this.rename ) ) !== -1 ) {
 				this.rename++;
 			}
 			if( variable.id === "_" ) {
@@ -1471,7 +1316,10 @@
 	// Get next free variable
 	Session.prototype.next_free_variable = function() {
 		this.rename++;
-		while( indexOf( this.variables, pl.format_variable( this.rename ) ) !== -1 ) {
+		var variables = [];
+		if( this.points.length > 0 )
+			variables = this.points[0].substitution.domain();
+		while( indexOf( variables, pl.format_variable( this.rename ) ) !== -1 ) {
 			this.rename++;
 		}
 		return new Var( pl.format_variable( this.rename ) );
@@ -1488,7 +1336,6 @@
 		this.rename = session.rename;
 		this.level = session.level;
 		this.points = session.points;
-		this.variables = session.variables;
 		this.renamed_variables = session.renamed_variables;
 		this.public = session.public;
 		this.limit = session.limit;
@@ -1498,8 +1345,6 @@
 		this.__loaded_modules = session.__loaded_modules;
 		this.__char_conversion = session.__char_conversion;
 		this.__operators = session.__operators;
-		this.__stack_comma = session.__stack_comma;
-		this.__minus_operator = session.__minus_operator;
 	};
 	
 	// Insert states at the beginning
@@ -1621,7 +1466,10 @@
 			} else {
 				answer = this.points.shift().substitution;
 				if( pl.type.is_substitution( answer ) ) {
-					answer = answer.filter( this.variables );
+					var dom = answer.domain( true );
+					answer = answer.filter( function( id, value ) {
+						return !pl.type.is_variable( value ) || !dom.indexOf( value.id ) && id !== value.id;
+					} );
 				}
 				success( answer );
 			}
@@ -1649,41 +1497,6 @@
 		} else {
 			return pl.operate( session, this );
 		}
-	};
-	
-	
-	
-	// COMPOSE FINAL ANSWER
-	
-	// Variables
-	Var.prototype.compose = function( subs, variable ) {
-		if( this.id !== variable && subs.lookup( this.id ) ) {
-			return subs.lookup( this.id ).compose( subs, this.id );
-		} else {
-			return this;
-		}
-	};
-	
-	// Numbers
-	Num.prototype.compose = function( _1, _2 ) {
-		return this;
-	};
-	
-	// Terms
-	Term.prototype.compose = function( subs, variable ) {
-		return new Term( this.id, map( this.args, function( arg ) {
-			return arg.compose( subs, variable );
-		} ) );
-	};
-	
-	// Substitutions
-	Substitution.prototype.compose = function( subs ) {
-		var links = {};
-		for( var link in this.links ) {
-			if(!this.links.hasOwnProperty(link)) continue;
-			links[link] = this.links[link].compose( subs, link );
-		}
-		return new Substitution( links );
 	};
 	
 	
@@ -1743,13 +1556,13 @@
 	};
 	
 	// Filter variables
-	Substitution.prototype.filter = function( variables ) {
+	Substitution.prototype.filter = function( predicate ) {
 		var links = {};
-		for( var _variable in variables ) {
-			if(!variables.hasOwnProperty(_variable)) continue;
-			var variable = variables[_variable];
-			if( this.links[variable] ) {
-				links[variable] = this.links[variable];
+		for( var id in this.links ) {
+			if(!this.links.hasOwnProperty(id)) continue;
+			var value = this.links[id];
+			if( predicate( id, value ) ) {
+				links[id] = value;
 			}
 		}
 		return new Substitution( links );
@@ -1771,7 +1584,16 @@
 	Substitution.prototype.add = function( variable, value ) {
 		var subs = new Substitution();
 		subs.links[variable] = value;
-		return this.apply( subs );
+		return subs;
+	};
+	
+	// Get domain
+	Substitution.prototype.domain = function( plain ) {
+		var f = plain === true ? function(x){return x;} : function(x){return new Var(x);};
+		var vars = [];
+		for( var x in this.links )
+			vars.push( f(x) );
+		return vars;
 	};
 	
 	
@@ -1826,6 +1648,12 @@
 		
 		// Modules
 		module: {},
+		
+		// Parser
+		parser: {
+			tokenizer: Tokenizer,
+			expression: parseExpr
+		},
 		
 		// Types
 		type: {
@@ -2575,10 +2403,8 @@
 					var variable = session.next_free_variable();
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, template] )] );
 					var points = session.points;
-					var variables = session.variables;
 					var limit = session.limit;
-					session.points = [new State( newGoal, new Substitution(), point )];
-					session.variables = [variable.id];
+					session.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
@@ -2587,7 +2413,6 @@
 							session.limit = session.current_limit;
 						} else {
 							session.points = points;
-							session.variables = variables;
 							session.limit = limit;
 							if( pl.type.is_error( answer ) ) {
 								session.throwError( answer.args[0] );
@@ -2632,10 +2457,8 @@
 					}
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
 					var points = session.points;
-					var variables = session.variables;
 					var limit = session.limit;
-					session.points = [new State( newGoal, new Substitution(), point )];
-					session.variables = [variable.id];
+					session.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
@@ -2658,7 +2481,6 @@
 							session.limit = session.current_limit;
 						} else {
 							session.points = points;
-							session.variables = variables;
 							session.limit = limit;
 							if( pl.type.is_error( answer ) ) {
 								session.throwError( answer.args[0] );
@@ -2711,10 +2533,8 @@
 					}
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
 					var points = session.points;
-					var variables = session.variables;
 					var limit = session.limit;
-					session.points = [new State( newGoal, new Substitution(), point )];
-					session.variables = [variable.id];
+					session.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
@@ -2737,7 +2557,6 @@
 							session.limit = session.current_limit;
 						} else {
 							session.points = points;
-							session.variables = variables;
 							session.limit = limit;
 							if( pl.type.is_error( answer ) ) {
 								session.throwError( answer.args[0] );
@@ -2767,31 +2586,28 @@
 			// functor/3
 			"functor/3": function( session, point, atom ) {
 				var subs;
-				if( pl.type.is_variable( atom.args[0] ) && (pl.type.is_variable( atom.args[1] ) || pl.type.is_variable( atom.args[2] )) ) {
+				var term = atom.args[0], name = atom.args[1], arity = atom.args[2];
+				if( pl.type.is_variable( term ) && (pl.type.is_variable( name ) || pl.type.is_variable( arity )) ) {
 					session.throwError( pl.error.instantiation( "functor/3" ) );
-				} else if( !pl.type.is_variable( atom.args[2] ) && !pl.type.is_integer( atom.args[2] ) ) {
+				} else if( !pl.type.is_variable( arity ) && !pl.type.is_integer( arity ) ) {
 					session.throwError( pl.error.type( "integer", atom.args[2], "functor/3" ) );
-				} else if( !pl.type.is_variable( atom.args[1] ) && !pl.type.is_atomic( atom.args[1] ) ) {
+				} else if( !pl.type.is_variable( name ) && !pl.type.is_atomic( name ) ) {
 					session.throwError( pl.error.type( "atomic", atom.args[1], "functor/3" ) );
-				} else if( pl.type.is_variable( atom.args[0] ) ) {
+				} else if( pl.type.is_integer( name ) && pl.type.is_integer( arity ) && arity.value !== 0 ) {
+					session.throwError( pl.error.type( "atom", atom.args[1], "functor/3" ) );
+				} else if( pl.type.is_variable( term ) ) {
 					if( atom.args[2].value >= 0 ) {
-						subs = new Substitution();
 						var args = [];
-						for( var i = 0; i < atom.args[2].value; i++ ) {
-							session.rename++;
-							while( indexOf( session.variables, pl.format_variable( session.rename ) ) !== -1 ) {
-								session.rename++;
-							}
-							args.push( new Var( pl.format_variable( session.rename ) ) );
-						}
-						subs = new Substitution().add( atom.args[0].id, new Term( atom.args[1].id, args ) );
-						session.prepend( [new State( point.goal.apply( subs ).replace( null ), point.substitution.apply( subs ), point )] );
+						for( var i = 0; i < arity.value; i++ )
+							args.push( session.next_free_variable() );
+						var functor = pl.type.is_integer( name ) ? name : new Term( name.id, args );
+						session.prepend( [new State( point.goal.replace( new Term( "=", [term, functor] ) ), point.substitution, point.parent )] );
 					}
 				} else {
-					var id = new Term( atom.args[0].id, [] );
-					var length = new Num( atom.args[0].args.length, false );
-					var goal = new Term( ",", [new Term( "=", [id, atom.args[1]] ), new Term( "=", [length, atom.args[2]] )] );
-					session.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+					var id = pl.type.is_integer( term ) ? term : new Term( term.id, [] );
+					var length = pl.type.is_integer( term ) ? new Num( 0, false ) : new Num( term.args.length, false );
+					var goal = new Term( ",", [new Term( "=", [id, name] ), new Term( "=", [length, arity] )] );
+					session.prepend( [new State( point.goal.replace( goal ), point.substitution, point.parent )] );
 				}
 			},
 			
@@ -2856,19 +2672,8 @@
 			
 			// copy_term/2
 			"copy_term/2": function( session, point, atom ) {
-				var state = pl.unify( atom.args[0], atom.args[1], false );
-				if( state !== null ) {
-					var subs = state.substitution.filter( atom.args[1].variables() );
-					for( var variable in subs.links ) {
-						if(!subs.links.hasOwnProperty(variable)) continue;
-						if( pl.type.is_variable( subs.links[variable] ) ) {
-							delete subs.links[variable];
-						}
-					}
-					state.goal = point.goal.apply( subs ).replace( null );
-					state.substitution = point.substitution.apply( subs );
-					session.prepend( [state] );
-				}
+				var renamed = atom.args[0].rename( session );
+				session.prepend( [new State( point.goal.replace( new Term( "=", [renamed, atom.args[1]] ) ), point.substitution, point.parent )] );
 			},
 			
 			// CLAUSE RETRIEVAL AND INFORMATION
@@ -3709,7 +3514,7 @@
 			if( this.type.is_anonymous_var( obj1 ) ) {
 				return new State( obj2, new Substitution() );
 			} else if( this.type.is_anonymous_var( obj2 ) ) {
-				return new State( obj1, new Substitution());
+				return new State( obj1, new Substitution() );
 			} else if( this.type.is_variable( obj2 ) ) {
 				var links = {};
 				if( occurs_check && indexOf( obj1.variables(), obj2.id ) !== -1 && !pl.type.is_variable( obj1 ) ) {
@@ -3817,9 +3622,9 @@
 			
 			// Syntax error
 			syntax: function( token, expected, last ) {
-				var position = last ? token.start + token.value.length : token.start;
+				var position = last && token.matches.length > 0 ? token.start + token.matches[0].length : token.start;
 				var found = last ? new Term("token_not_found") : new Term("found", [new Term(token.value.toString())]);
-				var info = new Term( ".", [new Term( "line", [new Num(token.line)] ), new Term( ".", [new Term( "column", [new Num(position+1)] ), new Term( ".", [found, new Term( "[]", [] )] )] )] );
+				var info = new Term( ".", [new Term( "line", [new Num(token.line+1)] ), new Term( ".", [new Term( "column", [new Num(position+1)] ), new Term( ".", [found, new Term( "[]", [] )] )] )] );
 				return new Term( "error", [new Term( "syntax_error", [new Term( expected )] ), info] );
 			},
 			
