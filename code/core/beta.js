@@ -256,7 +256,8 @@
 			last_is_blank = false;
 		}
 
-		return this.set_last_tokens( tokens );
+		var t = this.set_last_tokens( tokens );
+		return t.length === 0 ? null : t;
 	};
 
 	// Parse an expression
@@ -3622,6 +3623,7 @@
 			
 			// Syntax error
 			syntax: function( token, expected, last ) {
+				token = token || {value: "", line: 0, column: 0, matches: [""], start: 0};
 				var position = last && token.matches.length > 0 ? token.start + token.matches[0].length : token.start;
 				var found = last ? new Term("token_not_found") : new Term("found", [new Term(token.value.toString())]);
 				var info = new Term( ".", [new Term( "line", [new Num(token.line+1)] ), new Term( ".", [new Term( "column", [new Num(position+1)] ), new Term( ".", [found, new Term( "[]", [] )] )] )] );
