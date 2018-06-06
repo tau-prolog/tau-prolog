@@ -1190,11 +1190,12 @@
 
 	// Search term
 	Term.prototype.search = function( expr ) {
-		if( this.indicator === ",/2" ) {
-			return pl.type.is_term(this.args[0]) && this.args[0].search( expr ) || pl.type.is_term(this.args[1]) && this.args[1].search( expr );
-		} else {
-			return this === expr;
-		}
+		if( this === expr )
+			return true;
+		for( var i = 0; i < this.args.length; i++ )
+			if( pl.type.is_term( this.args[i] ) && this.args[i].search( expr ) )
+				return true;
+		return false;
 	};
 	
 	
