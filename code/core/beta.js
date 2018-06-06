@@ -646,7 +646,13 @@
 	// Body to DCG
 	function body_to_dcg(expr, last, session) {
 		var free;
-		if( pl.type.is_term( expr ) && expr.indicator === ",/2" ) {
+		if( pl.type.is_term( expr ) && expr.indicator === "!/0" ) {
+			return {
+				value: expr,
+				variable: last,
+				error: false
+			};
+		} else if( pl.type.is_term( expr ) && expr.indicator === ",/2" ) {
 			var left = body_to_dcg(expr.args[0], last, session);
 			if( left.error ) return left;
 			var right = body_to_dcg(expr.args[1], left.variable, session);
