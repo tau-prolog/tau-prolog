@@ -804,6 +804,7 @@
 		limit = limit === undefined || limit <= 0 ? 1000 : limit;
 		this.rules = {};
 		this.rename = 0;
+		this.modules = [];
 		this.level = "top_level/0";
 		this.points = [];
 		this.renamed_variables = {};
@@ -848,12 +849,16 @@
 	}
 	
 	// Modules
-	function Module( id, rules ) {
+	function Module( id, rules, exports ) {
 		this.id = id;
 		this.rules = rules;
+		this.exports = exports;
 		pl.module[id] = this;
 	}
-
+	
+	Module.prototype.exports_predicate = function( indicator ) {
+		return this.exports.indexOf( indicator ) !== -1;
+	};
 
 
 	// PROLOG OBJECTS TO STRING
@@ -1371,6 +1376,20 @@
 		this.prepend( [new State( new Term( "throw", [error] ), new Substitution(), null, null )] );
 	};
 	
+	// Selection rule
+	Session.prototype.stepRule = function(mod, atom) {
+		var name = atom.indicator;
+		if( mod === null && this.rules.hasOwnProperty(name) )
+			return this.rules[name];
+		var modules = mod === null ? this.modules : [mod];
+		for( var i = 0; i < modules.length; i++ ) {
+			var module = pl.module[modules[i]];
+			if( module.rules.hasOwnProperty(name) && (module.rules.hasOwnProperty(this.level) || module.exports_predicate(name)) )
+				return pl.module[modules[i]].rules[name];
+		}
+		return null;
+	};
+	
 	// Resolution step
 	Session.prototype.step = function() {
 		if( this.points.length === 0 ) {
@@ -1380,43 +1399,53 @@
 		var point = this.points.shift();
 		if( pl.type.is_term( point.goal ) ) {
 			var atom = point.goal.select();
+			var mod = null;
 			var states = [];
 			if( atom !== null ) {
-				if( pl.type.is_builtin( atom ) ) {
+				
+				if( pl.type.is_term( atom ) && atom.indicator === ":/2" ) {
+					mod = atom.args[0].id;
+					atom = atom.args[1];
+				}
+				
+				if( mod === null && pl.type.is_builtin( atom ) ) {
 					this.__call_indicator = atom.indicator;
 					asyn = pl.predicate[atom.indicator]( this, point, atom );
-				} else if( this.rules[atom.indicator] instanceof Function ) {
-					asyn = this.rules[atom.indicator]( this, point, atom );
-				} else if( this.rules[atom.indicator] ) {
-					var lx = new Term( "$tau:level", [new Term( atom.indicator, [] )] );
-					var ly = new Term( "$tau:level", [new Term( this.level, [] )] );
-					for( var _rule in this.rules[atom.indicator] ) {
-						if(!this.rules[atom.indicator].hasOwnProperty(_rule)) continue;
-						var rule = this.rules[atom.indicator][_rule];
-						this.renamed_variables = {};
-						rule = rule.rename( this );
-						if( rule.body !== null ) {
-							rule.body = new Term( ",", [lx, new Term( ",", [rule.body, ly] ) ] );
-						}
-						var state = pl.unify( atom, rule.head );
-						if( state !== null ) {
-							state.goal = point.goal.replace( rule.body );
-							if( state.goal !== null ) {
-								state.goal = state.goal.apply( state.substitution );
-							}
-							state.substitution = point.substitution.apply( state.substitution );
-							state.parent = point;
-							states.push( state );
-						}
-					}
-					this.prepend( states );
 				} else {
-					if( !this.is_public_predicate( atom.indicator ) ) {
-						if( this.flag.unknown.id === "error" ) {
-							this.throwError( pl.error.existence( "procedure", atom.indicator, this.level ) );
-						} else if( this.flag.unknown.id === "warning" ) {
-							this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level + ")" );
+					var srule = this.stepRule(mod, atom);
+					if( srule === null ) {
+						if( !this.is_public_predicate( atom.indicator ) ) {
+							if( this.flag.unknown.id === "error" ) {
+								this.throwError( pl.error.existence( "procedure", atom.indicator, this.level ) );
+							} else if( this.flag.unknown.id === "warning" ) {
+								this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level + ")" );
+							}
 						}
+					} else if( srule instanceof Function ) {
+						asyn = srule( this, point, atom );
+					} else {
+						var lx = new Term( "$tau:level", [new Term( atom.indicator, [] )] );
+						var ly = new Term( "$tau:level", [new Term( this.level, [] )] );
+						for( var _rule in srule ) {
+							if(!srule.hasOwnProperty(_rule)) continue;
+							var rule = srule[_rule];
+							this.renamed_variables = {};
+							rule = rule.rename( this );
+							if( rule.body !== null ) {
+								rule.body = new Term( ",", [lx, new Term( ",", [rule.body, ly] ) ] );
+							}
+							var state = pl.unify( atom, rule.head );
+							if( state !== null ) {
+								state.goal = point.goal.replace( rule.body );
+								if( state.goal !== null ) {
+									state.goal = state.goal.apply( state.substitution );
+								}
+								state.substitution = point.substitution.apply( state.substitution );
+								state.parent = point;
+								states.push( state );
+							}
+						}
+						this.prepend( states );
 					}
 				}
 			}
@@ -2071,14 +2100,7 @@
 				} else {
 					if( pl.type.is_module( module ) ) {
 						var name = module.args[0].id;
-						if( indexOf( session.__loaded_modules, name ) === -1 ) {
-							session.__loaded_modules.push( name );
-							var get_module = pl.module[name].rules;
-							for( var predicate in get_module ) {
-								if(!get_module.hasOwnProperty(predicate)) continue;
-								session.rules[predicate] = get_module[predicate];
-							}
-						}
+						session.modules.push( name );
 					} else {
 						// TODO
 						// error no existe modulo
