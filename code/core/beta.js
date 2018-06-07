@@ -1422,6 +1422,7 @@
 							}
 						}
 					} else if( srule instanceof Function ) {
+						this.level = atom.indicator;
 						asyn = srule( this, point, atom );
 					} else {
 						var lx = new Term( "$tau:level", [new Term( atom.indicator, [] )] );
