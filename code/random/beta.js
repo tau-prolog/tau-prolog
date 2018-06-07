@@ -34,7 +34,7 @@ var pl;
 				}
 			},
 			
-			//random/3
+			// random/3
 			"random/3": function( session, point, atom ) {
 				var lower = atom.args[0], upper = atom.args[1], rand = atom.args[2];
 				if( pl.type.is_variable( lower ) || pl.type.is_variable( upper ) ) {
@@ -59,7 +59,7 @@ var pl;
 				}
 			},
 			
-			//random_between/3
+			// random_between/3
 			"random_between/3": function( session, point, atom ) {
 				var lower = atom.args[0], upper = atom.args[1], rand = atom.args[2];
 				if( pl.type.is_variable( lower ) || pl.type.is_variable( upper ) ) {
@@ -141,15 +141,17 @@ var pl;
 		};
 		
 	};
+	
+	var exports = ["maybe/0", "maybe/1", "random/1", "random/3", "random_between/3", "random_member/2", "random_permutation/2"];
 
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
 			pl = p;
-			new pl.type.Module( "random", predicates() );
+			new pl.type.Module( "random", predicates(), exports );
 		};
 	} else {
-		new pl.type.Module( "random", predicates() );
+		new pl.type.Module( "random", predicates(), exports );
 	}
 
 })( pl );
