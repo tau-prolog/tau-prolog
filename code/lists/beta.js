@@ -127,46 +127,19 @@ var pl;
 				} else if( pl.type.is_integer( length ) && length.value < 0 ) {
 					exec.throwError( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
 				} else {
-					var count = 0;
-					var pointer = list;
-					if( pl.type.is_term( list ) ) {
-						while( pointer.indicator === "./2" ) {
-							count++;
-							pointer = pointer.args[1];
-						}
-					}
-					if( pl.type.is_variable( pointer ) && pl.type.is_variable( length ) ) {
-						var s1 = new pl.type.State( point.goal.replace( new pl.type.Term( ",", [
-							new pl.type.Term( "=", [length, new pl.type.Num( 0, false )] ),
-							new pl.type.Term( "=", [list, new pl.type.Term( "[]", [] )] )
-						] ) ), point.substitution, point.parent );
-						var newvar = exec.next_free_variable();
-						var newcount = exec.next_free_variable();
-						var s2 = new pl.type.State( point.goal.replace( new pl.type.Term( ",", [
-							new pl.type.Term( "\\==", [pointer, length] ),
-							new pl.type.Term( ",", [
-								new pl.type.Term( "length", [newvar, newcount] ),
-								new pl.type.Term( ",", [
-									new pl.type.Term( "is", [length, new pl.type.Term( "+", [newcount, new pl.type.Num( 1, false )] )] ),
-									new pl.type.Term( "=", [list, new pl.type.Term( ".", [exec.next_free_variable(), newvar] )] )
-								] )
-							] )
-						] ) ), point.substitution, point.parent );
-						exec.prepend( [s1,s2] );
-					} else if( pl.type.is_term( pointer ) && pointer.indicator === "[]/0" ) {
-						exec.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [length, new pl.type.Num( count, false )] ) ), point.substitution, point.parent )] );
-					} else {
-						var vars = [];
-						var new_list = new pl.type.Term( "[]", [] );
-						for( var i = 0; i < length.value; i++ )
-							vars.push( exec.next_free_variable() );
-						for( var i = length.value-1; i >= 0; i-- ) {
-							new_list = new pl.type.Term( ".", [vars[i], new_list] );
-						}
-						exec.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [list, new_list] ) ), point.substitution, point.parent )] );
-					}
+					var newgoal = new pl.type.Term("length", [list, new pl.type.Num(0, false), length]);
+					if( pl.type.is_integer( length ) )
+						newgoal = new pl.type.Term( ",", [newgoal, new pl.type.Term( "!", [] )] );
+					exec.prepend( [new pl.type.State(point.goal.replace(newgoal), point.substitution, point)] );
 				}
 			},
+			
+			// length/3
+			// DO NOT EXPORT
+			"length/3": [
+				new pl.type.Rule(new pl.type.Term("length", [new pl.type.Term("[]", []),new pl.type.Var("N"),new pl.type.Var("N")]), null),
+				new pl.type.Rule(new pl.type.Term("length", [new pl.type.Term(".", [new pl.type.Var("_"),new pl.type.Var("X")]),new pl.type.Var("A"),new pl.type.Var("N")]), new pl.type.Term(",", [new pl.type.Term("is", [new pl.type.Var("B"),new pl.type.Term("+", [new pl.type.Var("A"),new pl.type.Num(1, false)])]),new pl.type.Term("length", [new pl.type.Var("X"),new pl.type.Var("B"),new pl.type.Var("N")])]))
+			],
 			
 			// replicate/3
 			"replicate/3": function( exec, point, atom ) {
