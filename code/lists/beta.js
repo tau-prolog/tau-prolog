@@ -296,15 +296,17 @@ var pl;
 			
 		};
 	};
+	
+	var exports = ["append/3", "member/2", "permutation/2", "map/3", "maplist/3", "filter/3", "include/3", "exclude/3", "reduce/4", "fold/4", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "sort/2", "take/3", "drop/3", "reverse/2"];
 
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
 			pl = p;
-			new pl.type.Module( "lists", predicates() );
+			new pl.type.Module( "lists", predicates(), exports );
 		};
 	} else {
-		new pl.type.Module( "lists", predicates() );
+		new pl.type.Module( "lists", predicates(), exports );
 	}
 
 })( pl );
