@@ -772,7 +772,9 @@
 	}
 	
 	// Terms
-	function Term( id, args ) {
+	var term_ref = 0;
+	function Term( id, args, ref ) {
+		this.ref = ref || ++term_ref;
 		this.id = id;
 		this.args = args || [];
 		this.indicator = id + "/" + this.args.length;
@@ -949,8 +951,6 @@
 	
 	// Terms
 	Term.prototype.clone = function() {
-		if( this.args.length === 0 )
-			return this;
 		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.clone();
 		} ) );
@@ -1051,8 +1051,6 @@
 	
 	// Terms
 	Term.prototype.rename = function( session ) {
-		if( this.args.length === 0 )
-			return this;
 		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.rename( session );
 		} ) );
@@ -1112,11 +1110,9 @@
 	
 	// Terms
 	Term.prototype.apply = function( subs ) {
-		if( this.args.length === 0 )
-			return this;
 		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.apply( subs );
-		} ) );
+		} ), this.ref );
 	};
 	
 	// Rules
@@ -1201,7 +1197,7 @@
 
 	// Search term
 	Term.prototype.search = function( expr ) {
-		if( this === expr )
+		if( expr.ref !== undefined && this.ref === expr.ref )
 			return true;
 		for( var i = 0; i < this.args.length; i++ )
 			if( pl.type.is_term( this.args[i] ) && this.args[i].search( expr ) )
@@ -1269,7 +1265,7 @@
 		var links = {};
 		for( var i = 0; i < vars.length; i++ )
 			links[vars[i]] = new Var(vars[i]);
-		this.points.push( new State( goal, new Substitution(links), null, null ) );
+		this.points.push( new State( goal, new Substitution(links), null ) );
 	};
 
 	// Consult a program from a string
@@ -1397,11 +1393,18 @@
 		}
 		var asyn = false;
 		var point = this.points.shift();
+		
 		if( pl.type.is_term( point.goal ) ) {
+			
 			var atom = point.goal.select();
 			var mod = null;
 			var states = [];
 			if( atom !== null ) {
+
+				var level = point;
+				while( level.parent !== null && level.parent.goal.search( atom ) )
+					level = level.parent;
+				this.level = level.parent === null ? "top_level/0" : level.parent.goal.select().indicator;
 				
 				if( pl.type.is_term( atom ) && atom.indicator === ":/2" ) {
 					mod = atom.args[0].id;
@@ -1422,19 +1425,13 @@
 							}
 						}
 					} else if( srule instanceof Function ) {
-						this.level = atom.indicator;
 						asyn = srule( this, point, atom );
 					} else {
-						var lx = new Term( "$tau:level", [new Term( atom.indicator, [] )] );
-						var ly = new Term( "$tau:level", [new Term( this.level, [] )] );
 						for( var _rule in srule ) {
 							if(!srule.hasOwnProperty(_rule)) continue;
 							var rule = srule[_rule];
 							this.renamed_variables = {};
 							rule = rule.rename( this );
-							if( rule.body !== null ) {
-								rule.body = new Term( ",", [lx, new Term( ",", [rule.body, ly] ) ] );
-							}
 							var state = pl.unify( atom, rule.head );
 							if( state !== null ) {
 								state.goal = point.goal.replace( rule.body );
@@ -2188,14 +2185,6 @@
 		
 		// Built-in predicates
 		predicate: {
-			
-			// TAU PROLOG
-			
-			// $tau:level/1
-			"$tau:level/1": function( session, point, atom ) {
-				session.level = atom.args[0].id;
-				session.success( point, point.parent );
-			},
 		
 			// LOGIC AND CONTROL STRUCTURES
 		
