@@ -820,7 +820,7 @@
 		this.level = "top_level/0";
 		this.points = [];
 		this.renamed_variables = {};
-		this.public = [];
+		this.public_predicates = {};
 		this.limit = limit;
 		this.current_limit = limit;
 		this.flag = {	
@@ -1225,6 +1225,8 @@
 			this.rules[rule.head.indicator] = [];
 		}
 		this.rules[rule.head.indicator].push(rule);
+		if( !this.public_predicates.hasOwnProperty( rule.head.indicator ) )
+			this.public_predicates[rule.head.indicator] = false;
 		return true;
 	};
 
@@ -1346,24 +1348,7 @@
 	
 	// Check if a predicate is public
 	Session.prototype.is_public_predicate = function( indicator ) {
-		return indexOf( this.public, indicator ) !== -1;
-	};
-	
-	// Copy context from other session
-	Session.prototype.copy_context = function( session ) {
-		this.rules = session.rules;
-		this.rename = session.rename;
-		this.level = session.level;
-		this.points = session.points;
-		this.renamed_variables = session.renamed_variables;
-		this.public = session.public;
-		this.limit = session.limit;
-		this.current_limit = session.limit;
-		this.flag = session.flag;
-		this.warnings = session.warnings;
-		this.__loaded_modules = session.__loaded_modules;
-		this.__char_conversion = session.__char_conversion;
-		this.__operators = session.__operators;
+		return !this.public_predicates.hasOwnProperty( indicator ) || this.public_predicates[indicator] === true;
 	};
 	
 	// Insert states at the beginning
@@ -2094,7 +2079,7 @@
 				} else if( !pl.type.is_integer( indicator.args[1] ) ) {
 					session.throwError( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
-					session.public.push( atom.args[0].args[0].id + "/" + atom.args[0].args[1].value );
+					session.public_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
 				}
 			},
 			
@@ -2759,7 +2744,7 @@
 					var head, body;
 					if( atom.args[0].indicator === ":-/2" ) {
 						head = atom.args[0].args[0];
-						body = atom.args[0].args[1];
+						body = body_conversion( atom.args[0].args[1] );
 					} else {
 						head = atom.args[0];
 						body = null;
@@ -2772,6 +2757,7 @@
 						if( session.rules[head.indicator] === undefined ) {
 							session.rules[head.indicator] = [];
 						}
+						session.public_predicates[head.indicator] = true;
 						session.rules[head.indicator] = [new Rule( head, body )].concat( session.rules[head.indicator] );
 						session.success( point );
 					} else {
@@ -2790,7 +2776,7 @@
 					var head, body;
 					if( atom.args[0].indicator === ":-/2" ) {
 						head = atom.args[0].args[0];
-						body = atom.args[0].args[1];
+						body = body_conversion( atom.args[0].args[1] );
 					} else {
 						head = atom.args[0];
 						body = null;
@@ -2803,6 +2789,7 @@
 						if( session.rules[head.indicator] === undefined ) {
 							session.rules[head.indicator] = [];
 						}
+						session.public_predicates[head.indicator] = true;
 						session.rules[head.indicator].push( new Rule( head, body ) );
 						session.success( point );
 					} else {
