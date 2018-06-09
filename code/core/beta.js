@@ -121,18 +121,18 @@
 	};
 
 	// Replace chars of char_conversion session
-	function replace( session, text ) {
-		if( session.flag.char_conversion.id === "on" ) {
+	function replace( thread, text ) {
+		if( thread.getFlag( "char_conversion" ).id === "on" ) {
 			return text.replace(/./g, function(char) {
-				return session.__char_conversion[char] || char;
+				return thread.getCharConversion( char );
 			});
 		}
 		return text;
 	}
 
 	// Tokenize strings
-	function Tokenizer(session) {
-		this.session = session;
+	function Tokenizer(thread) {
+		this.thread = thread;
 		this.text = ""; // Current text to be analized
 		this.tokens = []; // Consumed tokens
 	}
@@ -157,7 +157,7 @@
 		if(init) {
 			var token = this.tokens[init-1];
 			len = token.len;
-			text = replace( this.session, this.text.substr(token.len) );
+			text = replace( this.thread, this.text.substr(token.len) );
 			line = token.line;
 			start = token.start;
 		}
@@ -261,7 +261,7 @@
 	};
 
 	// Parse an expression
-	function parseExpr(session, tokens, start, priority, toplevel) {
+	function parseExpr(thread, tokens, start, priority, toplevel) {
 		if(!tokens[start]) return {type: ERROR, value: pl.error.syntax(tokens[start-1], "expression expected", true)};
 		var error;
 
@@ -274,7 +274,7 @@
 					return {type: SUCCESS, len: start+1, value: new pl.type.Var(token.value)};
 				case "string":
 					var str;
-					switch( session.flag.double_quotes.id ) {
+					switch( thread.getFlag( "double_quotes" ).id ) {
 						case "atom":
 							str = "";
 							for(var i = 0; i < token.value.length; i++ )
@@ -294,7 +294,7 @@
 					}
 					return {type: SUCCESS, len: start+1, value: str};
 				case "l_paren":
-					var expr = parseExpr(session, tokens, start+1, session.__get_max_priority(), true);
+					var expr = parseExpr(thread, tokens, start+1, thread.__get_max_priority(), true);
 					if(expr.type !== SUCCESS) return expr;
 					if(tokens[expr.len] && tokens[expr.len].name === "r_paren") {
 						expr.len++;
@@ -302,7 +302,7 @@
 					}
 					return {type: ERROR, derived: true, value: pl.error.syntax(tokens[expr.len] ? tokens[expr.len] : tokens[expr.len-1], ") or operator expected", !tokens[expr.len])}
 				case "l_bracket":
-					var expr = parseExpr(session, tokens, start+1, session.__get_max_priority(), true);
+					var expr = parseExpr(thread, tokens, start+1, thread.__get_max_priority(), true);
 					if(expr.type !== SUCCESS) return expr;
 					if(tokens[expr.len] && tokens[expr.len].name === "r_bracket") {
 						expr.len++;
@@ -312,25 +312,25 @@
 					return {type: ERROR, derived: true, value: pl.error.syntax(tokens[expr.len] ? tokens[expr.len] : tokens[expr.len-1], "} or operator expected", !tokens[expr.len])}
 			}
 			// Compound term
-			var result = parseTerm(session, tokens, start, toplevel);
+			var result = parseTerm(thread, tokens, start, toplevel);
 			if(result.type === SUCCESS || result.derived)
 				return result;
 			// List
-			result = parseList(session, tokens, start);
+			result = parseList(thread, tokens, start);
 			if(result.type === SUCCESS || result.derived)
 				return result;
 			// Unexpected
 			return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start], "unexpected token")};
 		}
 
-		var max_priority = session.__get_max_priority();
-		var next_priority = session.__get_next_priority(priority);
+		var max_priority = thread.__get_max_priority();
+		var next_priority = thread.__get_next_priority(priority);
 		var aux_start = start;
 		
 		// Prefix operators
 		if(tokens[start].name === "atom") {
 			var token = tokens[start++];
-			var classes = session.__lookup_operator_classes(priority, token.value);
+			var classes = thread.__lookup_operator_classes(priority, token.value);
 			
 			// Signed number
 			if(token.value === "-" || token.value === "+") {
@@ -346,7 +346,7 @@
 			
 			// Associative prefix operator
 			if(classes && classes.indexOf("fy") > -1) {
-				var expr = parseExpr(session, tokens, start, priority, toplevel);
+				var expr = parseExpr(thread, tokens, start, priority, toplevel);
 				if(expr.type != ERROR) {
 					return {
 						value: new pl.type.Term(token.value, [expr.value]),
@@ -358,7 +358,7 @@
 				}
 			// Non-associative prefix operator
 			} else if(classes && classes.indexOf("fx") > -1) {
-				var expr = parseExpr(session, tokens, start, next_priority, toplevel);
+				var expr = parseExpr(thread, tokens, start, next_priority, toplevel);
 				if(expr.type != ERROR) {
 					return {
 						value: new pl.type.Term(token.value, [expr.value]),
@@ -372,15 +372,15 @@
 		}
 
 		start = aux_start;
-		var expr = parseExpr(session, tokens, start, next_priority, toplevel);
+		var expr = parseExpr(thread, tokens, start, next_priority, toplevel);
 		if(expr.type === SUCCESS) {
 			start = expr.len;
 			var token = tokens[start];
-			if(tokens[start] && tokens[start].name == "atom" && session.__lookup_operator_classes(priority, token.value)) {
+			if(tokens[start] && tokens[start].name == "atom" && thread.__lookup_operator_classes(priority, token.value)) {
 
 				var next_priority_lt = next_priority;
 				var next_priority_eq = priority;
-				var classes = session.__lookup_operator_classes(priority, token.value);
+				var classes = thread.__lookup_operator_classes(priority, token.value);
 
 				if(classes.indexOf("xf") > -1) {
 					return {
@@ -389,7 +389,7 @@
 						type: SUCCESS
 					};
 				} else if(classes.indexOf("xfx") > -1) {
-					var expr2 = parseExpr(session, tokens, start + 1, next_priority_lt, toplevel);
+					var expr2 = parseExpr(thread, tokens, start + 1, next_priority_lt, toplevel);
 					if(expr2.type === SUCCESS) {
 						return {
 							value: new pl.type.Term(token.value, [expr.value, expr2.value]),
@@ -401,7 +401,7 @@
 						return expr2;
 					}
 				} else if(classes.indexOf("xfy") > -1) {
-					var expr2 = parseExpr(session, tokens, start + 1, next_priority_eq, toplevel);
+					var expr2 = parseExpr(thread, tokens, start + 1, next_priority_eq, toplevel);
 					if(expr2.type === SUCCESS) {
 						return {
 							value: new pl.type.Term(token.value, [expr.value, expr2.value]),
@@ -416,8 +416,8 @@
 					while(true) {
 						start = expr.len;
 						var token = tokens[start];
-						if(token && (token.name == "atom" || token.name == "compound") && session.__lookup_operator_classes(priority, token.value)) {
-							var classes = session.__lookup_operator_classes(priority, token.value);
+						if(token && (token.name == "atom" || token.name == "compound") && thread.__lookup_operator_classes(priority, token.value)) {
+							var classes = thread.__lookup_operator_classes(priority, token.value);
 							if( classes.indexOf("yf") > -1 ) {
 								expr = {
 									value: new pl.type.Term(token.value, [expr.value]),
@@ -425,7 +425,7 @@
 									type: SUCCESS
 								};
 							} else if( classes.indexOf("yfx") > -1 ) {
-								var expr2 = parseExpr(session, tokens, ++start, next_priority_lt, toplevel);
+								var expr2 = parseExpr(thread, tokens, ++start, next_priority_lt, toplevel);
 								if(expr2.type == ERROR) {
 									expr2.derived = true;
 									return expr2;
@@ -449,7 +449,7 @@
 	}
 
 	// Parse a compound term
-	function parseTerm(session, tokens, start, toplevel) {
+	function parseTerm(thread, tokens, start, toplevel) {
 		if(!tokens[start] || (tokens[start].name === "atom" && tokens[start].raw === "." && !toplevel && (tokens[start].space || !tokens[start+1] || tokens[start+1].name !== "l_paren")))
 			return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start-1], "unfounded token")};
 		var atom = tokens[start];
@@ -460,7 +460,7 @@
 			if(tokens[start] && tokens[start].name === "l_paren") {
 				if(tokens[start+1] && tokens[start+1].name === "r_paren") 
 					return {type: ERROR, derived: true, value: pl.error.syntax(tokens[start+1], "argument expected")};
-				var expr = parseExpr(session, tokens, ++start, "999", true);
+				var expr = parseExpr(thread, tokens, ++start, "999", true);
 				if(expr.type === ERROR) {
 					if( expr.derived )
 						return expr;
@@ -470,7 +470,7 @@
 				exprs.push(expr.value);
 				start = expr.len;
 				while(tokens[start] && tokens[start].name === "atom" && tokens[start].value === ",") {
-					expr = parseExpr(session, tokens, start+1, "999", true);
+					expr = parseExpr(thread, tokens, start+1, "999", true);
 					if(expr.type === ERROR) {
 						if( expr.derived )
 							return expr;
@@ -489,11 +489,11 @@
 	}
 
 	// Parse a list
-	function parseList(session, tokens, start) {
+	function parseList(thread, tokens, start) {
 		if(!tokens[start]) 
 			return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start-1], "[ expected")};
 		if(tokens[start] && tokens[start].name === "l_brace") {
-			var expr = parseExpr(session, tokens, ++start, "999", true);
+			var expr = parseExpr(thread, tokens, ++start, "999", true);
 			var exprs = [expr.value];
 			var cons = undefined;
 
@@ -507,7 +507,7 @@
 			start = expr.len;
 
 			while(tokens[start] && tokens[start].name === "atom" && tokens[start].value === ",") {
-				expr = parseExpr(session, tokens, start+1, "999", true);
+				expr = parseExpr(thread, tokens, start+1, "999", true);
 				if(expr.type === ERROR) {
 					if( expr.derived )
 						return expr;
@@ -520,7 +520,7 @@
 			var bar = false
 			if(tokens[start] && tokens[start].name === "bar") {
 				bar = true;
-				expr = parseExpr(session, tokens, start+1, "999", true);
+				expr = parseExpr(thread, tokens, start+1, "999", true);
 				if(expr.type === ERROR) {
 					if( expr.derived )
 						return expr;
@@ -539,8 +539,8 @@
 	}
 
 	// Parse a rule
-	function parseRule(session, tokens, start) {
-		var expr = parseExpr(session, tokens, start, session.__get_max_priority(), false);
+	function parseRule(thread, tokens, start) {
+		var expr = parseExpr(thread, tokens, start, thread.__get_max_priority(), false);
 		if(expr.type != ERROR) {
 			start = expr.len;
 			if(tokens[start] && tokens[start].name === "atom" && tokens[start].raw === ".") {
@@ -553,7 +553,7 @@
 							type: SUCCESS
 						};
 					} else if(expr.value.indicator == "-->/2") {
-						var dcg = rule_to_dcg(new pl.type.Rule(expr.value.args[0], expr.value.args[1]), session);
+						var dcg = rule_to_dcg(new pl.type.Rule(expr.value.args[0], expr.value.args[1]), thread);
 						dcg.body = body_conversion( dcg.body );
 						return {
 							value: dcg,
@@ -578,20 +578,20 @@
 	}
 
 	// Parse a program
-	function parseProgram(session, string) {
-		var tokenizer = new Tokenizer( session );
+	function parseProgram(thread, string) {
+		var tokenizer = new Tokenizer( thread );
 		tokenizer.new_text( string );
 		var n = 0;
 		do {
 			var tokens = tokenizer.get_tokens( n );
 			if( tokens === null ) break;
-			var expr = parseRule(session, tokens, 0);
+			var expr = parseRule(thread, tokens, 0);
 			if( expr.type === ERROR ) {
 				return new Term("throw", [expr.value]);
 			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
-				var result = session.run_directive(expr.value.head.args[0]);
+				var result = thread.run_directive(expr.value.head.args[0]);
 			} else {
-				var result = session.add_rule(expr.value);
+				var result = thread.add_rule(expr.value);
 			}
 			if(!result) {
 				return result;
@@ -602,19 +602,19 @@
 	}
 	
 	// Parse a query
-	function parseQuery(session, string) {
-		var tokenizer = new Tokenizer( session );
+	function parseQuery(thread, string) {
+		var tokenizer = new Tokenizer( thread );
 		tokenizer.new_text( string );
 		var n = 0;
 		do {
 			var tokens = tokenizer.get_tokens( n );
 			if( tokens === null ) break;
-			var expr = parseExpr(session, tokens, 0, session.__get_max_priority(), false);
+			var expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
 			if(expr.type !== ERROR) {
 				var expr_position = expr.len;
 				tokens_pos = expr_position;
 				if(tokens[expr_position] && tokens[expr_position].name === "atom" && tokens[expr_position].raw === ".") {
-					session.add_goal( body_conversion(expr.value) );
+					thread.add_goal( body_conversion(expr.value) );
 				} else {
 					var token = tokens[expr_position];
 					return new Term("throw", [pl.error.syntax(token ? token : tokens[expr_position-1], ". or operator expected", !token)] );
@@ -633,10 +633,10 @@
 	// UTILS
 
 	// Rule to DCG
-	function rule_to_dcg(rule, session) {
-		rule = rule.rename( session );
-		var begin = session.next_free_variable();
-		var dcg = body_to_dcg( rule.body, begin, session );
+	function rule_to_dcg(rule, thread) {
+		rule = rule.rename( thread );
+		var begin = thread.next_free_variable();
+		var dcg = body_to_dcg( rule.body, begin, thread );
 		if( dcg.error ) return dcg.value;
 		rule.body = dcg.value;
 		rule.head.args = rule.head.args.concat([begin,dcg.variable]);
@@ -645,7 +645,7 @@
 	}
 
 	// Body to DCG
-	function body_to_dcg(expr, last, session) {
+	function body_to_dcg(expr, last, thread) {
 		var free;
 		if( pl.type.is_term( expr ) && expr.indicator === "!/0" ) {
 			return {
@@ -654,9 +654,9 @@
 				error: false
 			};
 		} else if( pl.type.is_term( expr ) && expr.indicator === ",/2" ) {
-			var left = body_to_dcg(expr.args[0], last, session);
+			var left = body_to_dcg(expr.args[0], last, thread);
 			if( left.error ) return left;
-			var right = body_to_dcg(expr.args[1], left.variable, session);
+			var right = body_to_dcg(expr.args[1], left.variable, thread);
 			if( right.error ) return right;
 			return {
 				value: new Term(',', [left.value, right.value]),
@@ -676,7 +676,7 @@
 				error: false
 			};
 		} else if( pl.type.is_list( expr ) ) {
-			free = session.next_free_variable();
+			free = thread.next_free_variable();
 			var pointer = expr;
 			var prev;
 			while( pointer.indicator == "./2" ) {
@@ -704,7 +704,7 @@
 				};
 			}
 		} else if( pl.type.is_callable( expr ) ) {
-			free = session.next_free_variable();
+			free = thread.next_free_variable();
 			expr.args = expr.args.concat([last,free]);
 			expr = new Term( expr.id, expr.args );
 			return {
@@ -817,12 +817,10 @@
 		this.rules = {};
 		this.rename = 0;
 		this.modules = [];
-		this.level = "top_level/0";
-		this.points = [];
+		this.thread = new Thread( this );
 		this.renamed_variables = {};
 		this.public_predicates = {};
 		this.limit = limit;
-		this.current_limit = limit;
 		this.flag = {	
 			bounded: pl.flag.bounded.value,
 			max_integer: pl.flag.max_integer.value,
@@ -857,7 +855,15 @@
 			},
 			200: { "**": ["xfx"], "^": ["xfy"], "-": ["fy"], "+": ["fy"], "\\": ["fy"] }
 		};
+	}
+	
+	// Threads
+	function Thread( session ) {
+		this.session = session;
+		this.points = [];
+		this.level = "top_level/0";
 		this.__calls = [];
+		this.current_limit = this.session.limit;
 	}
 	
 	// Modules
@@ -1050,8 +1056,8 @@
 	// RENAME VARIABLES OF PROLOG OBJECTS
 	
 	// Variables
-	Var.prototype.rename = function( session ) {
-		return session.get_free_variable( this );
+	Var.prototype.rename = function( thread ) {
+		return thread.get_free_variable( this );
 	};
 	
 	// Numbers
@@ -1060,15 +1066,15 @@
 	};
 	
 	// Terms
-	Term.prototype.rename = function( session ) {
+	Term.prototype.rename = function( thread ) {
 		return new Term( this.id, map( this.args, function( arg ) {
-			return arg.rename( session );
+			return arg.rename( thread );
 		} ) );
 	};
 	
 	// Rules
-	Rule.prototype.rename = function( session ) {
-		return new Rule( this.head.rename( session ), this.body !== null ? this.body.rename( session ) : null );
+	Rule.prototype.rename = function( thread ) {
+		return new Rule( this.head.rename( thread ), this.body !== null ? this.body.rename( thread ) : null );
 	};
 	
 	
@@ -1217,7 +1223,23 @@
 	
 	
 	
-	// PROLOG SESSIONS
+	// PROLOG SESSIONS aND THREADS
+
+	// Get conversion of the char
+	Session.prototype.getCharConversion = function( char ) {
+		return this.__char_conversion[char] || char;
+	};
+	Thread.prototype.getCharConversion = function( char ) {
+		return this.session.getCharConversion( char );
+	};
+	
+	// Get flag value
+	Session.prototype.getFlag = function( flag ) {
+		return this.flag[flag];
+	};
+	Thread.prototype.getFlag = function( flag ) {
+		return this.session.getFlag( flag );
+	};
 
 	// Add a rule
 	Session.prototype.add_rule = function( rule ) {
@@ -1229,9 +1251,15 @@
 			this.public_predicates[rule.head.indicator] = false;
 		return true;
 	};
+	Thread.prototype.add_rule = function( rule ) {
+		return this.session.add_rule( rule );
+	};
 
 	// Run a directive
 	Session.prototype.run_directive = function( directive ) {
+		this.thread.run_directive( directive );
+	};
+	Thread.prototype.run_directive = function( directive ) {
 		if( pl.type.is_directive( directive ) ) {
 			pl.directive[directive.indicator]( this, directive );
 			return true;
@@ -1242,6 +1270,9 @@
 	// Get maximum priority of the operators
 	Session.prototype.__get_max_priority = function() {
 		return "1200";
+	};
+	Thread.prototype.__get_max_priority = function() {
+		return this.session.__get_max_priority();
 	};
 	
 	// Get next priority of the operators
@@ -1255,6 +1286,9 @@
 		}
 		return max.toString();
 	};
+	Thread.prototype.__get_next_priority = function( priority ) {
+		return this.session.__get_next_priority( priority );
+	};
 	
 	// Get classes of an operator
 	Session.prototype.__lookup_operator_classes = function( priority, operator ) {
@@ -1263,14 +1297,23 @@
 		}
 		return false;
 	};
+	Thread.prototype.__lookup_operator_classes = function( priority, operator ) {
+		return this.session.__lookup_operator_classes( priority, operator );
+	};
 	
 	// Throw a warning
 	Session.prototype.throw_warning = function( warning ) {
+		this.thread.throw_warning( warning );
+	};
+	Thread.prototype.throw_warning = function( warning ) {
 		this.warnings.push( warning );
 	};
 
 	// Add a goal
 	Session.prototype.add_goal = function( goal, unique ) {
+		this.thread.add_goal( goal, unique );
+	};
+	Thread.prototype.add_goal = function( goal, unique ) {
 		if( unique === true )
 			this.points = [];
 		var vars = goal.variables();
@@ -1282,6 +1325,9 @@
 
 	// Consult a program from a string
 	Session.prototype.consult = function( program ) {
+		return this.thread.consult( program );
+	};
+	Thread.prototype.consult = function( program ) {
 		var string = "";
 		if( typeof program === "string" ) {
 			string = program;
@@ -1311,68 +1357,92 @@
 
 	// Query goal from a string (without ?-)
 	Session.prototype.query = function( string ) {
+		return this.thread.query( string );
+	};
+	Thread.prototype.query = function( string ) {
 		this.points = [];
 		return parseQuery( this, string );
 	};
 	
 	// Get free variable
 	Session.prototype.get_free_variable = function( variable ) {
+		return this.thread.get_free_variable( variable );
+	};
+	Thread.prototype.get_free_variable = function( variable ) {
 		var variables = [];
-		if( variable.id === "_" || this.renamed_variables[variable.id] === undefined ) {
-			this.rename++;
+		if( variable.id === "_" || this.session.renamed_variables[variable.id] === undefined ) {
+			this.session.rename++;
 			if( this.points.length > 0 )
 				variables = this.points[0].substitution.domain();
-			while( indexOf( variables, pl.format_variable( this.rename ) ) !== -1 ) {
-				this.rename++;
+			while( indexOf( variables, pl.format_variable( this.session.rename ) ) !== -1 ) {
+				this.session.rename++;
 			}
 			if( variable.id === "_" ) {
-				return new Var( pl.format_variable( this.rename ) );
+				return new Var( pl.format_variable( this.session.rename ) );
 			} else {
-				this.renamed_variables[variable.id] = pl.format_variable( this.rename );
+				this.session.renamed_variables[variable.id] = pl.format_variable( this.session.rename );
 			}
 		}
-		return new Var( this.renamed_variables[variable.id] );
+		return new Var( this.session.renamed_variables[variable.id] );
 	};
 	
 	// Get next free variable
 	Session.prototype.next_free_variable = function() {
-		this.rename++;
+		return this.thread.next_free_variable();
+	};
+	Thread.prototype.next_free_variable = function() {
+		this.session.rename++;
 		var variables = [];
 		if( this.points.length > 0 )
 			variables = this.points[0].substitution.domain();
-		while( indexOf( variables, pl.format_variable( this.rename ) ) !== -1 ) {
-			this.rename++;
+		while( indexOf( variables, pl.format_variable( this.session.rename ) ) !== -1 ) {
+			this.session.rename++;
 		}
-		return new Var( pl.format_variable( this.rename ) );
+		return new Var( pl.format_variable( this.session.rename ) );
 	};
 	
 	// Check if a predicate is public
 	Session.prototype.is_public_predicate = function( indicator ) {
 		return !this.public_predicates.hasOwnProperty( indicator ) || this.public_predicates[indicator] === true;
 	};
+	Thread.prototype.is_public_predicate = function( indicator ) {
+		return this.session.is_public_predicate( indicator );
+	};
 	
 	// Insert states at the beginning
 	Session.prototype.prepend = function( states ) {
+		return this.thread.prepend( states );
+	};
+	Thread.prototype.prepend = function( states ) {
 		this.points = states.concat( this.points );
 	};
 	
 	// Remove the selected term and prepend the current state
 	Session.prototype.success = function( point, parent ) {
+		return this.thread.success( point, parent );
+	}
+	Thread.prototype.success = function( point, parent ) {
 		var parent = typeof parent === "undefined" ? point : parent;
 		this.prepend( [new State( point.goal.replace( null ), point.substitution, parent ) ] );
 	};
 	
 	// Throw error
 	Session.prototype.throwError = function( error ) {
+		return this.thread.throwError( error );
+	};
+	Thread.prototype.throwError = function( error ) {
 		this.prepend( [new State( new Term( "throw", [error] ), new Substitution(), null, null )] );
 	};
 	
 	// Selection rule
-	Session.prototype.stepRule = function(mod, atom) {
+	Session.prototype.stepRule = function( mod, atom ) {
+		return this.thread.stepRule( mod, atom );
+	}
+	Thread.prototype.stepRule = function( mod, atom ) {
 		var name = atom.indicator;
-		if( mod === null && this.rules.hasOwnProperty(name) )
-			return this.rules[name];
-		var modules = mod === null ? this.modules : [mod];
+		if( mod === null && this.session.rules.hasOwnProperty(name) )
+			return this.session.rules[name];
+		var modules = mod === null ? this.session.modules : [mod];
 		for( var i = 0; i < modules.length; i++ ) {
 			var module = pl.module[modules[i]];
 			if( module.rules.hasOwnProperty(name) && (module.rules.hasOwnProperty(this.level) || module.exports_predicate(name)) )
@@ -1383,6 +1453,9 @@
 	
 	// Resolution step
 	Session.prototype.step = function() {
+		return this.thread.step();
+	}
+	Thread.prototype.step = function() {
 		if( this.points.length === 0 ) {
 			return;
 		}
@@ -1412,10 +1485,10 @@
 				} else {
 					var srule = this.stepRule(mod, atom);
 					if( srule === null ) {
-						if( !this.rules.hasOwnProperty( atom.indicator ) ) {
-							if( this.flag.unknown.id === "error" ) {
+						if( !this.session.rules.hasOwnProperty( atom.indicator ) ) {
+							if( this.getFlag( "unknown" ).id === "error" ) {
 								this.throwError( pl.error.existence( "procedure", atom.indicator, this.level ) );
-							} else if( this.flag.unknown.id === "warning" ) {
+							} else if( this.getFlag( "unknown" ).id === "warning" ) {
 								this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level + ")" );
 							}
 						}
@@ -1425,7 +1498,7 @@
 						for( var _rule in srule ) {
 							if(!srule.hasOwnProperty(_rule)) continue;
 							var rule = srule[_rule];
-							this.renamed_variables = {};
+							this.session.renamed_variables = {};
 							rule = rule.rename( this );
 							var state = pl.unify( atom, rule.head );
 							if( state !== null ) {
@@ -1452,6 +1525,9 @@
 	
 	// Find next computed answer
 	Session.prototype.answer = function( success ) {
+		return this.thread.answer( success );
+	}
+	Thread.prototype.answer = function( success ) {
 		success = success || function( _ ) { };
 		this.__calls.push( success );
 		if( this.__calls.length > 1 ) {
@@ -1462,6 +1538,9 @@
 	
 	// Find all computed answers
 	Session.prototype.answers = function( callback, max ) {
+		return this.thread.answers( callback, max );
+	}
+	Thread.prototype.answers = function( callback, max ) {
 		answers = max || 1000;
 		var session = this;
 		if( max <= 0 ) return;
@@ -1474,10 +1553,13 @@
 
 	// Again finding next computed answer
 	Session.prototype.again = function() {
+		return this.thread.again();
+	};
+	Thread.prototype.again = function() {
 		var answer;
 		while( this.__calls.length > 0 ) {
 			this.warnings = [];
-			this.current_limit = this.limit;
+			this.current_limit = this.session.limit;
 			while( this.current_limit > 0 && this.points.length > 0 && this.points[0].goal !== null && !pl.type.is_error( this.points[0].goal ) ) {
 				this.current_limit--;
 				if( this.step() === true ) {
@@ -1511,21 +1593,21 @@
 	// INTERPRET EXPRESSIONS
 	
 	// Variables
-	Var.prototype.interpret = function( session ) {
-		return pl.error.instantiation( session.level );
+	Var.prototype.interpret = function( thread ) {
+		return pl.error.instantiation( thread.level );
 	};
 	
 	// Numbers
-	Num.prototype.interpret = function( session ) {
+	Num.prototype.interpret = function( thread ) {
 		return this;
 	};
 	
 	// Terms
-	Term.prototype.interpret = function( session ) {
+	Term.prototype.interpret = function( thread ) {
 		if( pl.type.is_unitary_list( this ) ) {
-			return this.args[0].interpret( session );
+			return this.args[0].interpret( thread );
 		} else {
-			return pl.operate( session, this );
+			return pl.operate( thread, this );
 		}
 	};
 	
@@ -1995,7 +2077,7 @@
 				"log/1": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, session ) { return x > 0 ? Math.log( x ) : pl.error.evaluation( "undefined", session.__call_indicator ); }
+					fn: function( x, thread ) { return x > 0 ? Math.log( x ) : pl.error.evaluation( "undefined", thread.__call_indicator ); }
 				},
 				"+/2": {
 					type_args: null,
@@ -2015,12 +2097,12 @@
 				"//2": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, y, session ) { return y ? x / y : pl.error.evaluation( "zero_division", session.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? x / y : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
 				},
 				"///2": {
 					type_args: false,
 					type_result: false,
-					fn: function( x, y, session ) { return y ? parseInt( x / y ) : pl.error.evaluation( "zero_division", session.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? parseInt( x / y ) : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
 				},
 				"**/2": {
 					type_args: null,
@@ -2050,12 +2132,12 @@
 				"rem/2": {
 					type_args: false,
 					type_result: false,
-					fn: function( x, y, session ) { return y ? x % y : pl.error.evaluation( "zero_division", session.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? x % y : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
 				},
 				"mod/2": {
 					type_args: false,
 					type_result: false,
-					fn: function( x, y, session ) { return y ? x - parseInt( x / y ) * y : pl.error.evaluation( "zero_division", session.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? x - parseInt( x / y ) * y : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
 				}
 				
 			}
@@ -2066,34 +2148,34 @@
 		directive: {
 			
 			// dynamic/1
-			"dynamic/1": function( session, atom ) {
+			"dynamic/1": function( thread, atom ) {
 				var indicator = atom.args[0];
 				if( pl.type.is_variable( indicator ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_compound( indicator ) || indicator.indicator !== "//2" ) {
-					session.throwError( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
+					thread.throwError( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
 				} else if( pl.type.is_variable( indicator.args[0] ) || pl.type.is_variable( indicator.args[1] ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( indicator.args[0] ) ) {
-					session.throwError( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
 				} else if( !pl.type.is_integer( indicator.args[1] ) ) {
-					session.throwError( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
-					session.public_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
+					thread.session.public_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
 				}
 			},
 			
 			// use_module/1
-			"use_module/1": function( session, atom ) {
+			"use_module/1": function( thread, atom ) {
 				var module = atom.args[0];
 				if( pl.type.is_variable( module ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_term( module ) ) {
-					session.throwError( pl.error.type( "term", module, atom.indicator ) );
+					thread.throwError( pl.error.type( "term", module, atom.indicator ) );
 				} else {
 					if( pl.type.is_module( module ) ) {
 						var name = module.args[0].id;
-						session.modules.push( name );
+						thread.session.modules.push( name );
 					} else {
 						// TODO
 						// error no existe modulo
@@ -2102,45 +2184,45 @@
 			},
 			
 			// char_conversion/2
-			"char_conversion/2": function( session, atom ) {
+			"char_conversion/2": function( thread, atom ) {
 				var inchar = atom.args[0], outchar = atom.args[1];
 				if( pl.type.is_variable( inchar ) || pl.type.is_variable( outchar ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_character( inchar ) ) {
-					session.throwError( pl.error.type( "character", inchar, atom.indicator ) );
+					thread.throwError( pl.error.type( "character", inchar, atom.indicator ) );
 				} else if( !pl.type.is_character( outchar ) ) {
-					session.throwError( pl.error.type( "character", outchar, atom.indicator ) );
+					thread.throwError( pl.error.type( "character", outchar, atom.indicator ) );
 				} else {
 					if( inchar.id === outchar.id ) {
-						delete session.__char_conversion[inchar.id];
+						delete thread.session.__char_conversion[inchar.id];
 					} else {
-						session.__char_conversion[inchar.id] = outchar.id;
+						thread.session.__char_conversion[inchar.id] = outchar.id;
 					}
 				}
 			},
 			
 			// op/3
-			"op/3": function( session, atom ) {
+			"op/3": function( thread, atom ) {
 				var priority = atom.args[0], type = atom.args[1], operator = atom.args[2];
 				if( pl.type.is_variable( priority ) || pl.type.is_variable( type ) || pl.type.is_variable( operator ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_integer( priority ) ) {
-					session.throwError( pl.error.type( "integer", priority, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", priority, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
-					session.throwError( pl.error.type( "atom", type, atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", type, atom.indicator ) );
 				} else if( !pl.type.is_atom( operator ) ) {
-					session.throwError( pl.error.type( "atom", operator, atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", operator, atom.indicator ) );
 				} else if( priority.value < 0 || priority.value > 1200 ) {
-					session.throwError( pl.error.domain( "operator_priority", priority, atom.indicator ) );
+					thread.throwError( pl.error.domain( "operator_priority", priority, atom.indicator ) );
 				} else if( operator.id === "," ) {
-					session.throwError( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
+					thread.throwError( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
 				} else if( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"].indexOf( type.id ) === -1 ) {
-					session.throwError( pl.error.domain( "operator_specifier", type, atom.indicator ) );
+					thread.throwError( pl.error.domain( "operator_specifier", type, atom.indicator ) );
 				} else {
 					var fix = { prefix: null, infix: null, postfix: null };
-					for( var p in session.__operators ) {
-						if(!session.__operators.hasOwnProperty(p)) continue;
-						var classes = session.__operators[p][operator.id];
+					for( var p in thread.session.__operators ) {
+						if(!thread.session.__operators.hasOwnProperty(p)) continue;
+						var classes = thread.session.__operators[p][operator.id];
 						if( classes ) {
 							if( indexOf( classes, "fx" ) !== -1 ) { fix.prefix = { priority: p, type: "fx" }; }
 							if( indexOf( classes, "fy" ) !== -1 ) { fix.prefix = { priority: p, type: "fy" }; }
@@ -2159,18 +2241,18 @@
 					}
 					if( ((fix.prefix && current_class === "prefix" || fix.postfix && current_class === "postfix" || fix.infix && current_class === "infix")
 						&& fix[current_class].type !== type.id || fix.infix && current_class === "postfix" || fix.postfix && current_class === "infix") && priority.value !== 0 ) {
-						session.throwError( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+						thread.throwError( pl.error.permission( "create", "operator", operator, atom.indicator ) );
 					} else {
 						if( fix[current_class] ) {
-							remove( session.__operators[fix[current_class].priority][operator.id], type.id );
-							if( session.__operators[fix[current_class].priority][operator.id].length === 0 ) {
-								delete session.__operators[fix[current_class].priority][operator.id];
+							remove( thread.session.__operators[fix[current_class].priority][operator.id], type.id );
+							if( thread.session.__operators[fix[current_class].priority][operator.id].length === 0 ) {
+								delete thread.session.__operators[fix[current_class].priority][operator.id];
 							}
 						}
 						if( priority.value > 0 ) {
-							if( !session.__operators[priority.value] ) session.__operators[priority.value.toString()] = {};
-							if( !session.__operators[priority.value][operator.id] ) session.__operators[priority.value][operator.id] = [];
-							session.__operators[priority.value][operator.id].push( type.id );
+							if( !thread.session.__operators[priority.value] ) thread.session.__operators[priority.value.toString()] = {};
+							if( !thread.session.__operators[priority.value][operator.id] ) thread.session.__operators[priority.value][operator.id] = [];
+							thread.session.__operators[priority.value][operator.id].push( type.id );
 						}
 					}
 				}
@@ -2184,39 +2266,39 @@
 			// LOGIC AND CONTROL STRUCTURES
 		
 			// ;/2 (disjunction)
-			";/2": function( session, point, atom ) {
+			";/2": function( thread, point, atom ) {
 				if( pl.type.is_term( atom.args[0] ) && atom.args[0].indicator === "->/2" ) {
-					var points = session.points;
-					session.points = [new State( atom.args[0].args[0], point.substitution, point.parent )];
+					var points = thread.points;
+					thread.points = [new State( atom.args[0].args[0], point.substitution, point.parent )];
 					var callback = function( answer ) {
-						session.points = points;
+						thread.points = points;
 						if( answer === false ) {
-							session.points = [new State( point.goal.replace( atom.args[1] ), point.substitution, point.parent )].concat( points );
+							thread.points = [new State( point.goal.replace( atom.args[1] ), point.substitution, point.parent )].concat( points );
 						} else if( pl.type.is_error( answer ) )
-							session.throwError( answer.args[0] );
+							thread.throwError( answer.args[0] );
 						else if( answer === null ) {
-							session.points = [point].concat( points );
-							session.__calls.shift()( null );
+							thread.points = [point].concat( points );
+							thread.__calls.shift()( null );
 						} else {
-							session.points = [new State( point.goal.replace( atom.args[0].args[1] ), point.substitution, point.parent )].concat( points );
+							thread.points = [new State( point.goal.replace( atom.args[0].args[1] ), point.substitution, point.parent )].concat( points );
 						}
 					};
-					session.__calls.unshift( callback );
+					thread.__calls.unshift( callback );
 				} else {
 					var left = new State( point.goal.replace( atom.args[0] ), point.substitution, point.parent );
 					var right = new State( point.goal.replace( atom.args[1] ), point.substitution, point.parent );
-					session.prepend( [left, right] );
+					thread.prepend( [left, right] );
 				}
 			},
 			
 			// !/0 (cut)
-			"!/0": function( session, point, atom ) {
+			"!/0": function( thread, point, atom ) {
 				var parent_cut, states = [];
 				parent_cut = point;
 				while( parent_cut.parent !== null && parent_cut.parent.goal.search( atom ) )
 					parent_cut = parent_cut.parent;
-				for( var i = 0; i < session.points.length; i++ ) {
-					var state = session.points[i];
+				for( var i = 0; i < thread.points.length; i++ ) {
+					var state = thread.points[i];
 					var node = state.parent;
 					while( node !== null && node !== parent_cut.parent ) {
 						node = node.parent;
@@ -2224,95 +2306,95 @@
 					if( node === null && node !== parent_cut.parent )
 						states.push( state );
 				}
-				session.points = [new State( point.goal.replace( null ), point.substitution, point )].concat( states );
+				thread.points = [new State( point.goal.replace( null ), point.substitution, point )].concat( states );
 			},
 			
 			// \+ (negation)
-			"\\+/1": function( session, point, atom ) {
+			"\\+/1": function( thread, point, atom ) {
 				var goal = atom.args[0];
 				if( pl.type.is_variable( goal ) ) {
-					session.throwError( pl.error.instantiation( session.level ) );
+					thread.throwError( pl.error.instantiation( thread.level ) );
 				} else if( !pl.type.is_callable( goal ) ) {
-					session.throwError( pl.error.type( "callable", goal, session.level ) );
+					thread.throwError( pl.error.type( "callable", goal, thread.level ) );
 				} else {
-					var points = session.points;
-					session.points = [new State( atom.args[0], point.substitution, point )];
+					var points = thread.points;
+					thread.points = [new State( atom.args[0], point.substitution, point )];
 					var callback = function( answer ) {
-						session.points = points;
+						thread.points = points;
 						if( answer === false )
-							session.success( point );
+							thread.success( point );
 						else if( pl.type.is_error( answer ) )
-							session.throwError( answer.args[0] );
+							thread.throwError( answer.args[0] );
 						else if( answer === null ) {
-							session.points = [point].concat( points );
-							session.__calls.shift()( null );
+							thread.points = [point].concat( points );
+							thread.__calls.shift()( null );
 						} else
-							session.points = points;
+							thread.points = points;
 					};
-					session.__calls.unshift( callback );
+					thread.__calls.unshift( callback );
 				}
 			},
 			
 			// ->/2 (implication)
-			"->/2": function( session, point, atom ) {
+			"->/2": function( thread, point, atom ) {
 				var goal = point.goal.replace( new Term( ",", [atom.args[0], new Term( ",", [new Term( "!" ), atom.args[1]] )] ) );
-				session.prepend( [new State( goal, point.substitution, point.parent )] );
+				thread.prepend( [new State( goal, point.substitution, point.parent )] );
 			},
 			
 			// fail/0
 			"fail/0": function( _1, _2, _3 ) {},
 			
 			// true/0
-			"true/0": function( session, point, _ ) {
-				session.success( point );
+			"true/0": function( thread, point, _ ) {
+				thread.success( point );
 			},
 			
 			// call/1
-			"call/1": function( session, point, atom ) {
+			"call/1": function( thread, point, atom ) {
 				var goal = atom.args[0];
 				if( pl.type.is_variable( goal ) ) {
-					session.throwError( pl.error.instantiation( session.level ) );
+					thread.throwError( pl.error.instantiation( thread.level ) );
 				} else if( !pl.type.is_callable( goal ) ) {
-					session.throwError( pl.error.type( "callable", goal, session.level ) );
+					thread.throwError( pl.error.type( "callable", goal, thread.level ) );
 				} else {
-					session.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+					thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
 				}
 			},
 			
 			// once/1
-			"once/1": function( session, point, atom ) {
+			"once/1": function( thread, point, atom ) {
 				var goal = atom.args[0];
-				session.prepend( [new State( point.goal.replace( new Term( ",", [new Term( "call", [goal] ), new Term( "!", [] )] ) ), point.substitution, point )] );
+				thread.prepend( [new State( point.goal.replace( new Term( ",", [new Term( "call", [goal] ), new Term( "!", [] )] ) ), point.substitution, point )] );
 			},
 			
 			// repeat/0
-			"repeat/0": function( session, point, _ ) {
-				session.prepend( [new State( point.goal.replace( null ), point.substitution, point ), point] );
+			"repeat/0": function( thread, point, _ ) {
+				thread.prepend( [new State( point.goal.replace( null ), point.substitution, point ), point] );
 			},
 			
 			// EXCEPTIONS
 			
 			// throw/1
-			"throw/1": function( session, point, atom ) {
+			"throw/1": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					session.throwError( pl.error.instantiation( session.level ) );
+					thread.throwError( pl.error.instantiation( thread.level ) );
 				} else {
-					session.throwError( atom.args[0] );
+					thread.throwError( atom.args[0] );
 				}
 			},
 			
 			// catch/3
-			"catch/3": function( session, point, atom ) {
-				var points = session.points;
-				session.points = [];
-				session.prepend( [new State( atom.args[0], point.substitution, point )] );
+			"catch/3": function( thread, point, atom ) {
+				var points = thread.points;
+				thread.points = [];
+				thread.prepend( [new State( atom.args[0], point.substitution, point )] );
 				var callback = function( answer ) {
-					var call_points = session.points;
-					session.points = points;
+					var call_points = thread.points;
+					thread.points = points;
 					if( pl.type.is_error( answer ) ) {
 						var states = [];
-						for( var i = 0; i < session.points.length; i++ ) {
-							var state = session.points[i];
+						for( var i = 0; i < thread.points.length; i++ ) {
+							var state = thread.points[i];
 							var node = state.parent;
 							while( node !== null && node !== point.parent ) {
 								node = node.parent;
@@ -2320,14 +2402,14 @@
 							if( node === null && node !== point.parent )
 								states.push( state );
 						}
-						session.points = states;
+						thread.points = states;
 						var state = pl.unify( answer.args[0], atom.args[1], false );
 						if( state !== null ) {
 							state.substitution = state.substitution.apply( point.substitution.exclude( point.exclude ? point.exclude : [] ) );
 							state.goal = point.goal.replace( atom.args[2] ).apply( state.substitution );
-							session.prepend( [state] );
+							thread.prepend( [state] );
 						} else {
-							session.throwError( answer.args[0] );
+							thread.throwError( answer.args[0] );
 						}
 					} else if( answer !== false ) {
 						var answer_state = answer === null ? [] : [new State(
@@ -2346,101 +2428,101 @@
 							state.exclude = atom.args[0].variables();
 							return state;
 						} );
-						session.prepend( answer_state.concat( catch_points ) );
+						thread.prepend( answer_state.concat( catch_points ) );
 						if( answer === null ) {
 							this.current_limit = 0;
-							session.__calls.shift()( null );
+							thread.__calls.shift()( null );
 						}
 					}
 				};
-				session.__calls.unshift( callback );
+				thread.__calls.unshift( callback );
 			},
 			
 			// UNIFICATION
 			
 			// =/2 (unification)
-			"=/2": function( session, point, atom ) {
+			"=/2": function( thread, point, atom ) {
 				var state = pl.unify( atom.args[0], atom.args[1], false );
 				if( state !== null ) {
 					state.goal = point.goal.apply( state.substitution ).replace( null );
 					state.substitution = point.substitution.apply( state.substitution );
 					state.parent = point;
-					session.prepend( [state] );
+					thread.prepend( [state] );
 				}
 			},
 			
 			// unify_with_occurs_check/2
-			"unify_with_occurs_check/2": function( session, point, atom ) {
+			"unify_with_occurs_check/2": function( thread, point, atom ) {
 				var state = pl.unify( atom.args[0], atom.args[1], true );
 				if( state !== null ) {
 					state.goal = point.goal.apply( state.substitution ).replace( null );
 					state.substitution = point.substitution.apply( state.substitution );
 					state.parent = point;
-					session.prepend( [state] );
+					thread.prepend( [state] );
 				}
 			},
 			
 			// \=/2
-			"\\=/2": function( session, point, atom ) {
+			"\\=/2": function( thread, point, atom ) {
 				var state = pl.unify( atom.args[0], atom.args[1] );
 				state.parent = point;
 				if( state === null ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// ALL SOLUTIONS
 			
 			// findall/3
-			"findall/3": function( session, point, atom ) {
+			"findall/3": function( thread, point, atom ) {
 				var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
 				if( pl.type.is_variable( goal ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( goal ) ) {
-					session.throwError( pl.error.type( "callable", goal, atom.indicator ) );
+					thread.throwError( pl.error.type( "callable", goal, atom.indicator ) );
 				} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
-					session.throwError( pl.error.type( "list", instances, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", instances, atom.indicator ) );
 				} else {
-					var variable = session.next_free_variable();
+					var variable = thread.next_free_variable();
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, template] )] );
-					var points = session.points;
-					var limit = session.limit;
-					session.add_goal( newGoal, true );
+					var points = thread.points;
+					var limit = thread.session.limit;
+					thread.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							session.__calls.unshift( callback );
+							thread.__calls.unshift( callback );
 							answers.push( answer.links[variable.id] );
-							session.limit = session.current_limit;
+							thread.session.limit = thread.current_limit;
 						} else {
-							session.points = points;
-							session.limit = limit;
+							thread.points = points;
+							thread.session.limit = limit;
 							if( pl.type.is_error( answer ) ) {
-								session.throwError( answer.args[0] );
-							} else if( session.current_limit > 0 ) {
+								thread.throwError( answer.args[0] );
+							} else if( thread.current_limit > 0 ) {
 								var list = new Term( "[]" );
 								for( var i = answers.length - 1; i >= 0; i-- ) {
 									list = new Term( ".", [answers[i], list] );
 								}
-								session.prepend( [new State( point.goal.replace( new Term( "=", [instances, list] ) ), point.substitution, point )] );
+								thread.prepend( [new State( point.goal.replace( new Term( "=", [instances, list] ) ), point.substitution, point )] );
 							}
 						}
 					};
-					session.__calls.unshift( callback );
+					thread.__calls.unshift( callback );
 				}
 			},
 			
 			// bagof/3
-			"bagof/3": function( session, point, atom ) {
+			"bagof/3": function( thread, point, atom ) {
 				var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
 				if( pl.type.is_variable( goal ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( goal ) ) {
-					session.throwError( pl.error.type( "callable", goal, atom.indicator ) );
+					thread.throwError( pl.error.type( "callable", goal, atom.indicator ) );
 				} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
-					session.throwError( pl.error.type( "list", instances, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", instances, atom.indicator ) );
 				} else {
-					var variable = session.next_free_variable();
+					var variable = thread.next_free_variable();
 					var template_vars;
 					if( goal.indicator === "^/2" ) {
 						template_vars = goal.args[0].variables();
@@ -2457,13 +2539,13 @@
 						list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
 					}
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
-					var points = session.points;
-					var limit = session.limit;
-					session.add_goal( newGoal, true );
+					var points = thread.points;
+					var limit = thread.session.limit;
+					thread.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							session.__calls.unshift( callback );
+							thread.__calls.unshift( callback );
 							var match = false;
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
@@ -2479,13 +2561,13 @@
 							if( !match ) {
 								answers.push( {variables: arg_vars, answers: [arg_template]} );
 							}
-							session.limit = session.current_limit;
+							thread.session.limit = thread.current_limit;
 						} else {
-							session.points = points;
-							session.limit = limit;
+							thread.points = points;
+							thread.session.limit = limit;
 							if( pl.type.is_error( answer ) ) {
-								session.throwError( answer.args[0] );
-							} else if( session.current_limit > 0 ) {
+								thread.throwError( answer.args[0] );
+							} else if( thread.current_limit > 0 ) {
 								var states = [];
 								for( var i = 0; i < answers.length; i++ ) {
 									answer = answers[i].answers;
@@ -2498,25 +2580,25 @@
 										point.substitution, point
 									) );
 								}
-								session.prepend( states );
+								thread.prepend( states );
 							}
 						}
 					};
-					session.__calls.unshift( callback );
+					thread.__calls.unshift( callback );
 				}
 			},
 	
 			// setof/3
-			"setof/3": function( session, point, atom ) {
+			"setof/3": function( thread, point, atom ) {
 				var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
 				if( pl.type.is_variable( goal ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( goal ) ) {
-					session.throwError( pl.error.type( "callable", goal, atom.indicator ) );
+					thread.throwError( pl.error.type( "callable", goal, atom.indicator ) );
 				} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
-					session.throwError( pl.error.type( "list", instances, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", instances, atom.indicator ) );
 				} else {
-					var variable = session.next_free_variable();
+					var variable = thread.next_free_variable();
 					var template_vars;
 					if( goal.indicator === "^/2" ) {
 						template_vars = goal.args[0].variables();
@@ -2533,13 +2615,13 @@
 						list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
 					}
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
-					var points = session.points;
-					var limit = session.limit;
-					session.add_goal( newGoal, true );
+					var points = thread.points;
+					var limit = thread.session.limit;
+					thread.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							session.__calls.unshift( callback );
+							thread.__calls.unshift( callback );
 							var match = false;
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
@@ -2555,13 +2637,13 @@
 							if( !match ) {
 								answers.push( {variables: arg_vars, answers: [arg_template]} );
 							}
-							session.limit = session.current_limit;
+							thread.session.limit = thread.current_limit;
 						} else {
-							session.points = points;
-							session.limit = limit;
+							thread.points = points;
+							thread.session.limit = limit;
 							if( pl.type.is_error( answer ) ) {
-								session.throwError( answer.args[0] );
-							} else if( session.current_limit > 0 ) {
+								thread.throwError( answer.args[0] );
+							} else if( thread.current_limit > 0 ) {
 								var states = [];
 								for( var i = 0; i < answers.length; i++ ) {
 									answer = answers[i].answers.sort( pl.compare );
@@ -2574,69 +2656,69 @@
 										point.substitution, point
 									) );
 								}
-								session.prepend( states );
+								thread.prepend( states );
 							}
 						}
 					};
-					session.__calls.unshift( callback );
+					thread.__calls.unshift( callback );
 				}
 			},
 			
 			// TERM CREATION AND DECOMPOSITION
 			
 			// functor/3
-			"functor/3": function( session, point, atom ) {
+			"functor/3": function( thread, point, atom ) {
 				var subs;
 				var term = atom.args[0], name = atom.args[1], arity = atom.args[2];
 				if( pl.type.is_variable( term ) && (pl.type.is_variable( name ) || pl.type.is_variable( arity )) ) {
-					session.throwError( pl.error.instantiation( "functor/3" ) );
+					thread.throwError( pl.error.instantiation( "functor/3" ) );
 				} else if( !pl.type.is_variable( arity ) && !pl.type.is_integer( arity ) ) {
-					session.throwError( pl.error.type( "integer", atom.args[2], "functor/3" ) );
+					thread.throwError( pl.error.type( "integer", atom.args[2], "functor/3" ) );
 				} else if( !pl.type.is_variable( name ) && !pl.type.is_atomic( name ) ) {
-					session.throwError( pl.error.type( "atomic", atom.args[1], "functor/3" ) );
+					thread.throwError( pl.error.type( "atomic", atom.args[1], "functor/3" ) );
 				} else if( pl.type.is_integer( name ) && pl.type.is_integer( arity ) && arity.value !== 0 ) {
-					session.throwError( pl.error.type( "atom", atom.args[1], "functor/3" ) );
+					thread.throwError( pl.error.type( "atom", atom.args[1], "functor/3" ) );
 				} else if( pl.type.is_variable( term ) ) {
 					if( atom.args[2].value >= 0 ) {
 						var args = [];
 						for( var i = 0; i < arity.value; i++ )
-							args.push( session.next_free_variable() );
+							args.push( thread.next_free_variable() );
 						var functor = pl.type.is_integer( name ) ? name : new Term( name.id, args );
-						session.prepend( [new State( point.goal.replace( new Term( "=", [term, functor] ) ), point.substitution, point.parent )] );
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [term, functor] ) ), point.substitution, point.parent )] );
 					}
 				} else {
 					var id = pl.type.is_integer( term ) ? term : new Term( term.id, [] );
 					var length = pl.type.is_integer( term ) ? new Num( 0, false ) : new Num( term.args.length, false );
 					var goal = new Term( ",", [new Term( "=", [id, name] ), new Term( "=", [length, arity] )] );
-					session.prepend( [new State( point.goal.replace( goal ), point.substitution, point.parent )] );
+					thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point.parent )] );
 				}
 			},
 			
 			// arg/3
-			"arg/3": function( session, point, atom ) {
+			"arg/3": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) || pl.type.is_variable( atom.args[1] ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( atom.args[0].value < 0 ) {
-					session.throwError( pl.error.domain( "not_less_than_zero", atom.args[0], atom.indicator ) );
+					thread.throwError( pl.error.domain( "not_less_than_zero", atom.args[0], atom.indicator ) );
 				} else if( !pl.type.is_compound( atom.args[1] ) ) {
-					session.throwError( pl.error.type( "compound", atom.args[1], atom.indicator ) );
+					thread.throwError( pl.error.type( "compound", atom.args[1], atom.indicator ) );
 				} else {
 					var n = atom.args[0].value;
 					if( n > 0 && n <= atom.args[1].args.length ) {
 						var goal = new Term( "=", [atom.args[1].args[n-1], atom.args[2]] );
-						session.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+						thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
 					}
 				}
 			},
 			
 			// =../2 (univ)
-			"=../2": function( session, point, atom ) {
+			"=../2": function( thread, point, atom ) {
 				var list;
 				if( pl.type.is_variable( atom.args[0] ) && (pl.type.is_variable( atom.args[1] )
 				|| pl.type.is_non_empty_list( atom.args[1] ) && pl.type.is_variable( atom.args[1].args[0] )) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_fully_list( atom.args[1] ) ) {
-					session.throwError( pl.error.type( "list", atom.args[1], atom.indicator ) );
+					thread.throwError( pl.error.type( "list", atom.args[1], atom.indicator ) );
 				} else if( !pl.type.is_variable( atom.args[0] ) ) {
 					if( pl.type.is_atomic( atom.args[0] ) ) {
 						list = new Term( ".", [atom.args[0], new Term( "[]" )] );
@@ -2647,7 +2729,7 @@
 						}
 						list = new Term( ".", [new Term( atom.args[0].id ), list] );
 					}
-					session.prepend( [new State( point.goal.replace( new Term( "=", [list, atom.args[1]] ) ), point.substitution, point )] );
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [list, atom.args[1]] ) ), point.substitution, point )] );
 				} else if( !pl.type.is_variable( atom.args[1] ) ) {
 					var args = [];
 					list = atom.args[1].args[1];
@@ -2656,71 +2738,71 @@
 						list = list.args[1];
 					}
 					if( pl.type.is_variable( atom.args[0] ) && pl.type.is_variable( list ) ) {
-						session.throwError( pl.error.instantiation( atom.indicator ) );
+						thread.throwError( pl.error.instantiation( atom.indicator ) );
 					} else if( args.length === 0 && pl.type.is_compound( atom.args[1].args[0] ) ) {
-						session.throwError( pl.error.type( "atomic", atom.args[1].args[0], atom.indicator ) );
+						thread.throwError( pl.error.type( "atomic", atom.args[1].args[0], atom.indicator ) );
 					} else if( args.length > 0 && (pl.type.is_compound( atom.args[1].args[0] ) || pl.type.is_number( atom.args[1].args[0] )) ) {
-						session.throwError( pl.error.type( "atom", atom.args[1].args[0], atom.indicator ) );
+						thread.throwError( pl.error.type( "atom", atom.args[1].args[0], atom.indicator ) );
 					} else {
 						if( args.length === 0 ) {
-							session.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[1].args[0], atom.args[0]], point ) ), point.substitution, point )] );
+							thread.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[1].args[0], atom.args[0]], point ) ), point.substitution, point )] );
 						} else {
-							session.prepend( [new State( point.goal.replace( new Term( "=", [new Term( atom.args[1].args[0].id, args ), atom.args[0]] ) ), point.substitution, point )] );
+							thread.prepend( [new State( point.goal.replace( new Term( "=", [new Term( atom.args[1].args[0].id, args ), atom.args[0]] ) ), point.substitution, point )] );
 						}
 					}
 				}
 			},
 			
 			// copy_term/2
-			"copy_term/2": function( session, point, atom ) {
-				var renamed = atom.args[0].rename( session );
-				session.prepend( [new State( point.goal.replace( new Term( "=", [renamed, atom.args[1]] ) ), point.substitution, point.parent )] );
+			"copy_term/2": function( thread, point, atom ) {
+				var renamed = atom.args[0].rename( thread );
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [renamed, atom.args[1]] ) ), point.substitution, point.parent )] );
 			},
 			
 			// CLAUSE RETRIEVAL AND INFORMATION
 			
 			// clause/2
-			"clause/2": function( session, point, atom ) {
+			"clause/2": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( atom.args[0] ) ) {
-					session.throwError( pl.error.type( "callable", atom.args[0], atom.indicator ) );
+					thread.throwError( pl.error.type( "callable", atom.args[0], atom.indicator ) );
 				} else if( !pl.type.is_variable( atom.args[1] ) && !pl.type.is_callable( atom.args[1] ) ) {
-					session.throwError( pl.error.type( "callable", atom.args[1], atom.indicator ) );
-				} else if( session.rules[atom.args[0].indicator] !== undefined ) {
-					if( session.is_public_predicate( atom.args[0].indicator ) ) {
+					thread.throwError( pl.error.type( "callable", atom.args[1], atom.indicator ) );
+				} else if( thread.session.rules[atom.args[0].indicator] !== undefined ) {
+					if( thread.is_public_predicate( atom.args[0].indicator ) ) {
 						var states = [];
-						for( var _rule in session.rules[atom.args[0].indicator] ) {
-							if(!session.rules[atom.args[0].indicator].hasOwnProperty(_rule)) continue;
-							var rule = session.rules[atom.args[0].indicator][_rule];
-							session.renamed_variables = {};
-							rule = rule.rename( session );
+						for( var _rule in thread.session.rules[atom.args[0].indicator] ) {
+							if(!thread.session.rules[atom.args[0].indicator].hasOwnProperty(_rule)) continue;
+							var rule = thread.session.rules[atom.args[0].indicator][_rule];
+							thread.session.renamed_variables = {};
+							rule = rule.rename( thread );
 							if( rule.body === null ) {
 								rule.body = new Term( "true" );
 							}
 							var goal = new Term( ",", [new Term( "=", [rule.head, atom.args[0]] ), new Term( "=", [rule.body, atom.args[1]] )] );
 							states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
 						}
-						session.prepend( states );
+						thread.prepend( states );
 					} else {
-						session.throwError( pl.error.permission( "access", "private_procedure", atom.args[0].indicator, atom.indicator ) );
+						thread.throwError( pl.error.permission( "access", "private_procedure", atom.args[0].indicator, atom.indicator ) );
 					}
 				}
 			},
 			
 			// current_predicate/1
-			"current_predicate/1": function( session, point, atom ) {
+			"current_predicate/1": function( thread, point, atom ) {
 				var indicator = atom.args[0];
 				if( !pl.type.is_variable( indicator ) && (!pl.type.is_compound( indicator ) || indicator.indicator !== "//2") ) {
-					session.throwError( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
+					thread.throwError( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
 				} else if( !pl.type.is_variable( indicator ) && !pl.type.is_variable( indicator.args[0] ) && !pl.type.is_atom( indicator.args[0] ) ) {
-					session.throwError( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
 				} else if( !pl.type.is_variable( indicator ) && !pl.type.is_variable( indicator.args[1] ) && !pl.type.is_integer( indicator.args[1] ) ) {
-					session.throwError( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
 					var states = [];
-					for( var i in session.rules ) {
-						if(!session.rules.hasOwnProperty(i)) continue;
+					for( var i in thread.session.rules ) {
+						if(!thread.session.rules.hasOwnProperty(i)) continue;
 						var index = i.lastIndexOf( "/" );
 						var name = i.substr( 0, index );
 						var arity = parseInt( i.substr( index+1, i.length-(index+1) ) );
@@ -2728,18 +2810,18 @@
 						var goal = new Term( "=", [predicate, indicator] );
 						states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
 					}
-					session.prepend( states );
+					thread.prepend( states );
 				}
 			},
 			
 			// CLAUSE CREATION AND DESTRUCTION
 			
 			// asserta/1
-			"asserta/1": function( session, point, atom ) {
+			"asserta/1": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( atom.args[0] ) ) {
-					session.throwError( pl.error.type( "callable", atom.args[0], atom.indicator ) );
+					thread.throwError( pl.error.type( "callable", atom.args[0], atom.indicator ) );
 				} else {
 					var head, body;
 					if( atom.args[0].indicator === ":-/2" ) {
@@ -2750,28 +2832,28 @@
 						body = null;
 					}
 					if( !pl.type.is_callable( head ) ) {
-						session.throwError( pl.error.type( "callable", head, atom.indicator ) );
+						thread.throwError( pl.error.type( "callable", head, atom.indicator ) );
 					} else if( body !== null && !pl.type.is_callable( body ) ) {
-						session.throwError( pl.error.type( "callable", body, atom.indicator ) );
-					} else if( session.is_public_predicate( head.indicator ) ) {
-						if( session.rules[head.indicator] === undefined ) {
-							session.rules[head.indicator] = [];
+						thread.throwError( pl.error.type( "callable", body, atom.indicator ) );
+					} else if( thread.is_public_predicate( head.indicator ) ) {
+						if( thread.session.rules[head.indicator] === undefined ) {
+							thread.session.rules[head.indicator] = [];
 						}
-						session.public_predicates[head.indicator] = true;
-						session.rules[head.indicator] = [new Rule( head, body )].concat( session.rules[head.indicator] );
-						session.success( point );
+						thread.session.public_predicates[head.indicator] = true;
+						thread.session.rules[head.indicator] = [new Rule( head, body )].concat( thread.session.rules[head.indicator] );
+						thread.success( point );
 					} else {
-						session.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
+						thread.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
 					}
 				}
 			},
 			
 			// assertz/1
-			"assertz/1": function( session, point, atom ) {
+			"assertz/1": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( atom.args[0] ) ) {
-					session.throwError( pl.error.type( "callable", atom.args[0], atom.indicator ) );
+					thread.throwError( pl.error.type( "callable", atom.args[0], atom.indicator ) );
 				} else {
 					var head, body;
 					if( atom.args[0].indicator === ":-/2" ) {
@@ -2782,28 +2864,28 @@
 						body = null;
 					}
 					if( !pl.type.is_callable( head ) ) {
-						session.throwError( pl.error.type( "callable", head, atom.indicator ) );
+						thread.throwError( pl.error.type( "callable", head, atom.indicator ) );
 					} else if( body !== null && !pl.type.is_callable( body ) ) {
-						session.throwError( pl.error.type( "callable", body, atom.indicator ) );
-					} else if( session.is_public_predicate( head.indicator ) ) {
-						if( session.rules[head.indicator] === undefined ) {
-							session.rules[head.indicator] = [];
+						thread.throwError( pl.error.type( "callable", body, atom.indicator ) );
+					} else if( thread.is_public_predicate( head.indicator ) ) {
+						if( thread.session.rules[head.indicator] === undefined ) {
+							thread.session.rules[head.indicator] = [];
 						}
-						session.public_predicates[head.indicator] = true;
-						session.rules[head.indicator].push( new Rule( head, body ) );
-						session.success( point );
+						thread.session.public_predicates[head.indicator] = true;
+						thread.session.rules[head.indicator].push( new Rule( head, body ) );
+						thread.success( point );
 					} else {
-						session.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
+						thread.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
 					}
 				}
 			},
 			
 			// retract/1
-			"retract/1": function( session, point, atom ) {
+			"retract/1": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( atom.args[0] ) ) {
-					session.throwError( pl.error.type( "callable", atom.args[0], atom.indicator ) );
+					thread.throwError( pl.error.type( "callable", atom.args[0], atom.indicator ) );
 				} else {
 					var head, body;
 					if( atom.args[0].indicator === ":-/2" ) {
@@ -2813,11 +2895,11 @@
 						head = atom.args[0];
 						body = null;
 					}
-					if( session.is_public_predicate( head.indicator ) ) {
-						if( session.rules[head.indicator] !== undefined ) {
-							for( var i = 0; i < session.rules[atom.args[0].indicator].length; i++ ) {
-								session.renamed_variables = {};
-								var rule = session.rules[atom.args[0].indicator][i].rename( session );
+					if( thread.is_public_predicate( head.indicator ) ) {
+						if( thread.session.rules[head.indicator] !== undefined ) {
+							for( var i = 0; i < thread.session.rules[atom.args[0].indicator].length; i++ ) {
+								thread.session.renamed_variables = {};
+								var rule = thread.session.rules[atom.args[0].indicator][i].rename( thread );
 								var state = pl.unify( head, rule.head );
 								if( state !== null ) {
 									if( body === null ) {
@@ -2828,42 +2910,42 @@
 									}
 									var subs = state.substitution;
 									if( pl.unify( rule.body.apply( subs ), body.apply( subs ) ) !== null ) {
-										session.rules[atom.args[0].indicator].splice( i, 1 );
-										session.success( point );
+										thread.session.rules[atom.args[0].indicator].splice( i, 1 );
+										thread.success( point );
 										return;
 									}
 								}
 							}
 						}
 					} else {
-						session.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
+						thread.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
 					}
 				}
 			},
 			
 			
 			// abolish/1
-			"abolish/1": function( session, point, atom ) {
+			"abolish/1": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) || pl.type.is_term( atom.args[0] ) && atom.args[0].indicator === "//2"
 				&& (pl.type.is_variable( atom.args[0].args[0] ) || pl.type.is_variable( atom.args[0].args[1] )) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_term( atom.args[0] ) || atom.args[0].indicator !== "//2" ) {
-					session.throwError( pl.error.type( "predicate_indicator", atom.args[0], atom.indicator ) );
+					thread.throwError( pl.error.type( "predicate_indicator", atom.args[0], atom.indicator ) );
 				} else if( !pl.type.is_atom( atom.args[0].args[0] ) ) {
-					session.throwError( pl.error.type( "atom", atom.args[0].args[0], atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", atom.args[0].args[0], atom.indicator ) );
 				} else if( !pl.type.is_integer( atom.args[0].args[1] ) ) {
-					session.throwError( pl.error.type( "integer", atom.args[0].args[1], atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", atom.args[0].args[1], atom.indicator ) );
 				} else if( atom.args[0].args[1].value < 0 ) {
-					session.throwError( pl.error.domain( "not_less_than_zero", atom.args[0].args[1], atom.indicator ) );
-				} else if( pl.type.is_number(session.flag.max_arity) && atom.args[0].args[1].value > session.flag.max_arity.value ) {
-					session.throwError( pl.error.representation( "max_arity", atom.indicator ) );
+					thread.throwError( pl.error.domain( "not_less_than_zero", atom.args[0].args[1], atom.indicator ) );
+				} else if( pl.type.is_number(thread.getFlag( "max_arity" )) && atom.args[0].args[1].value > thread.getFlag( "max_arity" ).value ) {
+					thread.throwError( pl.error.representation( "max_arity", atom.indicator ) );
 				} else {
 					var indicator = atom.args[0].args[0].id + "/" + atom.args[0].args[1].value;
-					if( session.is_public_predicate( indicator ) ) {
-						delete session.rules[indicator];
-						session.success( point );
+					if( thread.is_public_predicate( indicator ) ) {
+						delete thread.session.rules[indicator];
+						thread.success( point );
 					} else {
-						session.throwError( pl.error.permission( "modify", "static_procedure", indicator, atom.indicator ) );
+						thread.throwError( pl.error.permission( "modify", "static_procedure", indicator, atom.indicator ) );
 					}
 				}
 			},
@@ -2871,50 +2953,50 @@
 			// ATOM PROCESSING
 			
 			// atom_length/2
-			"atom_length/2": function( session, point, atom ) {
+			"atom_length/2": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( atom.args[0] ) ) {
-					session.throwError( pl.error.type( "atom", atom.args[0], atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", atom.args[0], atom.indicator ) );
 				} else if( !pl.type.is_variable( atom.args[1] ) && !pl.type.is_integer( atom.args[1] ) ) {
-					session.throwError( pl.error.type( "integer", atom.args[1], atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", atom.args[1], atom.indicator ) );
 				} else if( pl.type.is_integer( atom.args[1] ) && atom.args[1].value < 0 ) {
-					session.throwError( pl.error.domain( "not_less_than_zero", atom.args[1], atom.indicator ) );
+					thread.throwError( pl.error.domain( "not_less_than_zero", atom.args[1], atom.indicator ) );
 				} else {
 					var length = new Num( atom.args[0].id.length, false );
-					session.prepend( [new State( point.goal.replace( new Term( "=", [length, atom.args[1]] ) ), point.substitution, point )] );
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [length, atom.args[1]] ) ), point.substitution, point )] );
 				}
 			},
 			
 			// atom_concat/3
-			"atom_concat/3": function( session, point, atom ) {
+			"atom_concat/3": function( thread, point, atom ) {
 				var str, goal, start = atom.args[0], end = atom.args[1], whole = atom.args[2];
 				if( pl.type.is_variable( whole ) && (pl.type.is_variable( start ) || pl.type.is_variable( end )) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( start ) && !pl.type.is_atom( start ) ) {
-					session.throwError( pl.error.type( "atom", start, atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", start, atom.indicator ) );
 				} else if( !pl.type.is_variable( end ) && !pl.type.is_atom( end ) ) {
-					session.throwError( pl.error.type( "atom", end, atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", end, atom.indicator ) );
 				} else if( !pl.type.is_variable( whole ) && !pl.type.is_atom( whole ) ) {
-					session.throwError( pl.error.type( "atom", whole, atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", whole, atom.indicator ) );
 				} else {
 					var v1 = pl.type.is_variable( start );
 					var v2 = pl.type.is_variable( end );
 					//var v3 = pl.type.is_variable( whole );
 					if( !v1 && !v2 ) {
 						goal = new Term( "=", [whole, new Term( start.id + end.id )] );
-						session.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+						thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
 					} else if( v1 && !v2 ) {
 						str = whole.id.substr( 0, whole.id.length - end.id.length );
 						if( str + end.id === whole.id ) {
 							goal = new Term( "=", [start, new Term( str )] );
-							session.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+							thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
 						}
 					} else if( v2 && !v1 ) {
 						str = whole.id.substr( start.id.length );
 						if( start.id + str === whole.id ) {
 							goal = new Term( "=", [end, new Term( str )] );
-							session.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+							thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
 						}
 					} else {
 						var states = [];
@@ -2924,28 +3006,28 @@
 							goal = new Term( ",", [new Term( "=", [atom1, start] ), new Term( "=", [atom2, end] )] );
 							states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
 						}
-						session.prepend( states );
+						thread.prepend( states );
 					}
 				}
 			},
 			
 			// sub_atom/5
-			"sub_atom/5": function( session, point, atom ) {
+			"sub_atom/5": function( thread, point, atom ) {
 				var i, atom1 = atom.args[0], before = atom.args[1], length = atom.args[2], after = atom.args[3], subatom = atom.args[4];
 				if( pl.type.is_variable( atom1 ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( before ) && !pl.type.is_integer( before ) ) {
-					session.throwError( pl.error.type( "integer", before, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", before, atom.indicator ) );
 				} else if( !pl.type.is_variable( length ) && !pl.type.is_integer( length ) ) {
-					session.throwError( pl.error.type( "integer", length, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", length, atom.indicator ) );
 				} else if( !pl.type.is_variable( after ) && !pl.type.is_integer( after ) ) {
-					session.throwError( pl.error.type( "integer", after, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", after, atom.indicator ) );
 				} else if( pl.type.is_integer( before ) && before.value < 0 ) {
-					session.throwError( pl.error.domain( "not_less_than_zero", before, atom.indicator ) );
+					thread.throwError( pl.error.domain( "not_less_than_zero", before, atom.indicator ) );
 				} else if( pl.type.is_integer( length ) && length.value < 0 ) {
-					session.throwError( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
+					thread.throwError( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
 				} else if( pl.type.is_integer( after ) && after.value < 0 ) {
-					session.throwError( pl.error.domain( "not_less_than_zero", after, atom.indicator ) );
+					thread.throwError( pl.error.domain( "not_less_than_zero", after, atom.indicator ) );
 				} else {
 					var bs = [], ls = [], as = [];
 					if( pl.type.is_variable( before ) ) {
@@ -2992,24 +3074,24 @@
 							}
 						}
 					}
-					session.prepend( states );
+					thread.prepend( states );
 				}
 			},
 			
 			// atom_chars/2
-			"atom_chars/2": function( session, point, atom ) {
+			"atom_chars/2": function( thread, point, atom ) {
 				var atom1 = atom.args[0], list = atom.args[1];
 				if( pl.type.is_variable( atom1 ) && pl.type.is_variable( list ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( atom1 ) && !pl.type.is_atom( atom1 ) ) {
-					session.throwError( pl.error.type( "atom", atom1, atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", atom1, atom.indicator ) );
 				} else {
 					if( !pl.type.is_variable( atom1 ) ) {
 						var list1 = new Term( "[]" );
 						for( var i = atom1.id.length-1; i >= 0; i-- ) {
 							list1 = new Term( ".", [new Term( atom1.id.charAt( i ) ), list1] );
 						}
-						session.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
 					} else {			
 						var pointer = list;
 						var v = pl.type.is_variable( atom1 );
@@ -3017,10 +3099,10 @@
 						while( pointer.indicator === "./2" ) {
 							if( !pl.type.is_character( pointer.args[0] ) ) {
 								if( pl.type.is_variable( pointer.args[0] ) && v ) {
-									session.throwError( pl.error.instantiation( atom.indicator ) );
+									thread.throwError( pl.error.instantiation( atom.indicator ) );
 									return;
 								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-									session.throwError( pl.error.type( "character", pointer.args[0], atom.indicator ) );
+									thread.throwError( pl.error.type( "character", pointer.args[0], atom.indicator ) );
 									return;
 								}
 							} else {
@@ -3029,30 +3111,30 @@
 							pointer = pointer.args[1];
 						}
 						if( pl.type.is_variable( pointer ) && v ) {
-							session.throwError( pl.error.instantiation( atom.indicator ) );
+							thread.throwError( pl.error.instantiation( atom.indicator ) );
 						} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-							session.throwError( pl.error.type( "list", list, atom.indicator ) );
+							thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 						} else {
-							session.prepend( [new State( point.goal.replace( new Term( "=", [new Term( str ), atom1] ) ), point.substitution, point )] );
+							thread.prepend( [new State( point.goal.replace( new Term( "=", [new Term( str ), atom1] ) ), point.substitution, point )] );
 						}
 					}
 				}
 			},
 			
 			// atom_codes/2
-			"atom_codes/2": function( session, point, atom ) {
+			"atom_codes/2": function( thread, point, atom ) {
 				var atom1 = atom.args[0], list = atom.args[1];
 				if( pl.type.is_variable( atom1 ) && pl.type.is_variable( list ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( atom1 ) && !pl.type.is_atom( atom1 ) ) {
-					session.throwError( pl.error.type( "atom", atom1, atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", atom1, atom.indicator ) );
 				} else {
 					if( !pl.type.is_variable( atom1 ) ) {
 						var list1 = new Term( "[]" );
 						for( var i = atom1.id.length-1; i >= 0; i-- ) {
 							list1 = new Term( ".", [new Num( atom1.id.charCodeAt( i ), false ), list1] );
 						}
-						session.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
 					} else {			
 						var pointer = list;
 						var v = pl.type.is_variable( atom1 );
@@ -3060,10 +3142,10 @@
 						while( pointer.indicator === "./2" ) {
 							if( !pl.type.is_character_code( pointer.args[0] ) ) {
 								if( pl.type.is_variable( pointer.args[0] ) && v ) {
-									session.throwError( pl.error.instantiation( atom.indicator ) );
+									thread.throwError( pl.error.instantiation( atom.indicator ) );
 									return;
 								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-									session.throwError( pl.error.representation( "character_code", atom.indicator ) );
+									thread.throwError( pl.error.representation( "character_code", atom.indicator ) );
 									return;
 								}
 							} else {
@@ -3072,45 +3154,45 @@
 							pointer = pointer.args[1];
 						}
 						if( pl.type.is_variable( pointer ) && v ) {
-							session.throwError( pl.error.instantiation( atom.indicator ) );
+							thread.throwError( pl.error.instantiation( atom.indicator ) );
 						} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-							session.throwError( pl.error.type( "list", list, atom.indicator ) );
+							thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 						} else {
-							session.prepend( [new State( point.goal.replace( new Term( "=", [new Term( str ), atom1] ) ), point.substitution, point )] );
+							thread.prepend( [new State( point.goal.replace( new Term( "=", [new Term( str ), atom1] ) ), point.substitution, point )] );
 						}
 					}
 				}
 			},
 			
 			// char_code/2
-			"char_code/2": function( session, point, atom ) {
+			"char_code/2": function( thread, point, atom ) {
 				var char = atom.args[0], code = atom.args[1];
 				if( pl.type.is_variable( char ) && pl.type.is_variable( code ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
-					session.throwError( pl.error.type( "character", char, atom.indicator ) );
+					thread.throwError( pl.error.type( "character", char, atom.indicator ) );
 				} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
-					session.throwError( pl.error.type( "integer", code, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", code, atom.indicator ) );
 				} else if( !pl.type.is_variable( code ) && !pl.type.is_character_code( code ) ) {
-					session.throwError( pl.error.representation( "character_code", atom.indicator ) );
+					thread.throwError( pl.error.representation( "character_code", atom.indicator ) );
 				} else {
 					if( pl.type.is_variable( code ) ) {
 						var code1 = new Num( char.id.charCodeAt( 0 ), false );
-						session.prepend( [new State( point.goal.replace( new Term( "=", [code1, code] ) ), point.substitution, point )] );
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [code1, code] ) ), point.substitution, point )] );
 					} else {
 						var char1 = new Term( String.fromCharCode( code.value ) );
-						session.prepend( [new State( point.goal.replace( new Term( "=", [char1, char] ) ), point.substitution, point )] );
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [char1, char] ) ), point.substitution, point )] );
 					}
 				}
 			},
 			
 			// number_chars/2
-			"number_chars/2": function( session, point, atom ) {
+			"number_chars/2": function( thread, point, atom ) {
 				var str, num = atom.args[0], list = atom.args[1];
 				if( pl.type.is_variable( num ) && pl.type.is_variable( list ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
-					session.throwError( pl.error.type( "number", num, atom.indicator ) );
+					thread.throwError( pl.error.type( "number", num, atom.indicator ) );
 				} else {
 					if( !pl.type.is_variable( list ) ) {	
 						var pointer = list;
@@ -3119,13 +3201,13 @@
 						while( pointer.indicator === "./2" ) {
 							if( !pl.type.is_character( pointer.args[0] ) ) {
 								if( pl.type.is_variable( pointer.args[0] ) && v ) {
-									session.throwError( pl.error.instantiation( atom.indicator ) );
+									thread.throwError( pl.error.instantiation( atom.indicator ) );
 									return;
 								} else if( pl.type.is_variable( pointer.args[0] ) ) {
 									str = false;
 									break;
 								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-									session.throwError( pl.error.type( "character", pointer.args[0], atom.indicator ) );
+									thread.throwError( pl.error.type( "character", pointer.args[0], atom.indicator ) );
 									return;
 								}
 							} else {
@@ -3136,15 +3218,15 @@
 						}
 						if( str ) {
 							if( pl.type.is_variable( pointer ) && v ) {
-								session.throwError( pl.error.instantiation( atom.indicator ) );
+								thread.throwError( pl.error.instantiation( atom.indicator ) );
 							} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-								session.throwError( pl.error.type( "list", list, atom.indicator ) );
+								thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 							} else {
 								var num2 = strToNum( str );
 								if( num2 === false ) {
-									session.throwError( pl.error.syntax_by_predicate( "parseable_number", list, atom.indicator ) );
+									thread.throwError( pl.error.syntax_by_predicate( "parseable_number", list, atom.indicator ) );
 								} else {
-									session.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
+									thread.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
 								}
 								return;
 							}
@@ -3156,18 +3238,18 @@
 						for( var i = str.length - 1; i >= 0; i-- ) {
 							list2 = new Term( ".", [ new Term( str.charAt( i ) ), list2 ] );
 						}
-						session.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
 					}
 				}
 			},
 			
 			// number_codes/2
-			"number_codes/2": function( session, point, atom ) {
+			"number_codes/2": function( thread, point, atom ) {
 				var str, num = atom.args[0], list = atom.args[1];
 				if( pl.type.is_variable( num ) && pl.type.is_variable( list ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
-					session.throwError( pl.error.type( "number", num, atom.indicator ) );
+					thread.throwError( pl.error.type( "number", num, atom.indicator ) );
 				} else {
 					if( !pl.type.is_variable( list ) ) {	
 						var pointer = list;
@@ -3176,13 +3258,13 @@
 						while( pointer.indicator === "./2" ) {
 							if( !pl.type.is_character_code( pointer.args[0] ) ) {
 								if( pl.type.is_variable( pointer.args[0] ) && v ) {
-									session.throwError( pl.error.instantiation( atom.indicator ) );
+									thread.throwError( pl.error.instantiation( atom.indicator ) );
 									return;
 								} else if( pl.type.is_variable( pointer.args[0] ) ) {
 									str = false;
 									break;
 								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-									session.throwError( pl.error.representation( "character_code", atom.indicator ) );
+									thread.throwError( pl.error.representation( "character_code", atom.indicator ) );
 									return;
 								}
 							} else {
@@ -3192,15 +3274,15 @@
 						}
 						if( str ) {
 							if( pl.type.is_variable( pointer ) && v ) {
-								session.throwError( pl.error.instantiation( atom.indicator ) );
+								thread.throwError( pl.error.instantiation( atom.indicator ) );
 							} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-								session.throwError( pl.error.type( "list", list, atom.indicator ) );
+								thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 							} else {
 								var num2 = strToNum( str );
 								if( num2 === false ) {
-									session.throwError( pl.error.syntax_by_predicate( "parseable_number", list, atom.indicator ) );
+									thread.throwError( pl.error.syntax_by_predicate( "parseable_number", list, atom.indicator ) );
 								} else {
-									session.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
+									thread.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
 								}
 								return;
 							}
@@ -3212,232 +3294,232 @@
 						for( var i = str.length - 1; i >= 0; i-- ) {
 							list2 = new Term( ".", [ new Num( str.charCodeAt( i ), false ), list2 ] );
 						}
-						session.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
 					}
 				}
 			},
 			
 			// TERM COMPARISON
 			
-			"@=</2": function( session, point, atom ) {
+			"@=</2": function( thread, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) <= 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
-			"==/2": function( session, point, atom ) {
+			"==/2": function( thread, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) === 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
-			"\\==/2": function( session, point, atom ) {
+			"\\==/2": function( thread, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) !== 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
-			"@</2": function( session, point, atom ) {
+			"@</2": function( thread, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) < 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
-			"@>/2": function( session, point, atom ) {
+			"@>/2": function( thread, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) > 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
-			"@>=/2": function( session, point, atom ) {
+			"@>=/2": function( thread, point, atom ) {
 				if( pl.compare( atom.args[0], atom.args[1] ) >= 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// EVALUATION
 			
 			// is/2
-			"is/2": function( session, point, atom ) {
-				var op = atom.args[1].interpret( session );
+			"is/2": function( thread, point, atom ) {
+				var op = atom.args[1].interpret( thread );
 				if( !pl.type.is_number( op ) ) {
-					session.throwError( op );
+					thread.throwError( op );
 				} else {
-					session.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[0], op], session.level ) ), point.substitution, point )] );
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[0], op], thread.level ) ), point.substitution, point )] );
 				}
 			},
 			
 			// =:=/2
-			"=:=/2": function( session, point, atom ) {
-				var cmp = pl.arithmetic_compare( session, atom.args[0], atom.args[1] );
+			"=:=/2": function( thread, point, atom ) {
+				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
 				if( pl.type.is_term( cmp ) ) {
-					session.throwError( cmp );
+					thread.throwError( cmp );
 				} else if( cmp === 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// =\=/2
-			"=\\=/2": function( session, point, atom ) {
-				var cmp = pl.arithmetic_compare( session, atom.args[0], atom.args[1] );
+			"=\\=/2": function( thread, point, atom ) {
+				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
 				if( pl.type.is_term( cmp ) ) {
-					session.throwError( cmp );
+					thread.throwError( cmp );
 				} else if( cmp !== 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// </2
-			"</2": function( session, point, atom ) {
-				var cmp = pl.arithmetic_compare( session, atom.args[0], atom.args[1] );
+			"</2": function( thread, point, atom ) {
+				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
 				if( pl.type.is_term( cmp ) ) {
-					session.throwError( cmp );
+					thread.throwError( cmp );
 				} else if( cmp < 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// =</2
-			"=</2": function( session, point, atom ) {
-				var cmp = pl.arithmetic_compare( session, atom.args[0], atom.args[1] );
+			"=</2": function( thread, point, atom ) {
+				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
 				if( pl.type.is_term( cmp ) ) {
-					session.throwError( cmp );
+					thread.throwError( cmp );
 				} else if( cmp <= 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// >/2
-			">/2": function( session, point, atom ) {
-				var cmp = pl.arithmetic_compare( session, atom.args[0], atom.args[1] );
+			">/2": function( thread, point, atom ) {
+				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
 				if( pl.type.is_term( cmp ) ) {
-					session.throwError( cmp );
+					thread.throwError( cmp );
 				} else if( cmp > 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// >=/2
-			">=/2": function( session, point, atom ) {
-				var cmp = pl.arithmetic_compare( session, atom.args[0], atom.args[1] );
+			">=/2": function( thread, point, atom ) {
+				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
 				if( pl.type.is_term( cmp ) ) {
-					session.throwError( cmp );
+					thread.throwError( cmp );
 				} else if( cmp >= 0 ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// TYPE TEST
 			
 			// var/1
-			"var/1": function( session, point, atom ) {
+			"var/1": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// atom/1
-			"atom/1": function( session, point, atom ) {
+			"atom/1": function( thread, point, atom ) {
 				if( pl.type.is_atom( atom.args[0] ) ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// atomic/1
-			"atomic/1": function( session, point, atom ) {
+			"atomic/1": function( thread, point, atom ) {
 				if( pl.type.is_atomic( atom.args[0] ) ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// compound/1
-			"compound/1": function( session, point, atom ) {
+			"compound/1": function( thread, point, atom ) {
 				if( pl.type.is_compound( atom.args[0] ) ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// integer/1
-			"integer/1": function( session, point, atom ) {
+			"integer/1": function( thread, point, atom ) {
 				if( pl.type.is_integer( atom.args[0] ) ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// float/1
-			"float/1": function( session, point, atom ) {
+			"float/1": function( thread, point, atom ) {
 				if( pl.type.is_float( atom.args[0] ) ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// number/1
-			"number/1": function( session, point, atom ) {
+			"number/1": function( thread, point, atom ) {
 				if( pl.type.is_number( atom.args[0] ) ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// nonvar/1
-			"nonvar/1": function( session, point, atom ) {
+			"nonvar/1": function( thread, point, atom ) {
 				if( !pl.type.is_variable( atom.args[0] ) ) {
-					session.success( point );
+					thread.success( point );
 				}
 			},
 			
 			// IMPLEMENTATION DEFINED HOOKS
 			
 			// halt/0
-			"halt/0": function( session, point, _ ) {
-				session.points = [];
+			"halt/0": function( thread, point, _ ) {
+				thread.points = [];
 			},
 			
 			// halt/1
-			"halt/1": function( session, point, atom ) {
+			"halt/1": function( thread, point, atom ) {
 				var int = atom.args[0];
 				if( pl.type.is_variable( int ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_integer( int ) ) {
-					session.throwError( pl.error.type( "integer", int, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", int, atom.indicator ) );
 				} else {
-					session.points = [];
+					thread.points = [];
 				}
 			},
 			
 			// current_prolog_flag/2
-			"current_prolog_flag/2": function( session, point, atom ) {
+			"current_prolog_flag/2": function( thread, point, atom ) {
 				var flag = atom.args[0], value = atom.args[1];
 				if( !pl.type.is_variable( flag ) && !pl.type.is_atom( flag ) ) {
-					session.throwError( pl.error.type( "atom", flag, atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", flag, atom.indicator ) );
 				} else if( !pl.type.is_variable( flag ) && !pl.type.is_flag( flag ) ) {
-					session.throwError( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
+					thread.throwError( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
 				} else {
 					var states = [];
 					for( var name in pl.flag ) {
 						if(!pl.flag.hasOwnProperty(name)) continue;
-						var goal = new Term( ",", [new Term( "=", [new Term( name ), flag] ), new Term( "=", [session.flag[name], value] )] );
+						var goal = new Term( ",", [new Term( "=", [new Term( name ), flag] ), new Term( "=", [new Term(thread.getFlag(name), []), value] )] );
 						states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
 					}
-					session.prepend( states );
+					thread.prepend( states );
 				}
 			},
 			
 			// set_prolog_flag/2
-			"set_prolog_flag/2": function( session, point, atom ) {
+			"set_prolog_flag/2": function( thread, point, atom ) {
 				var flag = atom.args[0], value = atom.args[1];
 				if( pl.type.is_variable( flag ) || pl.type.is_variable( value ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( flag ) ) {
-					session.throwError( pl.error.type( "atom", flag, atom.indicator ) );
+					thread.throwError( pl.error.type( "atom", flag, atom.indicator ) );
 				} else if( !pl.type.is_flag( flag ) ) {
-					session.throwError( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
+					thread.throwError( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
 				} else if( !pl.type.is_value_flag( flag, value ) ) {
-					session.throwError( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
+					thread.throwError( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
 				} else if( !pl.type.is_modifiable_flag( flag ) ) {
-					session.throwError( pl.error.permission( "modify", "flag", flag ) );
+					thread.throwError( pl.error.permission( "modify", "flag", flag ) );
 				} else {
-					session.flag[flag.id] = value;
-					session.success( point );
+					thread.session.flag[flag.id] = value;
+					thread.success( point );
 				}
 			}
 			
@@ -3537,12 +3619,12 @@
 		},
 		
 		// Arithmetic comparison
-		arithmetic_compare: function( session, obj1, obj2 ) {
-			var expr1 = obj1.interpret( session );
+		arithmetic_compare: function( thread, obj1, obj2 ) {
+			var expr1 = obj1.interpret( thread );
 			if( !pl.type.is_number( expr1 ) ) {
 				return expr1;
 			} else {
-				var expr2 = obj2.interpret( session );
+				var expr2 = obj2.interpret( thread );
 				if( !pl.type.is_number( expr2 ) ) {
 					return expr2;
 				} else {
@@ -3552,36 +3634,36 @@
 		},
 		
 		// Operate
-		operate: function( session, obj ) {
+		operate: function( thread, obj ) {
 			if( pl.type.is_operator( obj ) ) {
 				var op = pl.type.is_operator( obj );
 				var args = [], value;
 				var type = false;
 				for( var i = 0; i < obj.args.length; i++ ) {
-					value = obj.args[i].interpret( session );
+					value = obj.args[i].interpret( thread );
 					if( !pl.type.is_number( value ) ) {
 						return value;
 					} else if( op.type_args !== null && value.is_float !== op.type_args ) {
-						return pl.error.type( op.type_args ? "float" : "integer", value, session.__call_indicator );
+						return pl.error.type( op.type_args ? "float" : "integer", value, thread.__call_indicator );
 					} else {
 						args.push( value.value );
 					}
 					type = type || value.is_float;
 				}
-				args.push( session );
+				args.push( thread );
 				value = pl.arithmetic.evaluation[obj.indicator].fn.apply( this, args );
 				type = op.type_result === null ? type : op.type_result;
 				if( pl.type.is_term( value ) ) {
 					return value;
 				} else if( value === Number.POSITIVE_INFINITY || value === Number.NEGATIVE_INFINITY ) {
-					return pl.error.evaluation( "overflow", session.__call_indicator );
-				} else if( type === false && session.flag.bounded.id === "true" && (value > session.flag.max_integer.value || value < session.flag.min_integer.value) ) {
-					return pl.error.evaluation( "int_overflow", session.__call_indicator );
+					return pl.error.evaluation( "overflow", thread.__call_indicator );
+				} else if( type === false && thread.getFlag( "bounded" ).id === "true" && (value > thread.getFlag( "max_integer" ).value || value < thread.getFlag( "min_integer" ).value) ) {
+					return pl.error.evaluation( "int_overflow", thread.__call_indicator );
 				} else {
 					return new Num( value, type );
 				}
 			} else {
-				return pl.error.type( "evaluable", obj.indicator, session.__call_indicator );
+				return pl.error.type( "evaluable", obj.indicator, thread.__call_indicator );
 			}
 		},
 		
@@ -3645,7 +3727,7 @@
 		},
 		
 		// Format of computed answers
-		format_answer: function( answer, session ) {
+		format_answer: function( answer, thread ) {
 			if( pl.type.is_error( answer ) ) {
 				return "uncaught exception: " + answer.args[0].toString();
 			} else if( answer === false ) {
@@ -3663,7 +3745,7 @@
 					}
 					str += link.toString() + " = " + answer.links[link].toString();
 				}
-				var delimiter = typeof session === "undefined" || session.points.length > 0 ? " ;" : "."; 
+				var delimiter = typeof thread === "undefined" || thread.points.length > 0 ? " ;" : "."; 
 				if( i === 0 ) {
 					return "true" + delimiter;
 				} else {
