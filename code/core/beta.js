@@ -3728,6 +3728,8 @@
 		
 		// Format of computed answers
 		format_answer: function( answer, thread ) {
+			if( thread instanceof Session )
+				thread = thread.thread;
 			if( pl.type.is_error( answer ) ) {
 				return "uncaught exception: " + answer.args[0].toString();
 			} else if( answer === false ) {
