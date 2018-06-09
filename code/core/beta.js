@@ -2287,21 +2287,7 @@
 			// once/1
 			"once/1": function( session, point, atom ) {
 				var goal = atom.args[0];
-				if( pl.type.is_variable( goal ) ) {
-					session.throwError( pl.error.instantiation( session.level ) );
-				} else if( !pl.type.is_callable( goal ) ) {
-					session.throwError( pl.error.type( "callable", goal, session.level ) );
-				} else {
-					var session2 = session.program.session( goal, session.limit );
-					session2.copy_context( session );
-					var answer = session2.answer();
-					if( pl.type.is_error( answer ) ) {
-						session.throwError( answer.args[0] );
-					} else if( pl.type.is_substitution( answer ) ) {
-						session.prepend( [new State( point.goal.apply( answer ).replace( null ), point.substitution.apply( answer ), point )] );
-					}
-					session.copy_context( session2 );
-				}
+				session.prepend( [new State( point.goal.replace( new Term( ",", [new Term( "call", [goal] ), new Term( "!", [] )] ) ), point.substitution, point )] );
 			},
 			
 			// repeat/0
