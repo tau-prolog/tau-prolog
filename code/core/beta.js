@@ -548,12 +548,13 @@
 				if( pl.type.is_term(expr.value) ) {
 					if(expr.value.indicator == ":-/2") {
 						return {
-							value: new pl.type.Rule(expr.value.args[0], expr.value.args[1]),
+							value: new pl.type.Rule(expr.value.args[0], body_conversion(expr.value.args[1])),
 							len: start,
 							type: SUCCESS
 						};
 					} else if(expr.value.indicator == "-->/2") {
 						var dcg = rule_to_dcg(new pl.type.Rule(expr.value.args[0], expr.value.args[1]), session);
+						dcg.body = body_conversion( dcg.body );
 						return {
 							value: dcg,
 							len: start,
@@ -613,7 +614,7 @@
 				var expr_position = expr.len;
 				tokens_pos = expr_position;
 				if(tokens[expr_position] && tokens[expr_position].name === "atom" && tokens[expr_position].raw === ".") {
-					session.add_goal(expr.value);
+					session.add_goal( body_conversion(expr.value) );
 				} else {
 					var token = tokens[expr_position];
 					return new Term("throw", [pl.error.syntax(token ? token : tokens[expr_position-1], ". or operator expected", !token)] );
@@ -718,6 +719,15 @@
 				error: true
 			};
 		}
+	}
+	
+	// Body conversion
+	function body_conversion( expr ) {
+		if( pl.type.is_variable( expr ) )
+			return new Term( "call", [expr] );
+		else if( pl.type.is_term( expr ) && [",/2", ";/2", "->/2"].indexOf(expr.indicator) !== -1 )
+			return new Term( expr.id, [body_conversion( expr.args[0] ), body_conversion( expr.args[1] )] );
+		return expr;
 	}
 	
 	// String to Prolog number
