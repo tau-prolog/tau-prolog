@@ -1412,7 +1412,7 @@
 				} else {
 					var srule = this.stepRule(mod, atom);
 					if( srule === null ) {
-						if( !this.is_public_predicate( atom.indicator ) ) {
+						if( !this.rules.hasOwnProperty( atom.indicator ) ) {
 							if( this.flag.unknown.id === "error" ) {
 								this.throwError( pl.error.existence( "procedure", atom.indicator, this.level ) );
 							} else if( this.flag.unknown.id === "warning" ) {
