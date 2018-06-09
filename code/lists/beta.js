@@ -120,17 +120,17 @@ var pl;
 			],
 			
 			// length/2
-			"length/2": function( exec, point, atom ) {
+			"length/2": function( thread, point, atom ) {
 				var list = atom.args[0], length = atom.args[1];
 				if( !pl.type.is_variable( length ) && !pl.type.is_integer( length ) ) {
-					exec.throwError( pl.error.type( "integer", length, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", length, atom.indicator ) );
 				} else if( pl.type.is_integer( length ) && length.value < 0 ) {
-					exec.throwError( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
+					thread.throwError( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
 				} else {
 					var newgoal = new pl.type.Term("length", [list, new pl.type.Num(0, false), length]);
 					if( pl.type.is_integer( length ) )
 						newgoal = new pl.type.Term( ",", [newgoal, new pl.type.Term( "!", [] )] );
-					exec.prepend( [new pl.type.State(point.goal.replace(newgoal), point.substitution, point)] );
+					thread.prepend( [new pl.type.State(point.goal.replace(newgoal), point.substitution, point)] );
 				}
 			},
 			
@@ -142,30 +142,30 @@ var pl;
 			],
 			
 			// replicate/3
-			"replicate/3": function( exec, point, atom ) {
+			"replicate/3": function( thread, point, atom ) {
 				var elem = atom.args[0], times = atom.args[1], list = atom.args[2];
 				if( pl.type.is_variable( times ) ) {
-					exec.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_integer( times ) ) {
-					exec.throwError( pl.error.type( "integer", times, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", times, atom.indicator ) );
 				} else if( times.value < 0 ) {
-					exec.throwError( pl.error.domain( "not_less_than_zero", times, atom.indicator ) );
+					thread.throwError( pl.error.domain( "not_less_than_zero", times, atom.indicator ) );
 				} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
-					exec.throwError( pl.error.type( "list", list, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 				} else {
 					var replicate = new pl.type.Term( "[]" );
 					for( var i = 0; i < times.value; i++ ) {
 						replicate = new pl.type.Term( ".", [elem, replicate] );
 					}
-					exec.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [replicate, list] ) ), point.substitution, point.parent )] );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [replicate, list] ) ), point.substitution, point.parent )] );
 				}
 			},
 			
 			// sort/2
-			"sort/2": function( exec, point, atom ) {
+			"sort/2": function( thread, point, atom ) {
 				var list = atom.args[0], expected = atom.args[1];
 				if( pl.type.is_variable( list ) ) {
-					exec.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else {
 					var arr = [];
 					var pointer = list;
@@ -174,31 +174,31 @@ var pl;
 						pointer = pointer.args[1];
 					}
 					if( pl.type.is_variable( pointer ) ) {
-						exec.throwError( pl.error.instantiation( atom.indicator ) );
+						thread.throwError( pl.error.instantiation( atom.indicator ) );
 					} else if( !pl.type.is_empty_list( pointer ) ) {
-						exec.throwError( pl.error.type( "list", list, atom.indicator ) );
+						thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 					} else {
 						var sorted_arr = arr.sort( pl.compare );
 						var sorted_list = new pl.type.Term( "[]" );
 						for( var i = sorted_arr.length - 1; i >= 0; i-- ) {
 							sorted_list = new pl.type.Term( ".", [sorted_arr[i], sorted_list] );
 						}
-						exec.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [sorted_list, expected] ) ), point.substitution, point.parent )] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [sorted_list, expected] ) ), point.substitution, point.parent )] );
 					}
 				}
 			},
 			
 			// take/3
-			"take/3": function( exec, point, atom ) {
+			"take/3": function( thread, point, atom ) {
 				var number = atom.args[0], list = atom.args[1], take = atom.args[2];
 				if( pl.type.is_variable( list ) || pl.type.is_variable( number ) ) {
-					exec.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_list( list ) ) {
-					exec.throwError( pl.error.type( "list", list, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 				} else if( !pl.type.is_integer( number ) ) {
-					exec.throwError( pl.error.type( "integer", number, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", number, atom.indicator ) );
 				} else if( !pl.type.is_variable( take ) && !pl.type.is_list( take ) ) {
-					exec.throwError( pl.error.type( "list", take, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", take, atom.indicator ) );
 				} else {
 					var i = number.value;
 					var arr = [];
@@ -213,22 +213,22 @@ var pl;
 						for( var i = arr.length - 1; i >= 0; i-- ) {
 							new_list = new pl.type.Term( ".", [arr[i], new_list] );
 						}
-						exec.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [new_list, take] ) ), point.substitution, point.parent )] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [new_list, take] ) ), point.substitution, point.parent )] );
 					}
 				}
 			},
 			
 			// drop/3
-			"drop/3": function( exec, point, atom ) {
+			"drop/3": function( thread, point, atom ) {
 				var number = atom.args[0], list = atom.args[1], drop = atom.args[2];
 				if( pl.type.is_variable( list ) || pl.type.is_variable( number ) ) {
-					exec.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_list( list ) ) {
-					exec.throwError( pl.error.type( "list", list, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 				} else if( !pl.type.is_integer( number ) ) {
-					exec.throwError( pl.error.type( "integer", number, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", number, atom.indicator ) );
 				} else if( !pl.type.is_variable( drop ) && !pl.type.is_list( drop ) ) {
-					exec.throwError( pl.error.type( "list", drop, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", drop, atom.indicator ) );
 				} else {
 					var i = number.value;
 					var arr = [];
@@ -239,23 +239,23 @@ var pl;
 						i--;
 					}
 					if( i === 0 )
-						exec.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [pointer, drop] ) ), point.substitution, point.parent )] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [pointer, drop] ) ), point.substitution, point.parent )] );
 				}
 			},
 			
 			// reverse/2
-			"reverse/2": function( exec, point, atom ) {
+			"reverse/2": function( thread, point, atom ) {
 				var list = atom.args[0], reversed = atom.args[1];
 				var ins_list = pl.type.is_instantiated_list( list );
 				var ins_reversed = pl.type.is_instantiated_list( reversed );
 				if( pl.type.is_variable( list ) && pl.type.is_variable( reversed ) ) {
-					exec.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( list ) && !pl.type.is_fully_list( list ) ) {
-					exec.throwError( pl.error.type( "list", list, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 				} else if( !pl.type.is_variable( reversed ) && !pl.type.is_fully_list( reversed ) ) {
-					exec.throwError( pl.error.type( "list", reversed, atom.indicator ) );
+					thread.throwError( pl.error.type( "list", reversed, atom.indicator ) );
 				} else if( !ins_list && !ins_reversed ) {
-					exec.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else {
 					var pointer = ins_list ? list : reversed;
 					var new_reversed = new pl.type.Term( "[]", [] );
@@ -263,7 +263,7 @@ var pl;
 						new_reversed = new pl.type.Term( ".", [pointer.args[0], new_reversed] );
 						pointer = pointer.args[1];
 					}
-					exec.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [new_reversed, ins_list ? reversed : list] ) ), point.substitution, point.parent )] );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [new_reversed, ins_list ? reversed : list] ) ), point.substitution, point.parent )] );
 				}
 			}
 			
