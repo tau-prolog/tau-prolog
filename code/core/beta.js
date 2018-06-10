@@ -1580,7 +1580,7 @@
 				if( pl.type.is_substitution( answer ) ) {
 					var dom = answer.domain( true );
 					answer = answer.filter( function( id, value ) {
-						return !pl.type.is_variable( value ) || !dom.indexOf( value.id ) && id !== value.id;
+						return !pl.type.is_variable( value ) || dom.indexOf( value.id ) !== -1 && id !== value.id;
 					} );
 				}
 				success( answer );
@@ -2405,7 +2405,7 @@
 						thread.points = states;
 						var state = pl.unify( answer.args[0], atom.args[1], false );
 						if( state !== null ) {
-							state.substitution = state.substitution.apply( point.substitution.exclude( point.exclude ? point.exclude : [] ) );
+							state.substitution = point.substitution.apply( state.substitution );
 							state.goal = point.goal.replace( atom.args[2] ).apply( state.substitution );
 							thread.prepend( [state] );
 						} else {
