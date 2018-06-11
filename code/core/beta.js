@@ -818,6 +818,7 @@
 		this.rename = 0;
 		this.modules = [];
 		this.thread = new Thread( this );
+		this.total_threads = 1;
 		this.renamed_variables = {};
 		this.public_predicates = {};
 		this.limit = limit;
@@ -859,7 +860,12 @@
 	
 	// Threads
 	function Thread( session ) {
+		this.epoch = Date.now();
 		this.session = session;
+		this.session.total_threads++;
+		this.total_steps = 0;
+		this.cpu_time = 0;
+		this.cpu_time_last = 0;
 		this.points = [];
 		this.level = "top_level/0";
 		this.__calls = [];
@@ -1469,6 +1475,7 @@
 			var states = [];
 			if( atom !== null ) {
 
+				this.total_steps++;
 				var level = point;
 				while( level.parent !== null && level.parent.goal.search( atom ) )
 					level = level.parent;
@@ -1557,6 +1564,7 @@
 	};
 	Thread.prototype.again = function() {
 		var answer;
+		var t0 = Date.now();
 		while( this.__calls.length > 0 ) {
 			this.warnings = [];
 			this.current_limit = this.session.limit;
@@ -1566,6 +1574,9 @@
 					return;
 				}
 			}
+			var t1 = Date.now();
+			this.cpu_time_last = t1-t0;
+			this.cpu_time += this.cpu_time_last;
 			var success = this.__calls.shift();
 			if( this.current_limit <= 0 ) {
 				success( null );
@@ -1577,12 +1588,6 @@
 				success( answer );
 			} else {
 				answer = this.points.shift().substitution;
-				if( pl.type.is_substitution( answer ) ) {
-					var dom = answer.domain( true );
-					answer = answer.filter( function( id, value ) {
-						return !pl.type.is_variable( value ) || dom.indexOf( value.id ) !== -1 && id !== value.id;
-					} );
-				}
 				success( answer );
 			}
 		}
@@ -1765,6 +1770,16 @@
 		parser: {
 			tokenizer: Tokenizer,
 			expression: parseExpr
+		},
+		
+		// Statistics
+		statistics: {
+			
+			// Number of created terms
+			getCountTerms: function() {
+				return term_ref;
+			}
+			
 		},
 		
 		// Types
@@ -3739,6 +3754,12 @@
 			} else {
 				var i = 0;
 				var str = "";
+				if( pl.type.is_substitution( answer ) ) {
+					var dom = answer.domain( true );
+					answer = answer.filter( function( id, value ) {
+						return !pl.type.is_variable( value ) || dom.indexOf( value.id ) !== -1 && id !== value.id;
+					} );
+				}
 				for( var link in answer.links ) {
 					if(!answer.links.hasOwnProperty(link)) continue;
 					i++;
