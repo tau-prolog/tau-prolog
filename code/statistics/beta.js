@@ -35,9 +35,10 @@ var pl;
 								for( var i = 0; i < newpoints.length; i++ ) {
 									if( newpoints[i].goal === null )
 										newpoints[i].goal = new pl.type.Term( "true", [] );
-									newpoints[i].goal = point.goal.replace( new pl.type.Term( "time", [newpoints[i].goal] ) );
+									newpoints[i].substitution = newpoints[i].substitution.apply(answer);
+									newpoints[i].goal = point.goal.replace( new pl.type.Term( "time", [newpoints[i].goal.apply(answer)] ) );
 								}
-								thread.points = [ new pl.type.State( point.goal.replace(null), answer, point ) ].concat( newpoints.concat( points ) );
+								thread.points = [ new pl.type.State( point.goal.apply(answer).replace(null), answer, point ) ].concat( newpoints.concat( points ) );
 							}
 						}
 					};
