@@ -208,14 +208,9 @@
 			text = text.replace(token.value, "");
 			start += token.value.length;
 			len += token.value.length;
-			var is_compound = false;
 
 
 			switch(token.name) {
-				case "compound":
-					token.value = token.value.substr(0, token.value.length - 1).replace(/^'(.*)'$/, function(m, e) {return e;});
-					is_compound = true;
-					break;
 				case "atom":
 					token.raw = token.value;
 					if(token.value.charAt(0) == "'") {
@@ -241,18 +236,27 @@
 					if(last) last.space = true;
 					last_is_blank = true;
 					continue;
+				case "r_bracket":
+					if( tokens.length > 0 && tokens[tokens.length-1].name === "l_bracket" ) {
+						token = tokens.pop();
+						token.name = "atom";
+						token.value = "{}";
+						token.raw = "{}";
+						token.space = false;
+					}
+					break;
+				case "r_brace":
+					if( tokens.length > 0 && tokens[tokens.length-1].name === "l_brace" ) {
+						token = tokens.pop();
+						token.name = "atom";
+						token.value = "[]";
+						token.raw = "[]";
+						token.space = false;
+					}
+					break;
 			}
 			token.len = len;
 			tokens.push( token );
-			if(is_compound) {
-				tokens.push({
-					start: start - 1,
-					line: line,
-					value: "(",
-					name: "l_paren",
-					len: len
-				});
-			}
 			last_is_blank = false;
 		}
 
@@ -416,7 +420,7 @@
 					while(true) {
 						start = expr.len;
 						var token = tokens[start];
-						if(token && (token.name == "atom" || token.name == "compound") && thread.__lookup_operator_classes(priority, token.value)) {
+						if(token && token.name == "atom" && thread.__lookup_operator_classes(priority, token.value)) {
 							var classes = thread.__lookup_operator_classes(priority, token.value);
 							if( classes.indexOf("yf") > -1 ) {
 								expr = {
@@ -1792,6 +1796,7 @@
 			Rule: Rule,
 			State: State,
 			Module: Module,
+			Thread: Thread,
 			Session: Session,
 			Substitution: Substitution,
 			
