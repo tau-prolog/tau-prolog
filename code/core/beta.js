@@ -2185,6 +2185,24 @@
 				}
 			},
 			
+			// set_prolog_flag
+			"set_prolog_flag/2": function( thread, atom ) {
+				var flag = atom.args[0], value = atom.args[1];
+				if( pl.type.is_variable( flag ) || pl.type.is_variable( value ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_atom( flag ) ) {
+					thread.throwError( pl.error.type( "atom", flag, atom.indicator ) );
+				} else if( !pl.type.is_flag( flag ) ) {
+					thread.throwError( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
+				} else if( !pl.type.is_value_flag( flag, value ) ) {
+					thread.throwError( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
+				} else if( !pl.type.is_modifiable_flag( flag ) ) {
+					thread.throwError( pl.error.permission( "modify", "flag", flag ) );
+				} else {
+					thread.session.flag[flag.id] = value;
+				}
+			},
+			
 			// use_module/1
 			"use_module/1": function( thread, atom ) {
 				var module = atom.args[0];
