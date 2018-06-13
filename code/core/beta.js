@@ -332,7 +332,7 @@
 		var aux_start = start;
 		
 		// Prefix operators
-		if(tokens[start].name === "atom") {
+		if(tokens[start].name === "atom" && tokens[start+1] && (tokens[start].space || tokens[start+1].name !== "l_paren")) {
 			var token = tokens[start++];
 			var classes = thread.__lookup_operator_classes(priority, token.value);
 			
@@ -351,7 +351,7 @@
 			// Associative prefix operator
 			if(classes && classes.indexOf("fy") > -1) {
 				var expr = parseExpr(thread, tokens, start, priority, toplevel);
-				if(expr.type != ERROR) {
+				if(expr.type !== ERROR) {
 					return {
 						value: new pl.type.Term(token.value, [expr.value]),
 						len: expr.len,
@@ -363,7 +363,7 @@
 			// Non-associative prefix operator
 			} else if(classes && classes.indexOf("fx") > -1) {
 				var expr = parseExpr(thread, tokens, start, next_priority, toplevel);
-				if(expr.type != ERROR) {
+				if(expr.type !== ERROR) {
 					return {
 						value: new pl.type.Term(token.value, [expr.value]),
 						len: expr.len,
