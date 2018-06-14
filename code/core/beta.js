@@ -905,8 +905,11 @@
 	Term.prototype.toString = function() {
 		switch( this.indicator ){
 			case "[]/0":
+			case "{}/0":
 			case "!/0":
 				return this.id;
+			case "{}/1":
+				return "{" + this.args[0].toString() + "}";
 			case "./2":
 				var list = "[" + this.args[0].toString();
 				var pointer = this.args[1];
@@ -923,7 +926,7 @@
 				return "(" + this.args[0].toString() + ", " + this.args[1].toString() + ")";
 			default:
 				var id = this.id;
-				if( ! /^(!|,|;|[a-z][0-9a-zA-Z_]*)$/.test( id ) )
+				if( ! /^(!|,|;|[a-z][0-9a-zA-Z_]*)$/.test( id ) && id !== "{}" && id !== "[]" )
 					id = "'" + id.replace(/'/g, "''") + "'";
 				return id + (this.args.length ? "(" + this.args.join(", ") + ")" : "");
 		}
