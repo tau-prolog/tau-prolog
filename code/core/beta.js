@@ -106,13 +106,6 @@
 						case "'": atom += "'"; break;
 						case '"': atom += '"'; break;
 						case '\\': atom += '\\'; break;
-						case '\a': atom += '\\a'; break;
-						case '\b': atom += '\\b'; break;
-						case '\f': atom += '\\f'; break;
-						case '\n': atom += '\\n'; break;
-						case '\r': atom += '\\r'; break;
-						case '\t': atom += '\\t'; break;
-						case '\v': atom += '\\v'; break;
 					}
 				} else {
 					return null;
@@ -166,7 +159,7 @@
 		whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?\*\/)|(?:\s+))\s*/,
 		variable: /^(?:[A-Z_][a-zA-Z0-9_]*)/,
 		atom: /^(\!|,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')/,
-		number: /^(?:0o[0-7]+|0x[0-9a-fA-F]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|.)|\d+(?:\.\d+(?:[eE][+-]?\d+)?)?)/,
+		number: /^(?:0o[0-7]+|0x[0-9a-fA-F]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|[^\\])|\d+(?:\.\d+(?:[eE][+-]?\d+)?)?)/,
 		string: /^(?:"([^"]|""|\\")*"|`([^`]|``|\\`)*`)/,
 		l_brace: /^(?:\[)/,
 		r_brace: /^(?:\])/,
@@ -279,7 +272,7 @@
 					}
 					break;
 				case "number":
-					token.float = token.value.match(/[.eE]/) !== null;
+					token.float = token.value.match(/[.eE]/) !== null && token.value !== "0'.";
 					token.value = convertNum( token.value );
 					token.blank = last_is_blank;
 					break;
