@@ -47,12 +47,12 @@
 	var ERROR = 0;
 	var SUCCESS = 1;
 
-	var regex_escape = /(\\a)|(\\b)|(\\f)|(\\n)|(\\r)|(\\t)|(\\v)|\\x([0-9a-fA-F]+)\\|\\([0-7]+)\\|(\\\\)|(\\')|(\\")|(\\`)|(\\.)|(.)/g;
+	var regex_escape = /(\\a)|(\\b)|(\\f)|(\\n)|(\\r)|(\\t)|(\\v)|\\x([0-9a-fA-F]+)\\|\\([0-7]+)\\|(\\\\)|(\\')|('')|(\\")|(\\`)|(\\.)|(.)/g;
 	var escape_map = {"\\a": 7, "\\b": 8, "\\f": 12, "\\n": 10, "\\r": 13, "\\t": 9, "\\v": 11};
 	function escape(str) {
 		var s = [];
 		var _error = false;
-		str.replace(regex_escape, function(match, a, b, f, n, r, t, v, hex, octal, back, single, double, backquote, error, char) {
+		str.replace(regex_escape, function(match, a, b, f, n, r, t, v, hex, octal, back, single, dsingle, double, backquote, error, char) {
 			switch(true) {
 				case hex != undefined:
 					s.push( parseInt(hex, 16) );
@@ -62,6 +62,7 @@
 					return "";
 				case back != undefined:
 				case single != undefined:
+				case dsingle != undefined:
 				case double != undefined:
 				case backquote != undefined:
 					s.push( match.substr(1).charCodeAt(0) );
@@ -81,11 +82,67 @@
 		return s;
 	}
 
-	// Escape string
-	function escapeStr(str) {
-		return map(escape(str), function(c) {return String.fromCharCode(c)}).join("");
+	// Escape atoms
+	function escapeAtom(str, quote) {
+		var atom = '';
+		if( str.length < 2 ) return str;
+		for( var i = 0; i < str.length; i++) {
+			var a = str.charAt(i);
+			var b = str.charAt(i+1);
+			if( a === quote && b === quote ) {
+				i++;
+				atom += quote;
+			} else if( a === '\\' ) {
+				if( ['a','b','f','n','r','t','v',"'",'"','\\','\a','\b','\f','\n','\r','\t','\v'].indexOf(b) !== -1 ) {
+					i += 1;
+					switch( b ) {
+						case 'a': atom += '\a'; break;
+						case 'b': atom += '\b'; break;
+						case 'f': atom += '\f'; break;
+						case 'n': atom += '\n'; break;
+						case 'r': atom += '\r'; break;
+						case 't': atom += '\t'; break;
+						case 'v': atom += '\v'; break;
+						case "'": atom += "'"; break;
+						case '"': atom += '"'; break;
+						case '\\': atom += '\\'; break;
+						case '\a': atom += '\\a'; break;
+						case '\b': atom += '\\b'; break;
+						case '\f': atom += '\\f'; break;
+						case '\n': atom += '\\n'; break;
+						case '\r': atom += '\\r'; break;
+						case '\t': atom += '\\t'; break;
+						case '\v': atom += '\\v'; break;
+					}
+				} else {
+					return null;
+				}
+			} else {
+				atom += a;
+			}
+		}
+		return atom;
 	}
-
+	
+	// Redo escape
+	function redoEscape(str) {
+		var atom = '';
+		for( var i = 0; i < str.length; i++) {
+			switch( str.charAt(i) ) {
+				case "'": atom += "\\'"; break;
+				case '\\': atom += '\\\\'; break;
+				//case '\a': atom += '\\a'; break;
+				case '\b': atom += '\\b'; break;
+				case '\f': atom += '\\f'; break;
+				case '\n': atom += '\\n'; break;
+				case '\r': atom += '\\r'; break;
+				case '\t': atom += '\\t'; break;
+				case '\v': atom += '\\v'; break;
+				default: atom += str.charAt(i); break;
+			}
+		}
+		return atom;
+	}
 
 	// String to num
 	function convertNum(num) {
@@ -109,7 +166,7 @@
 		whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?\*\/)|(?:\s+))\s*/,
 		variable: /^(?:[A-Z_][a-zA-Z0-9_]*)/,
 		atom: /^(\!|,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')/,
-		number: /^(?:0o[0-7]+|0x[0-9a-f]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|.)|\d+(?:\.\d+(?:e[+-]?\d+)?)?)/i,
+		number: /^(?:0o[0-7]+|0x[0-9a-fA-F]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|.)|\d+(?:\.\d+(?:[eE][+-]?\d+)?)?)/,
 		string: /^(?:"([^"]|""|\\")*"|`([^`]|``|\\`)*`)/,
 		l_brace: /^(?:\[)/,
 		r_brace: /^(?:\])/,
@@ -214,7 +271,11 @@
 				case "atom":
 					token.raw = token.value;
 					if(token.value.charAt(0) == "'") {
-						token.value = token.value.substr(1, token.value.length - 2).replace(/''/g, "'").replace(/\\'/g, "'").replace(/\\\n/g, "");
+						token.value = escapeAtom( token.value.substr(1, token.value.length - 2), "'" );
+						if( token.value === null ) {
+							token.name = "lexical";
+							token.value = "unknown escape sequence";
+						}
 					}
 					break;
 				case "number":
@@ -223,9 +284,8 @@
 					token.blank = last_is_blank;
 					break;
 				case "string":
-					if(token.value.charAt(0) == "`") token.value = token.value.replace(/``/g, "`");
-					else if(token.value.charAt(0) == '"') token.value = token.value.replace(/""/g, '"');
-					token.value = escape( token.value.substr(1, token.value.length - 2) );
+					var del = token.value.charAt(0);
+					token.value = escapeAtom( token.value.substr(1, token.value.length - 2), del );
 					if( token.value === null ) {
 						token.name = "lexical";
 						token.value = "unknown escape sequence";
@@ -279,16 +339,13 @@
 				case "string":
 					var str;
 					switch( thread.getFlag( "double_quotes" ).id ) {
-						case "atom":
-							str = "";
-							for(var i = 0; i < token.value.length; i++ )
-								str += String.fromCharCode(token.value[i]);
-							str = new Term( str, [] );
+						case "atom":;
+							str = new Term( token.value, [] );
 							break;
 						case "codes":
 							str = new Term( "[]", [] );
 							for(var i = token.value.length-1; i >= 0; i-- )
-								str = new Term( ".", [new pl.type.Num( token.value[i], false ), str] );
+								str = new Term( ".", [new pl.type.Num( token.value[i].charCodeAt(), false ), str] );
 							break;
 						case "chars":
 							str = new Term( "[]", [] );
@@ -337,9 +394,9 @@
 			var classes = thread.__lookup_operator_classes(priority, token.value);
 			
 			// Signed number
-			if(token.value === "-" || token.value === "+") {
+			if(token.value === "-") {
 				var number = tokens[start];
-				if(number && number.name == "number" && !number.blank) {
+				if(number && number.name == "number") {
 					return {
 						value: new pl.type.Num( token.value==="-" ? -number.value : number.value, number.float ),
 						len: ++start,
@@ -734,25 +791,6 @@
 		return expr;
 	}
 	
-	// String to Prolog number
-	function strToNum( string ) {
-		var regex = /^(([0-9]+)|([0-9]+\.[0-9]+)|(0b[01]+)|(0x[0-9a-f]+)|(0o[0-7]+))$/i;
-		if( !regex.test( string ) ) return false;
-		if( string.charAt(0) === "0" && string.length > 2 ) {
-			var sub = string.substr( 2 );
-			switch( string.charAt(1).toLowerCase() ) {
-				case "b": return new Num( parseInt( sub, 2 ), false );
-				case "o": return new Num( parseInt( sub, 8 ), false );
-				case "x": return new Num( parseInt( sub, 16 ), false );
-			}
-		}
-		if( indexOf(string, "." ) !== -1 ) {
-			return new Num( parseFloat( string ), true );
-		} else {
-			return new Num( parseInt( string ), false );
-		}
-	}
-	
 	// List to Prolog list
 	function arrayToList( array, cons ) {
 		var list = cons ? cons : new pl.type.Term( "[]", [] );
@@ -927,7 +965,7 @@
 			default:
 				var id = this.id;
 				if( ! /^(!|,|;|[a-z][0-9a-zA-Z_]*)$/.test( id ) && id !== "{}" && id !== "[]" )
-					id = "'" + id.replace(/'/g, "''") + "'";
+					id = "'" + redoEscape(id) + "'";
 				return id + (this.args.length ? "(" + this.args.join(", ") + ")" : "");
 		}
 	};
@@ -1236,7 +1274,7 @@
 	
 	
 	
-	// PROLOG SESSIONS aND THREADS
+	// PROLOG SESSIONS AND THREADS
 
 	// Get conversion of the char
 	Session.prototype.getCharConversion = function( char ) {
@@ -1244,6 +1282,23 @@
 	};
 	Thread.prototype.getCharConversion = function( char ) {
 		return this.session.getCharConversion( char );
+	};
+	
+	// Parse an expression
+	Session.prototype.parse = function( string ) {
+		return this.thread.parse( string );
+	};
+	
+	Thread.prototype.parse = function( string ) {
+		var tokenizer = new Tokenizer( this );
+		tokenizer.new_text( string );
+		var tokens = tokenizer.get_tokens();
+		if( tokens === null )
+			return false;
+		var expr = parseExpr(this, tokens, 0, this.__get_max_priority(), false);
+		if( expr.len !== tokens.length )
+			return false;
+		return { value: expr.value, expr: expr, tokens: tokens };
 	};
 	
 	// Get flag value
@@ -3234,38 +3289,44 @@
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
 					thread.throwError( pl.error.type( "number", num, atom.indicator ) );
+				} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
+					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 				} else {
+					var isvar = pl.type.is_variable( num );
 					if( !pl.type.is_variable( list ) ) {	
 						var pointer = list;
-						var v = pl.type.is_variable( num );
+						var total = true;
 						str = "";
 						while( pointer.indicator === "./2" ) {
 							if( !pl.type.is_character( pointer.args[0] ) ) {
-								if( pl.type.is_variable( pointer.args[0] ) && v ) {
-									thread.throwError( pl.error.instantiation( atom.indicator ) );
-									return;
-								} else if( pl.type.is_variable( pointer.args[0] ) ) {
-									str = false;
-									break;
+								if( pl.type.is_variable( pointer.args[0] ) ) {
+									total = false;
 								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
 									thread.throwError( pl.error.type( "character", pointer.args[0], atom.indicator ) );
 									return;
 								}
 							} else {
-
 								str += pointer.args[0].id;
 							}
 							pointer = pointer.args[1];
 						}
-						if( str ) {
-							if( pl.type.is_variable( pointer ) && v ) {
+						total = total && pl.type.is_empty_list( pointer );
+						if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
+							thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+							return;
+						}
+						if( !total && isvar ) {
+							thread.throwError( pl.error.instantiation( atom.indicator ) );
+							return;
+						} else if( total ) {
+							if( pl.type.is_variable( pointer ) && isvar ) {
 								thread.throwError( pl.error.instantiation( atom.indicator ) );
-							} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-								thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+								return;
 							} else {
-								var num2 = strToNum( str );
-								if( num2 === false ) {
-									thread.throwError( pl.error.syntax_by_predicate( "parseable_number", list, atom.indicator ) );
+								var expr = thread.parse( str );
+								var num2 = expr.value;
+								if( !pl.type.is_number( num2 ) || expr.tokens[expr.tokens.length-1].space ) {
+									thread.throwError( pl.error.syntax_by_predicate( "parseable_number", atom.indicator ) );
 								} else {
 									thread.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
 								}
@@ -3273,7 +3334,7 @@
 							}
 						}
 					}
-					if( !pl.type.is_variable( num ) ) {
+					if( !isvar ) {
 						str = num.toString();
 						var list2 = new Term( "[]" );
 						for( var i = str.length - 1; i >= 0; i-- ) {
@@ -3291,21 +3352,20 @@
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
 					thread.throwError( pl.error.type( "number", num, atom.indicator ) );
+				} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
+					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
 				} else {
+					var isvar = pl.type.is_variable( num );
 					if( !pl.type.is_variable( list ) ) {	
 						var pointer = list;
-						var v = pl.type.is_variable( num );
+						var total = true;
 						str = "";
 						while( pointer.indicator === "./2" ) {
 							if( !pl.type.is_character_code( pointer.args[0] ) ) {
-								if( pl.type.is_variable( pointer.args[0] ) && v ) {
-									thread.throwError( pl.error.instantiation( atom.indicator ) );
-									return;
-								} else if( pl.type.is_variable( pointer.args[0] ) ) {
-									str = false;
-									break;
+								if( pl.type.is_variable( pointer.args[0] ) ) {
+									total = false;
 								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-									thread.throwError( pl.error.representation( "character_code", atom.indicator ) );
+									thread.throwError( pl.error.type( "character_code", pointer.args[0], atom.indicator ) );
 									return;
 								}
 							} else {
@@ -3313,15 +3373,23 @@
 							}
 							pointer = pointer.args[1];
 						}
-						if( str ) {
-							if( pl.type.is_variable( pointer ) && v ) {
+						total = total && pl.type.is_empty_list( pointer );
+						if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
+							thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+							return;
+						}
+						if( !total && isvar ) {
+							thread.throwError( pl.error.instantiation( atom.indicator ) );
+							return;
+						} else if( total ) {
+							if( pl.type.is_variable( pointer ) && isvar ) {
 								thread.throwError( pl.error.instantiation( atom.indicator ) );
-							} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-								thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+								return;
 							} else {
-								var num2 = strToNum( str );
-								if( num2 === false ) {
-									thread.throwError( pl.error.syntax_by_predicate( "parseable_number", list, atom.indicator ) );
+								var expr = thread.parse( str );
+								var num2 = expr.value;
+								if( !pl.type.is_number( num2 ) || expr.tokens[expr.tokens.length-1].space ) {
+									thread.throwError( pl.error.syntax_by_predicate( "parseable_number", atom.indicator ) );
 								} else {
 									thread.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
 								}
@@ -3329,7 +3397,7 @@
 							}
 						}
 					}
-					if( !pl.type.is_variable( num ) ) {
+					if( !isvar ) {
 						str = num.toString();
 						var list2 = new Term( "[]" );
 						for( var i = str.length - 1; i >= 0; i-- ) {
@@ -3504,6 +3572,13 @@
 			// nonvar/1
 			"nonvar/1": function( thread, point, atom ) {
 				if( !pl.type.is_variable( atom.args[0] ) ) {
+					thread.success( point );
+				}
+			},
+			
+			// ground/1
+			"ground/1": function( thread, point, atom ) {
+				if( atom.variables().length === 0 ) {
 					thread.success( point );
 				}
 			},
@@ -3756,8 +3831,8 @@
 			},
 			
 			// Syntax error by predicate
-			syntax_by_predicate: function( expected, found, indicator ) {
-				return new Term( "error", [new Term( "syntax_error", [new Term( expected ), found ] ), new Term( indicator )] );
+			syntax_by_predicate: function( expected, indicator ) {
+				return new Term( "error", [new Term( "syntax_error", [new Term( expected ) ] ), new Term( indicator )] );
 			}
 			
 		},
