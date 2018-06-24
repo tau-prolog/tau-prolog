@@ -1922,6 +1922,16 @@
 				return obj instanceof Term && obj.args.length === 0;
 			},
 			
+			// Is a ground term
+			is_ground: function( obj ) {
+				if( obj instanceof Var ) return false;
+				if( obj instanceof Term )
+					for( var i = 0; i < obj.args.length; i++ )
+						if( !pl.type.is_ground( obj.args[i] ) )
+							return false;
+				return true;
+			},
+			
 			// Is atomic
 			is_atomic: function( obj ) {
 				return obj instanceof Term && obj.args.length === 0 || obj instanceof Num;
@@ -2554,7 +2564,6 @@
 			// \=/2
 			"\\=/2": function( thread, point, atom ) {
 				var state = pl.unify( atom.args[0], atom.args[1] );
-				state.parent = point;
 				if( state === null ) {
 					thread.success( point );
 				}
