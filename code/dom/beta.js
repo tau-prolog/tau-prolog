@@ -7,19 +7,27 @@ var pl;
 			
 			// EVENTS
 			
-			// bind/3
-			"bind/3": function( thread, point, atom ) {
-				var elem = atom.args[0], type = atom.args[1], goal = atom.args[2];
+			// bind/4
+			"bind/4": function( thread, point, atom ) {
+				var elem = atom.args[0], type = atom.args[1], event = atom.args[2], goal = atom.args[3];
 				if( pl.type.is_variable( elem ) || pl.type.is_variable( type ) && pl.type.is_variable( goal ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( elem ) ) {
 					thread.throwError( pl.error.type( "htmlObject", elem, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
 					thread.throwError( pl.error.type( "atom", type, atom.indicator ) );
+				} else if( !pl.type.is_variable( event ) && !pl.type.is_dom_event_object( event ) ) {
+					thread.throwError( pl.error.type( "DOMEventObject", type, atom.indicator ) );
 				} else if( !pl.type.is_variable( goal ) ) {
 					var thread_ = new pl.type.Thread( thread.session );
+					var eventObject = new pl.type.DOMEvent( type.id );
+					var links = {};
+					if( pl.type.is_variable( event ) )
+						links[event.id] = eventObject;
+					var subs = new pl.type.Substitution( links );
 					var handler = function( e ) {
-						thread_.add_goal( goal );
+						eventObject.event = e;
+						thread_.add_goal( goal.apply( subs ) );
 						thread_.answer( thread.__calls[0] );
 					};
 					events.add( elem.object, type.id, handler );
@@ -27,7 +35,7 @@ var pl;
 					if( elem.object.tau_events[type.id] === undefined )
 						elem.object.tau_events[type.id] = [];
 					elem.object.tau_events[type.id].push( {goal: goal, fn: handler} );
-					thread.success( point );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [eventObject, event] ) ), point.substitution, point )] );
 				} else {
 					var event = elem.object.tau_events ? elem.object.tau_events[type.id] : undefined;
 					if( event !== undefined ) {
@@ -88,8 +96,44 @@ var pl;
 				}
 			},
 			
+			// event_property/3
+			"event_property/3": function( thread, point, atom ) {
+				var event = atom.args[0], prop = atom.args[1], val = atom.args[2]
+				if( pl.type.is_variable( event ) || pl.type.is_variable( prop ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_event_object( event ) ) {
+					thread.throwError( pl.error.type( "DOMEventObject", event, atom.indicator ) );
+				} else if( !pl.type.is_atom( prop ) ) {
+					thread.throwError( pl.error.type( "atom", prop, atom.indicator ) );
+				} else if( !pl.type.is_variable( val ) && !pl.type.is_atomic( val ) ) {
+					thread.throwError( pl.error.type( "atomic", val, atom.indicator ) );
+				} else {
+					if( event.event !== null && event.event[prop.id] ) {
+						var value = event.event[prop.id];
+						value = isNaN(value) ? new pl.type.Term( value, [] ) : new pl.type.Num( value );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [value, val] ) ), point.substitution, point )] );
+					}
+				}
+			},
+			
+			// prevent_default/1
+			"prevent_default/1": function( thread, point, atom ) {
+				var event = atom.args[0];
+				if( pl.type.is_variable( event ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_event_object( event ) ) {
+					thread.throwError( pl.error.type( "eventObject", event, atom.indicator ) );
+				} else {
+					if( event.event !== null ) {
+						event.event.preventDefault();
+						thread.success( point );
+					}
+				}
+			},
+			
 			// EFFECTS
 			
+			// hide/1
 			"hide/1": function( thread, point, atom ) {
 				var element = atom.args[0];
 				if( pl.type.is_variable( element ) ) {
@@ -105,6 +149,7 @@ var pl;
 				}
 			},
 			
+			// show/1
 			"show/1": function( thread, point, atom ) {
 				var element = atom.args[0];
 				if( pl.type.is_variable( element ) ) {
@@ -117,6 +162,7 @@ var pl;
 				}
 			},
 			
+			// toggle/1
 			"toggle/1": [
 				new pl.type.Rule(new pl.type.Term("toggle", [new pl.type.Var("X")]), new pl.type.Term(";", [new pl.type.Term("->", [new pl.type.Term(",", [new pl.type.Term("style", [new pl.type.Var("X"),new pl.type.Term("display", []),new pl.type.Var("Y")]),new pl.type.Term("=", [new pl.type.Var("Y"),new pl.type.Term("none", [])])]),new pl.type.Term("show", [new pl.type.Var("X")])]),new pl.type.Term("hide", [new pl.type.Var("X")])]))
 			],
@@ -449,11 +495,11 @@ var pl;
 		};
 	};
 	
-	var exports = ["show/1", "hide/1", "toggle/1", "create/2", "get_by_id/2", "get_by_tag/2", "get_by_class/2", "attr/3", "style/3", "html/2", "parent_of/2", "insert_after/2", "insert_before/2", "sibling/2", "remove/1", "add_class/2", "remove_class/2", "has_class/2", "bind/3", "unbind/2", "unbind/3"];
+	var exports = ["show/1", "hide/1", "toggle/1", "create/2", "get_by_id/2", "get_by_tag/2", "get_by_class/2", "attr/3", "style/3", "html/2", "parent_of/2", "insert_after/2", "insert_before/2", "sibling/2", "remove/1", "add_class/2", "remove_class/2", "has_class/2", "bind/4", "unbind/2", "unbind/3", "event_property/3", "prevent_default/1"];
 	
 	
 	
-	// DOM OBJECTS
+	// DOM HTML OBJECTS
 	
 	// Get value of style from Prolog object
 	function styleFromProlog( obj ) {
@@ -556,7 +602,80 @@ var pl;
 	
 	
 	
-	// EVENT HNADLING
+	// DOM EVENT OBJECTS
+	
+	// Is a DOM Event object
+	pl.type.is_dom_event_object = function( obj ) {
+		return obj instanceof pl.type.DOMEvent;
+	};
+
+	// Ordering relation
+	pl.type.order.push( pl.type.DOMEvent );
+
+	// DOM Event Prolog object
+	pl.type.DOMEvent = function( type, event, epoch ) {
+		this.type = type;
+		this.event = event || null;
+		this.epoch = epoch || (new Date).getTime();
+	}
+
+	// toString
+	pl.type.DOMEvent.prototype.toString = function() {
+		return "eventObject" + this.type.toUpperCase();
+	};
+
+	// clone
+	pl.type.DOMEvent.prototype.clone = function() {
+		return new pl.type.DOMEvent( this.type, this.event, this.epoch );
+	};
+
+	// equals
+	pl.type.DOMEvent.prototype.equals = function( obj ) {
+		return pl.type.is_dom_event_object( obj ) && this.type === obj.type && this.epoch === obj.epoch;
+	};
+
+	// rename
+	pl.type.DOMEvent.prototype.rename = function( _ ) {
+		return this;
+	};
+
+	// get variables
+	pl.type.DOMEvent.prototype.variables = function() {
+		return [];
+	};
+
+	// apply substitutions
+	pl.type.DOMEvent.prototype.apply = function( _ ) {
+		return this;
+	};
+
+	// unify
+	pl.type.DOMEvent.prototype.unify = function( obj, _ ) {
+		if( pl.type.is_dom_event_object( obj ) && this.type === obj.type && this.epoch === obj.epoch ) {
+			return new pl.type.State( obj, new pl.type.Substitution() );
+		}
+		return null;
+	};
+
+	// interpret
+	pl.type.DOMEvent.prototype.interpret = function( indicator ) {
+		return pl.error.instantiation( indicator );
+	};
+
+	// compare
+	pl.type.DOMEvent.prototype.compare = function( obj ) {
+		if( this.epoch === obj.epoch ) {
+			return 0;
+		} else if( this.epoch < obj.epoch ) {
+			return -1;
+		} else if( this.epoch > obj.epoch ) {
+			return 1;
+		}
+	};
+	
+	
+	
+	// EVENT HANDLING
 	var events = (function() {
 
 		var tau_fn_event = {};
