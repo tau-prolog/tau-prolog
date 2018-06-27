@@ -398,8 +398,10 @@ var pl;
 				} else if( !pl.type.is_dom_object( reference ) ) {
 					thread.throwError( pl.error.type( "htmlObject", reference, atom.indicator ) );
 				} else {
-					reference.object.parentNode.insertBefore(element.object, reference.object.nextSibling);
-					thread.success( point );
+					if( reference.object.parentNode ) {
+						reference.object.parentNode.insertBefore(element.object, reference.object.nextSibling);
+						thread.success( point );
+					}
 				}
 			},
 			
@@ -413,8 +415,10 @@ var pl;
 				} else if( !pl.type.is_dom_object( reference ) ) {
 					thread.throwError( pl.error.type( "htmlObject", reference, atom.indicator ) );
 				} else {
-					reference.object.parentNode.insertBefore(element.object, reference.object);
-					thread.success( point );
+					if( reference.object.parentNode ) {
+						reference.object.parentNode.insertBefore(element.object, reference.object);
+						thread.success( point );
+					}
 				}
 			},
 			
@@ -513,6 +517,8 @@ var pl;
 			return obj.args[0].value.toString() + "px";
 		else if( pl.type.is_term( obj ) && obj.indicator === "%/1" && pl.type.is_number( obj.args[0] ) )
 			return obj.args[0].value.toString() + "%";
+		else if( pl.type.is_term( obj ) && obj.indicator === "url/1" && pl.type.is_atom( obj.args[0] ) )
+			return "url(\"" + obj.args[0].id + "\")";
 		else if( pl.type.is_term( obj ) && obj.indicator === "rgb/3" && pl.type.is_integer( obj.args[0] ) && pl.type.is_integer( obj.args[1] ) && pl.type.is_integer( obj.args[2] ) )
 			return obj.toString();
 		return false;
@@ -522,10 +528,12 @@ var pl;
 	function styleToProlog( str ) {
 		if( str === undefined || str === null )
 			return
-		else if( /^[0-9]*\.?[0-9]*\s*px\s*$/.test( str ) )
+		else if( /^-?[0-9]*\.?[0-9]*\s*px\s*$/.test( str ) )
 			return new pl.type.Term( "px", [new pl.type.Num( parseInt( str ) )] );
-		else if( /^[0-9]*\.?[0-9]*\s*\%\s*$/.test( str ) )
+		else if( /^-?[0-9]*\.?[0-9]*\s*\%\s*$/.test( str ) )
 			return new pl.type.Term( "%", [new pl.type.Num( parseFloat( str ) )] );
+		else if( /^url\(["'].*["']\)$/.test( str ) )
+			return new pl.type.Term( "url", [new pl.type.Term( str.substring(5, str.length-2) )] );
 		else if( /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)\s*$/.test( str ) ) {
 			var rgb = str.replace("rgb","").replace("(","").replace(")","").split(",");
 			return new pl.type.Term( "rgb", [new pl.type.Num(parseInt(rgb[0]), false), new pl.type.Num(parseInt(rgb[1]), false), new pl.type.Num(parseInt(rgb[2]), false)] );
