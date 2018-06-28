@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Tau Prolog - Example: My little doge</title>
+		<link href="doge.css" rel="stylesheet">
+		<script type="text/javascript" src="tau-prolog/core.js"></script>
+		<script type="text/javascript" src="tau-prolog/dom.js"></script>
+		<script type="text/prolog" id="doge.pl">
+:- use_module(library(dom)).
+
+% move/3
+% Move the doge
+move(Doge, Axis, Incr) :-
+	get_by_id(board, Board),
+	style(Doge, Axis, px(X0)),
+	X1 is X0+Incr,
+	X1 >= -10,
+	(Axis = top -> X1 =< 310 ; X1 =< 720),
+	style(Doge, Axis, px(X1)).
+
+% anim/2
+% Change animation of the doge
+anim(Doge, Dir) :-
+	atom_concat('res/', Dir, Src1),
+	atom_concat(Src1, '.gif', Src),
+	style(Doge, backgroundImage, url(Src)).
+
+% clear_control/0
+% Remove the focus class of any control
+clear_controls :-
+	findall(X, (get_by_class(control, X), remove_class(X, focus)), _).
+
+% remark_control/1
+% Remark the pressed control
+remark_control(Key) :-
+	clear_controls,
+	atom_concat('control-', Key, Id),
+	get_by_id(Id, Control),
+	add_class(Control, focus).
+
+% action/2
+% up
+action(Doge, w) :-
+	anim(Doge, up),
+	move(Doge, top, -10).
+% down
+action(Doge, s) :-
+	anim(Doge, down),
+	move(Doge, top,  10).
+% left
+action(Doge, a) :-
+	anim(Doge, left),
+	move(Doge, left, -10).
+% right
+action(Doge, d) :-
+	anim(Doge, right),
+	move(Doge, left,  10).
+% poop
+action(Doge, p) :-
+	style(Doge, top, px(Y0)), style(Doge, left, px(X0)),
+	Y1 is Y0+50, X1 is X0+37,
+	create(div, Poop),
+	style(Poop, top, px(Y1)), style(Poop, left, px(X1)),
+	add_class(Poop, poop),
+	insert_before(Poop, Doge).
+
+% init/0
+% Initilize the game
+init :-
+	get_by_id(doge, Doge),
+	get_by_tag(body, Body),
+	bind(Body, keyup, _, clear_controls),
+	bind(Body, keydown, Event, (
+		event_property(Event, key, Key),
+		remark_control(Key),
+		action(Doge, Key)
+		
+	)).
+		</script>
+	</head>
+	<body>
+		<div id="board">
+			<div id="doge"></div>
+			<div id="controls">
+				<div class="control" id="control-w">w</div>
+				<div class="control" id="control-a">a</div>
+				<div class="control" id="control-s">s</div>
+				<div class="control" id="control-d">d</div>
+				<div class="control" id="control-p">p (poop)</div>
+			</div>
+		</div>
+		<script type="text/javascript">
+			// Create session
+			var session = pl.create(1000);
+			// Consult program
+			session.consult("doge.pl");
+			// Query goal
+			session.query("init.");
+			// Find answers
+			session.answer(console.log);
+		</script>
+
+	</body>
+</html>
