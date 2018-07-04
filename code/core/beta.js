@@ -2250,6 +2250,11 @@
 					type_result: true,
 					fn: function( x, _ ) { return Math.atan( x ); }
 				},
+				"atan2/2": {
+					type_args: null,
+					type_result: true,
+					fn: function( x, y ) { return Math.atan2( x, y ); }
+				},
 				"exp/1": {
 					type_args: null,
 					type_result: true,
@@ -2295,6 +2300,11 @@
 					type_result: true,
 					fn: function( x, y, _ ) { return Math.pow(x, y); }
 				},
+				"^/2": {
+					type_args: null,
+					type_result: null,
+					fn: function( x, y, _ ) { return Math.pow(x, y); }
+				},
 				"<</2": {
 					type_args: false,
 					type_result: false,
@@ -2324,6 +2334,16 @@
 					type_args: false,
 					type_result: false,
 					fn: function( x, y, thread ) { return y ? x - parseInt( x / y ) * y : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
+				},
+				"max/2": {
+					type_args: null,
+					type_result: null,
+					fn: function( x, y, _ ) { return Math.max( x, y ); }
+				},
+				"min/2": {
+					type_args: null,
+					type_result: null,
+					fn: function( x, y, _ ) { return Math.min( x, y ); }
 				}
 				
 			}
