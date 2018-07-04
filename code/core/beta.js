@@ -827,6 +827,21 @@
 		}
 	}
 	
+	// call/n
+	function callN( n ) {
+		return function ( thread, point, atom ) {
+			var closure = atom.args[0], args = atom.args.slice(1, n);
+			if( pl.type.is_variable( closure ) ) {
+				thread.throwError( pl.error.instantiation( thread.level ) );
+			} else if( !pl.type.is_callable( closure ) ) {
+				thread.throwError( pl.error.type( "callable", closure, thread.level ) );
+			} else {
+				var goal = new Term( closure.id, closure.args.concat( args ) );
+				thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+			}
+		};
+	}
+	
 	
 
 	// PROLOG OBJECTS
@@ -2538,17 +2553,15 @@
 				thread.success( point );
 			},
 			
-			// call/1
-			"call/1": function( thread, point, atom ) {
-				var goal = atom.args[0];
-				if( pl.type.is_variable( goal ) ) {
-					thread.throwError( pl.error.instantiation( thread.level ) );
-				} else if( !pl.type.is_callable( goal ) ) {
-					thread.throwError( pl.error.type( "callable", goal, thread.level ) );
-				} else {
-					thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
-				}
-			},
+			// call/1..8
+			"call/1": callN(1),
+			"call/2": callN(2),
+			"call/3": callN(3),
+			"call/4": callN(4),
+			"call/5": callN(5),
+			"call/6": callN(6),
+			"call/7": callN(7),
+			"call/8": callN(8),
 			
 			// once/1
 			"once/1": function( thread, point, atom ) {
