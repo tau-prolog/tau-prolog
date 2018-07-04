@@ -3672,6 +3672,30 @@
 				}
 			},
 			
+			// succ/2
+			"succ/2": function( thread, point, atom ) {
+				var n = atom.args[0], m = atom.args[1];
+				if( pl.type.is_variable( n ) && pl.type.is_variable( m ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( n ) && !pl.type.is_integer( n ) ) {
+					thread.throwError( pl.error.type( "integer", n, atom.indicator ) );
+				} else if( !pl.type.is_variable( m ) && !pl.type.is_integer( m ) ) {
+					thread.throwError( pl.error.type( "integer", m, atom.indicator ) );
+				} else if( !pl.type.is_variable( n ) && n.value < 0 ) {
+					thread.throwError( pl.error.domain( "not_less_than_zero", n, atom.indicator ) );
+				} else if( !pl.type.is_variable( m ) && m.value < 0 ) {
+					thread.throwError( pl.error.domain( "not_less_than_zero", m, atom.indicator ) );
+				} else {
+					if( pl.type.is_variable( m ) || m.value > 0 ) {
+						if( pl.type.is_variable( n ) ) {
+							thread.prepend( [new State( point.goal.replace( new Term( "=", [n, new Num( m.value-1, false )] ) ), point.substitution, point )] );
+						} else {
+							thread.prepend( [new State( point.goal.replace( new Term( "=", [m, new Num( n.value+1, false )] ) ), point.substitution, point )] );
+						}
+					}
+				}
+			},
+			
 			// =:=/2
 			"=:=/2": function( thread, point, atom ) {
 				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
