@@ -3129,13 +3129,19 @@
 			// retractall/1
 			"retractall/1": function( thread, point, atom ) {
 				var head = atom.args[0];
+				if( pl.type.is_variable( head ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_callable( head ) ) {
+					thread.throwError( pl.error.type( "callable", head, atom.indicator ) );
+				} else {
 				thread.prepend( [
-					new State( point.goal.replace( new Term( ",", [
-						new Term( "retract", [new pl.type.Term( ":-", [head, new Var( "_" )] )] ),
-						new Term( "fail", [] )
-					] ) ), point.substitution, point ),
-					new State( point.goal.replace( null ), point.substitution, point )
-				] );
+						new State( point.goal.replace( new Term( ",", [
+							new Term( "retract", [new pl.type.Term( ":-", [head, new Var( "_" )] )] ),
+							new Term( "fail", [] )
+						] ) ), point.substitution, point ),
+						new State( point.goal.replace( null ), point.substitution, point )
+					] );
+				}
 			},
 
 			// abolish/1
