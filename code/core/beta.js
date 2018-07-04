@@ -814,6 +814,19 @@
 		return unique;
 	}
 	
+	// Retract a rule
+	function retract( thread, point, indicator, rule ) {
+		if( thread.session.rules[indicator] !== null ) {
+			for( var i = 0; i < thread.session.rules[indicator].length; i++ ) {
+				if( thread.session.rules[indicator][i] === rule ) {
+					thread.session.rules[indicator].splice( i, 1 );
+					thread.success( point );
+					break;
+				}
+			}
+		}
+	}
+	
 	
 
 	// PROLOG OBJECTS
@@ -857,6 +870,11 @@
 	function Rule( head, body ) {
 		this.head = head;
 		this.body = body;
+	}
+	
+	// Functions
+	function Fun( fn ) {
+		this.fn = fn;
 	}
 
 	// Session
@@ -1008,6 +1026,11 @@
 		}
 	};
 	
+	// Functions
+	Fun.prototype.toString = function() {
+		return this.fn.toString();
+	};
+	
 	
 	
 	// CLONE PROLOG OBJECTS
@@ -1049,6 +1072,11 @@
 		return new Rule( this.head.clone(), this.body !== null ? this.body.clone() : null );
 	};
 	
+	// Functions
+	Fun.prototype.clone = function() {
+		return new Fun( this.fn );
+	};
+	
 	
 	
 	
@@ -1075,6 +1103,11 @@
 			}
 		}
 		return true;
+	};
+	
+	// Functions
+	Fun.prototype.equals = function( obj ) {
+		return pl.type.is_function( obj ) && this.fn === obj.fn;
 	};
 	
 	// Substitutions
@@ -1134,6 +1167,11 @@
 		return new Rule( this.head.rename( thread ), this.body !== null ? this.body.rename( thread ) : null );
 	};
 	
+	// Functions
+	Fun.prototype.rename = function( thread ) {
+		return this;
+	};
+	
 	
 	
 	// GET VARIABLES FROM PROLOG OBJECTS
@@ -1162,6 +1200,11 @@
 		} else {
 			return this.head.variables().concat( this.body.variables() );
 		}
+	};
+	
+	// Functions
+	Fun.prototype.variables = function() {
+		return [];
 	};
 	
 	
@@ -1203,6 +1246,11 @@
 		return new Substitution( links );
 	};
 	
+	// Functions
+	Fun.prototype.apply = function( _ ) {
+		return this;
+	};
+	
 	
 	
 	// UNIFY PROLOG OBJECTS
@@ -1242,6 +1290,14 @@
 		return null;
 	};
 	
+	// Functions
+	Fun.prototype.unify = function( obj, _ ) {
+		if( pl.type.is_function( obj ) && this.fn === obj.fn ) {
+			return new State( obj, new Substitution() );
+		}
+		return null;
+	};
+	
 	
 	
 	// SELECTION FUNCTION
@@ -1253,6 +1309,10 @@
 		} else {
 			return this;
 		}
+	};
+	
+	Fun.prototype.select = function() {
+		return this;
 	};
 	
 	// Replace term
@@ -1267,15 +1327,23 @@
 			return expr;
 		}
 	};
+	
+	Fun.prototype.replace = function( expr ) {
+		return expr;
+	};
 
 	// Search term
 	Term.prototype.search = function( expr ) {
-		if( expr.ref !== undefined && this.ref === expr.ref )
+		if( pl.type.is_term( expr ) && expr.ref !== undefined && this.ref === expr.ref )
 			return true;
 		for( var i = 0; i < this.args.length; i++ )
-			if( pl.type.is_term( this.args[i] ) && this.args[i].search( expr ) )
+			if( (pl.type.is_term( this.args[i] ) || pl.type.is_function( this.args[i] )) && this.args[i].search( expr ) )
 				return true;
 		return false;
+	};
+	
+	Fun.prototype.search = function( expr ) {
+		return pl.type.is_function( expr ) && this.fn === expr.fn;
 	};
 	
 	
@@ -1536,7 +1604,7 @@
 		var asyn = false;
 		var point = this.points.shift();
 		
-		if( pl.type.is_term( point.goal ) ) {
+		if( pl.type.is_term( point.goal ) || pl.type.is_function( point.goal ) ) {
 			
 			var atom = point.goal.select();
 			var mod = null;
@@ -1554,39 +1622,43 @@
 					atom = atom.args[1];
 				}
 				
-				if( mod === null && pl.type.is_builtin( atom ) ) {
-					this.__call_indicator = atom.indicator;
-					asyn = pl.predicate[atom.indicator]( this, point, atom );
+				if( pl.type.is_function( atom ) ) {
+					atom.fn( this, point );
 				} else {
-					var srule = this.stepRule(mod, atom);
-					if( srule === null ) {
-						if( !this.session.rules.hasOwnProperty( atom.indicator ) ) {
-							if( this.getFlag( "unknown" ).id === "error" ) {
-								this.throwError( pl.error.existence( "procedure", atom.indicator, this.level ) );
-							} else if( this.getFlag( "unknown" ).id === "warning" ) {
-								this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level + ")" );
-							}
-						}
-					} else if( srule instanceof Function ) {
-						asyn = srule( this, point, atom );
+					if( mod === null && pl.type.is_builtin( atom ) ) {
+						this.__call_indicator = atom.indicator;
+						asyn = pl.predicate[atom.indicator]( this, point, atom );
 					} else {
-						for( var _rule in srule ) {
-							if(!srule.hasOwnProperty(_rule)) continue;
-							var rule = srule[_rule];
-							this.session.renamed_variables = {};
-							rule = rule.rename( this );
-							var state = pl.unify( atom, rule.head );
-							if( state !== null ) {
-								state.goal = point.goal.replace( rule.body );
-								if( state.goal !== null ) {
-									state.goal = state.goal.apply( state.substitution );
+						var srule = this.stepRule(mod, atom);
+						if( srule === null ) {
+							if( !this.session.rules.hasOwnProperty( atom.indicator ) ) {
+								if( this.getFlag( "unknown" ).id === "error" ) {
+									this.throwError( pl.error.existence( "procedure", atom.indicator, this.level ) );
+								} else if( this.getFlag( "unknown" ).id === "warning" ) {
+									this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level + ")" );
 								}
-								state.substitution = point.substitution.apply( state.substitution );
-								state.parent = point;
-								states.push( state );
 							}
+						} else if( srule instanceof Function ) {
+							asyn = srule( this, point, atom );
+						} else {
+							for( var _rule in srule ) {
+								if(!srule.hasOwnProperty(_rule)) continue;
+								var rule = srule[_rule];
+								this.session.renamed_variables = {};
+								rule = rule.rename( this );
+								var state = pl.unify( atom, rule.head );
+								if( state !== null ) {
+									state.goal = point.goal.replace( rule.body );
+									if( state.goal !== null ) {
+										state.goal = state.goal.apply( state.substitution );
+									}
+									state.substitution = point.substitution.apply( state.substitution );
+									state.parent = point;
+									states.push( state );
+								}
+							}
+							this.prepend( states );
 						}
-						this.prepend( states );
 					}
 				}
 			}
@@ -1878,6 +1950,11 @@
 				} else {
 					return 0;
 				}
+			},
+			
+			// Is a function
+			is_function: function( obj ) {
+				return obj instanceof Fun;
 			},
 			
 			// Is a substitution
@@ -3017,29 +3094,31 @@
 						body = atom.args[0].args[1];
 					} else {
 						head = atom.args[0];
-						body = null;
+						body = new Term( "true" );
 					}
 					if( thread.is_public_predicate( head.indicator ) ) {
 						if( thread.session.rules[head.indicator] !== undefined ) {
-							for( var i = 0; i < thread.session.rules[atom.args[0].indicator].length; i++ ) {
+							var states = [];
+							for( var i = 0; i < thread.session.rules[head.indicator].length; i++ ) {
 								thread.session.renamed_variables = {};
-								var rule = thread.session.rules[atom.args[0].indicator][i].rename( thread );
-								var state = pl.unify( head, rule.head );
-								if( state !== null ) {
-									if( body === null ) {
-										body = new Term( "true" );
-									}
-									if( rule.body === null ) {
-										rule.body = new Term( "true" );
-									}
-									var subs = state.substitution;
-									if( pl.unify( rule.body.apply( subs ), body.apply( subs ) ) !== null ) {
-										thread.session.rules[atom.args[0].indicator].splice( i, 1 );
-										thread.success( point );
-										return;
-									}
-								}
+								var orule = thread.session.rules[head.indicator][i];
+								var rule = orule.rename( thread );
+								if( rule.body === null )
+									rule.body = new Term( "true", [] );
+								var state = new State( point.goal.replace( new Term(",", [
+									new Term( "=", [head, rule.head] ),
+									new Term( ",", [
+										new Term( "=", [body, rule.body] ),
+										new Fun( (function(rule){
+											return function( thread, point ) {
+												retract( thread, point, head.indicator, rule );
+											};
+										})(orule) )
+									] )
+								] ) ), point.substitution, point );
+								states.push( state );
 							}
+							thread.prepend( states );
 						}
 					} else {
 						thread.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
@@ -3047,7 +3126,18 @@
 				}
 			},
 			
-			
+			// retractall/1
+			"retractall/1": function( thread, point, atom ) {
+				var head = atom.args[0];
+				thread.prepend( [
+					new State( point.goal.replace( new Term( ",", [
+						new Term( "retract", [new pl.type.Term( ":-", [head, new Var( "_" )] )] ),
+						new Term( "fail", [] )
+					] ) ), point.substitution, point ),
+					new State( point.goal.replace( null ), point.substitution, point )
+				] );
+			},
+
 			// abolish/1
 			"abolish/1": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) || pl.type.is_term( atom.args[0] ) && atom.args[0].indicator === "//2"
