@@ -3649,6 +3649,29 @@
 				}
 			},
 			
+			// between/3
+			"between/3": function( thread, point, atom ) {
+				var lower = atom.args[0], upper = atom.args[1], bet = atom.args[2];
+				if( pl.type.is_variable( lower ) || pl.type.is_variable( upper ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_integer( lower ) ) {
+					thread.throwError( pl.type.error.type( "integer", lower, atom.indicator ) );
+				} else if( !pl.type.is_integer( upper ) ) {
+					thread.throwError( pl.type.error.type( "integer", upper, atom.indicator ) );
+				} else if( !pl.type.is_variable( bet ) && !pl.type.is_integer( bet ) ) {
+					thread.throwError( pl.type.error.type( "integer", bet, atom.indicator ) );
+				} else {
+					if( pl.type.is_variable( bet ) ) {
+						var states = [new State( point.goal.replace( new Term( "=", [bet, lower] ) ), point.substitution, point )];
+						if( lower.value < upper.value )
+							states.push( new State( point.goal.replace( new Term( "between", [new Num( lower.value+1, false ), upper, bet] ) ), point.substitution, point ) );
+						thread.prepend( states );
+					} else if( lower.value <= bet.value && upper.value >= bet.value ) {
+						thread.success( point );
+					}
+				}
+			},
+			
 			// =:=/2
 			"=:=/2": function( thread, point, atom ) {
 				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
