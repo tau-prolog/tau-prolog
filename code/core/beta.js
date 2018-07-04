@@ -3753,6 +3753,15 @@
 				}
 			},
 			
+			// acyclic_term/1
+			"acyclic_term/1": function( thread, point, atom ) {
+				var test = point.substitution.apply( point.substitution );
+				for( var i in point.substitution.links )
+					if( !point.substitution.links[i].equals( test.links[i] ) )
+						return;
+				thread.success( point );
+			},
+			
 			// IMPLEMENTATION DEFINED HOOKS
 			
 			// halt/0
