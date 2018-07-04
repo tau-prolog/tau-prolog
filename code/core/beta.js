@@ -2330,6 +2330,11 @@
 					type_result: false,
 					fn: function( x, y, _ ) { return x | y; }
 				},
+				"xor/2": {
+					type_args: false,
+					type_result: false,
+					fn: function( x, y, _ ) { return x ^ y; }
+				},
 				"rem/2": {
 					type_args: false,
 					type_result: false,
