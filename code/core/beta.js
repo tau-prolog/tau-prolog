@@ -2705,6 +2705,14 @@
 				}
 			},
 			
+			// subsumes_term/2
+			"subsumes_term/2": function( thread, point, atom ) {
+				var state = pl.unify( atom.args[1], atom.args[0] );
+				if( state !== null && atom.args[1].apply( state.substitution ).equals( atom.args[1] ) ) {
+					thread.success( point );
+				}
+			},
+			
 			// ALL SOLUTIONS
 			
 			// findall/3
