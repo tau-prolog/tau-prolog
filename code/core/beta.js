@@ -2548,6 +2548,9 @@
 			// fail/0
 			"fail/0": function( _1, _2, _3 ) {},
 			
+			// false/0
+			"false/0": function( _1, _2, _3 ) {},
+			
 			// true/0
 			"true/0": function( thread, point, _ ) {
 				thread.success( point );
