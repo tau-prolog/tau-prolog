@@ -801,6 +801,19 @@
 		}
 	}
 	
+	// Remove duplicate elements
+	function nub( array ) {
+		var seen = {};
+		var unique = [];
+		for( var i = 0; i < array.length; i++ ) {
+			if( !(array[i] in seen) ) {
+				unique.push( array[i] );
+				seen[array[i]] = true;
+			}
+		}
+		return unique;
+	}
+	
 	
 
 	// PROLOG OBJECTS
@@ -2855,6 +2868,19 @@
 			"copy_term/2": function( thread, point, atom ) {
 				var renamed = atom.args[0].rename( thread );
 				thread.prepend( [new State( point.goal.replace( new Term( "=", [renamed, atom.args[1]] ) ), point.substitution, point.parent )] );
+			},
+			
+			// term_variables/2
+			"term_variables/2": function( thread, point, atom ) {
+				var term = atom.args[0], vars = atom.args[1];
+				if( !pl.type.is_fully_list( vars ) ) {
+					thread.throwError( pl.error.type( "list", vars, atom.indicator ) );
+				} else {
+					var list = arrayToList( map( nub( term.variables() ), function(v) {
+						return new Var(v);
+					} ) );
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [vars, list] ) ), point.substitution, point )] );
+				}
 			},
 			
 			// CLAUSE RETRIEVAL AND INFORMATION
