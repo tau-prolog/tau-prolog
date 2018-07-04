@@ -3655,11 +3655,11 @@
 				if( pl.type.is_variable( lower ) || pl.type.is_variable( upper ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_integer( lower ) ) {
-					thread.throwError( pl.type.error.type( "integer", lower, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", lower, atom.indicator ) );
 				} else if( !pl.type.is_integer( upper ) ) {
-					thread.throwError( pl.type.error.type( "integer", upper, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", upper, atom.indicator ) );
 				} else if( !pl.type.is_variable( bet ) && !pl.type.is_integer( bet ) ) {
-					thread.throwError( pl.type.error.type( "integer", bet, atom.indicator ) );
+					thread.throwError( pl.error.type( "integer", bet, atom.indicator ) );
 				} else {
 					if( pl.type.is_variable( bet ) ) {
 						var states = [new State( point.goal.replace( new Term( "=", [bet, lower] ) ), point.substitution, point )];
