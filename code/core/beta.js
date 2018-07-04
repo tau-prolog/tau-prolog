@@ -3616,6 +3616,19 @@
 				}
 			},
 			
+			"compare/3": function( thread, point, atom ) {
+				var order = atom.args[0], left = atom.args[1], right = atom.args[2];
+				if( !pl.type.is_variable( order ) && !pl.type.is_atom( order ) ) {
+					thread.throwError( pl.error.type( "atom", order, atom.indicator ) );
+				} else if( pl.type.is_atom( order ) && ["<", ">", "="].indexOf( order.id ) === -1 ) {
+					thread.throwError( pl.type.domain( "order", order, atom.indicator ) );
+				} else {
+					var compare = pl.compare( left, right );
+					compare = compare === 0 ? "=" : (compare === -1 ? "<" : ">");
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [order, new Term( compare, [] )] ) ), point.substitution, point )] );
+				}
+			},
+			
 			// EVALUATION
 			
 			// is/2
