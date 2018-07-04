@@ -3763,6 +3763,14 @@
 				thread.success( point );
 			},
 			
+			// callable/1
+			"callable/1": function( thread, point, atom ) {
+				if( pl.type.is_callable( atom.args[0] ) ) {
+					thread.success( point );
+				}
+			},
+			
+			
 			// IMPLEMENTATION DEFINED HOOKS
 			
 			// halt/0
