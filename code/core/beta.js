@@ -2160,6 +2160,11 @@
 					type_result: true,
 					fn: function( _ ) { return Math.PI; }
 				},
+				"tau/0": {
+					type_args: null,
+					type_result: true,
+					fn: function( _ ) { return 2*Math.PI; }
+				},
 				"+/1": {
 					type_args: null,
 					type_result: null,
@@ -2253,7 +2258,7 @@
 				"atan2/2": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, y ) { return Math.atan2( x, y ); }
+					fn: function( x, y, _ ) { return Math.atan2( x, y ); }
 				},
 				"exp/1": {
 					type_args: null,
