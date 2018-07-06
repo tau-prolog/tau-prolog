@@ -150,6 +150,8 @@ var pl;
 					thread.throwError( pl.error.type( "integer", length, atom.indicator ) );
 				} else if( pl.type.is_integer( length ) && length.value < 0 ) {
 					thread.throwError( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
+				} else if( pl.type.is_variable( list ) && pl.type.is_variable( length ) && list.id === length.id ) {
+					thread.throwError( pl.error.type( "integer", new pl.type.Term( "[]", [] ), atom.indicator ) );
 				} else {
 					var newgoal = new pl.type.Term("length", [list, new pl.type.Num(0, false), length]);
 					if( pl.type.is_integer( length ) )
