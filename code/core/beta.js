@@ -1927,7 +1927,7 @@
 	
 	// Terms
 	Term.prototype.toJavaScript = function() {
-		if( this.args.length === 0 ) {
+		if( this.args.length === 0 && this.indicator !== "[]/0" ) {
 			return this.id;
 		} else if( pl.type.is_list( this ) ) {
 			var arr = [];
