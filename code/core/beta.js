@@ -912,7 +912,8 @@
 			debug: pl.flag.debug.value,
 			max_arity: pl.flag.max_arity.value,
 			unknown: pl.flag.unknown.value,
-			double_quotes: pl.flag.double_quotes.value
+			double_quotes: pl.flag.double_quotes.value,
+			nodejs: pl.flag.nodejs.value
 		};
 		this.warnings = [];
 		this.__loaded_modules = [];
@@ -1914,9 +1915,45 @@
 	
 	
 	
+	// PROLOG TO JAVASCRIPT
+	Var.prototype.toJavaScript = function() {
+		return undefined;
+	};
+	
+	// Numbers
+	Num.prototype.toJavaScript = function() {
+		return this.value;
+	};
+	
+	// Terms
+	Term.prototype.toJavaScript = function() {
+		if( this.args.length === 0 ) {
+			return this.id;
+		} else if( pl.type.is_list( this ) ) {
+			var arr = [];
+			var pointer = this;
+			var value;
+			while( pointer.indicator === "./2" ) {
+				value = pointer.args[0].toJavaScript();
+				if( value === undefined )
+					return undefined;
+				arr.push( value );
+				pointer = pointer.args[1];
+			}
+			if( pointer.indicator === "[]/0" )
+				return arr;
+		}
+		return undefined;
+	};
+	
+	
+	
 	// PROLOG
 
 	var pl = {
+		
+		// Environment
+		__env: typeof module !== 'undefined' && module.exports ? global : window,
 		
 		// Modules
 		module: {},
@@ -1935,6 +1972,96 @@
 				return term_ref;
 			}
 			
+		},
+		
+		// JavaScript to Prolog
+		fromJavaScript: {
+			
+			// Type testing
+			test: {
+				
+				// Boolean
+				boolean: function( obj ) {
+					return obj === true || obj === false;
+				},
+				
+				// Number
+				number: function( obj ) {
+					return typeof obj === "number";
+				},
+				
+				// String
+				string: function( obj ) {
+					return typeof obj === "string";
+				},
+				
+				// List
+				list: function( obj ) {
+					return obj instanceof Array;
+				},
+				
+				// Variable
+				variable: function( obj ) {
+					return obj === undefined;
+				},
+				
+				// Any
+				any: function( _ ) {
+					return true;
+				}
+				
+			},
+			
+			// Function conversion
+			conversion: {
+				
+				// Bolean
+				boolean: function( obj ) {
+					return new Term( obj ? "true" : "false", [] );
+				},
+				
+				// Number
+				number: function( obj ) {
+					return new Num( obj, obj % 1 !== 0 );
+				},
+				
+				// String
+				string: function( obj ) {
+					return new Term( obj, [] );
+				},
+				
+				// List
+				list: function( obj ) {
+					var arr = [];
+					var elem;
+					for( var i = 0; i < obj.length; i++ ) {
+						elem = pl.fromJavaScript.apply( obj[i] );
+						if( elem === undefined )
+							return undefined;
+						arr.push( elem );
+					}
+					return arrayToList( arr );
+				},
+				
+				// Variable
+				variable: function( obj ) {
+					return new Var( "_" );
+				},
+				
+				// Any
+				any: function( obj ) {
+					return undefined;
+				}
+				
+			},
+			
+			// Transform object
+			apply: function( obj ) {
+				for( var i in pl.fromJavaScript.test )
+					if( i !== "any" && pl.fromJavaScript.test[i]( obj ) )
+						return pl.fromJavaScript.conversion[i]( obj );
+				return pl.fromJavaScript.conversion.any( obj );
+			}
 		},
 		
 		// Types
@@ -3961,6 +4088,13 @@
 				allowed: [new Term( "chars" ), new Term( "codes" ), new Term( "atom" )],
 				value: new Term( "codes" ),
 				changeable: true
+			},
+			
+			// NodeJS
+			nodejs: {
+				allowed: [new Term( "yes" ), new Term( "no" )],
+				value: new Term( typeof module !== 'undefined' && module.exports ? "yes" : "no" ),
+				changeable: false
 			}
 			
 		},
