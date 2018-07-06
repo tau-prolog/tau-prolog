@@ -82,7 +82,7 @@ var pl;
 						var fn = context.toJavaScript();
 						var states = [];
 						for( var x in fn ) {
-							if( true ) {
+							if( fn.hasOwnProperty( x ) ) {
 								var fn_ = pl.fromJavaScript.apply( fn[x] );
 								states.push( new pl.type.State( point.goal.replace( new pl.type.Term( ",", [
 									new pl.type.Term( "=", [fn_, result] ),
