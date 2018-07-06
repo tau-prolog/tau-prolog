@@ -13,7 +13,7 @@ var pl;
 				if( pl.type.is_variable( elem ) || pl.type.is_variable( type ) && pl.type.is_variable( goal ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( elem ) ) {
-					thread.throwError( pl.error.type( "htmlObject", elem, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", elem, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
 					thread.throwError( pl.error.type( "atom", type, atom.indicator ) );
 				} else if( !pl.type.is_variable( event ) && !pl.type.is_dom_event_object( event ) ) {
@@ -53,7 +53,7 @@ var pl;
 				if( pl.type.is_variable( elem ) || pl.type.is_variable( type ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( elem ) ) {
-					thread.throwError( pl.error.type( "htmlObject", elem, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", elem, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
 					thread.throwError( pl.error.type( "atom", type, atom.indicator ) );
 				} else if( !pl.type.is_variable( goal ) ) {
@@ -74,7 +74,7 @@ var pl;
 				if( pl.type.is_variable( elem ) || pl.type.is_variable( type ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( elem ) ) {
-					thread.throwError( pl.error.type( "htmlObject", elem, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", elem, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
 					thread.throwError( pl.error.type( "atom", type, atom.indicator ) );
 				} else if( !pl.type.is_variable( goal ) && !pl.type.is_term( goal ) ) {
@@ -139,7 +139,7 @@ var pl;
 				if( pl.type.is_variable( element ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "htmlObject", element, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else {
 					var state = document.defaultView.getComputedStyle( element.object, "" ).display;
 					if( state !== undefined && state !== "none" )
@@ -155,7 +155,7 @@ var pl;
 				if( pl.type.is_variable( element ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "htmlObject", element, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else {
 					element.object.style.display = element.object.tau_display !== undefined ? element.object.tau_display : "block";
 					thread.success( point );
@@ -177,7 +177,7 @@ var pl;
 				} else if( !pl.type.is_atom( id ) ) {
 					session.throwError( pl.error.type( "atom", id, atom.indicator ) );
 				} else if( !pl.type.is_variable( object ) && !pl.type.is_dom_object( object ) ) {
-					session.throwError( pl.error.type( "htmlObject", object, atom.indicator ) );
+					session.throwError( pl.error.type( "HTMLObject", object, atom.indicator ) );
 				} else {
 					var element = document.getElementById( id.id );
 					if( element ) {
@@ -195,7 +195,7 @@ var pl;
 				} else if( !pl.type.is_atom( name ) ) {
 					session.throwError( pl.error.type( "atom", name, atom.indicator ) );
 				} else if( !pl.type.is_variable( object ) && !pl.type.is_dom_object( object ) ) {
-					session.throwError( pl.error.type( "htmlObject", object, atom.indicator ) );
+					session.throwError( pl.error.type( "HTMLObject", object, atom.indicator ) );
 				} else {
 					var elements = document.getElementsByClassName( name.id );
 					if( elements ) {
@@ -217,7 +217,7 @@ var pl;
 				} else if( !pl.type.is_atom( tag ) ) {
 					session.throwError( pl.error.type( "atom", tag, atom.indicator ) );
 				} else if( !pl.type.is_variable( object ) && !pl.type.is_dom_object( object ) ) {
-					session.throwError( pl.error.type( "htmlObject", object, atom.indicator ) );
+					session.throwError( pl.error.type( "HTMLObject", object, atom.indicator ) );
 				} else {
 					var elements = document.getElementsByTagName( tag.id );
 					if( elements ) {
@@ -239,7 +239,7 @@ var pl;
 				if( pl.type.is_variable( html ) || pl.type.is_variable( property ) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( html ) ) {
-					session.throwError( pl.error.type( "htmlObject", html, atom.indicator ) );
+					session.throwError( pl.error.type( "HTMLObject", html, atom.indicator ) );
 				} else if( !pl.type.is_atom( property ) ) {
 					session.throwError( pl.error.type( "atom", property, atom.indicator ) );
 				} else if( !pl.type.is_variable( value ) && ground && styleValue === false ) {
@@ -266,7 +266,7 @@ var pl;
 				if( pl.type.is_variable( html ) || pl.type.is_variable( attr ) ) {
 					session.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( html ) ) {
-					session.throwError( pl.error.type( "htmlObject", selector, atom.indicator ) );
+					session.throwError( pl.error.type( "HTMLObject", selector, atom.indicator ) );
 				} else if( !pl.type.is_atom( attr ) ) {
 					session.throwError( pl.error.type( "atom", attr, atom.indicator ) );
 				} else if( !pl.type.is_variable( value ) && ground && styleValue === false ) {
@@ -317,7 +317,7 @@ var pl;
 				} else if( !pl.type.is_variable( tag ) && !pl.type.is_atom( tag ) ) {
 					thread.throwError( pl.error.type( "atom", tag, atom.indicator ) );
 				} else if( !pl.type.is_variable( element ) && !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "htmlObject", element, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( pl.type.is_variable( element ) ) {
 					var node = new pl.type.DOM( document.createElement( tag.id ) );
 					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [element, node] ) ), point.substitution )] );
@@ -336,9 +336,9 @@ var pl;
 				if( pl.type.is_variable( parent ) && pl.type.is_variable( child ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( parent ) && !pl.type.is_dom_object( parent ) ) {
-					thread.throwError( pl.error.type( "htmlObject", parent, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", parent, atom.indicator ) );
 				} else if( !pl.type.is_variable( child ) && !pl.type.is_dom_object( child ) ) {
-					thread.throwError( pl.error.type( "htmlObject", child, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", child, atom.indicator ) );
 				} else if( pl.type.is_variable( child ) ) {
 					var children = parent.object.children;
 					var states = [];
@@ -359,9 +359,9 @@ var pl;
 				if( pl.type.is_variable( left ) && pl.type.is_variable( right ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( left ) && !pl.type.is_dom_object( left ) ) {
-					thread.throwError( pl.error.type( "htmlObject", left, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", left, atom.indicator ) );
 				} else if( !pl.type.is_variable( right ) && !pl.type.is_dom_object( right ) ) {
-					thread.throwError( pl.error.type( "htmlObject", right, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", right, atom.indicator ) );
 				} else {
 					if( pl.type.is_variable( left ) && right.object.previousElementSibling ) {
 						var elem = new pl.type.DOM( right.object.previousElementSibling );
@@ -379,7 +379,7 @@ var pl;
 				if( pl.type.is_variable( element ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "htmlObject", element, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else {
 					if( element.object.parentNode ) {
 						element.object.parentNode.removeChild( element.object );
@@ -394,9 +394,9 @@ var pl;
 				if( pl.type.is_variable( element ) || pl.type.is_variable( reference ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "htmlObject", element, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_dom_object( reference ) ) {
-					thread.throwError( pl.error.type( "htmlObject", reference, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", reference, atom.indicator ) );
 				} else {
 					if( reference.object.parentNode ) {
 						reference.object.parentNode.insertBefore(element.object, reference.object.nextSibling);
@@ -411,9 +411,9 @@ var pl;
 				if( pl.type.is_variable( element ) || pl.type.is_variable( reference ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "htmlObject", element, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_dom_object( reference ) ) {
-					thread.throwError( pl.error.type( "htmlObject", reference, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", reference, atom.indicator ) );
 				} else {
 					if( reference.object.parentNode ) {
 						reference.object.parentNode.insertBefore(element.object, reference.object);
@@ -428,7 +428,7 @@ var pl;
 				if( pl.type.is_variable( element ) || pl.type.is_variable( name ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "htmlObject", element, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) ) {
 					thread.throwError( pl.error.type( "atom", name, atom.indicator ) );
 				} else {
@@ -446,7 +446,7 @@ var pl;
 				if( pl.type.is_variable( element ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "htmlObject", element, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) && !pl.type.is_variable( name ) ) {
 					thread.throwError( pl.error.type( "atom", name, atom.indicator ) );
 				} else {
@@ -479,7 +479,7 @@ var pl;
 				if( pl.type.is_variable( element ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "htmlObject", element, atom.indicator ) );
+					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) && !pl.type.is_variable( name ) ) {
 					thread.throwError( pl.error.type( "atom", name, atom.indicator ) );
 				} else {
@@ -556,7 +556,7 @@ var pl;
 
 	// toString
 	pl.type.DOM.prototype.toString = function() {
-		return "htmlObject" + this.object.nodeName;
+		return "HTMLObject" + this.object.nodeName;
 	};
 
 	// clone
@@ -606,6 +606,28 @@ var pl;
 		} else if( this.object > obj.object ) {
 			return 1;
 		}
+	};
+	
+	// to javascript
+	pl.type.DOM.prototype.toJavaScript = function() {
+		return this.object;
+	};
+	
+	// from javascript
+	pl.fromJavaScript.test.dom = function( obj ) {
+		return obj instanceof HTMLElement;
+	};
+	pl.fromJavaScript.conversion.dom = function( obj ) {
+		return new pl.type.DOM( obj );
+	};
+	
+	// from javascript (collection)
+	pl.fromJavaScript.test.dom_collection = function( obj ) {
+		return obj instanceof HTMLCollection;
+	};
+	pl.fromJavaScript.conversion.dom_collection = function( obj ) {
+		var arr = Array.prototype.slice.call( obj, 0 );
+		return pl.fromJavaScript.apply( arr );
 	};
 	
 	
@@ -681,6 +703,18 @@ var pl;
 		}
 	};
 	
+	// to javascript
+	pl.type.DOMEvent.prototype.toJavaScript = function() {
+		return this.event;
+	};
+	
+	// from javascript
+	pl.fromJavaScript.test.event = function( obj ) {
+		return obj instanceof Event;
+	};
+	pl.fromJavaScript.conversion.event = function( obj ) {
+		return new pl.type.DOMEvent( obj.type, obj );
+	};
 	
 	
 	// EVENT HANDLING
