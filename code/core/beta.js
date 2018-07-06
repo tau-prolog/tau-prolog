@@ -1450,8 +1450,8 @@
 	
 	// Get classes of an operator
 	Session.prototype.__lookup_operator_classes = function( priority, operator ) {
-		if( this.__operators[priority] ) {
-			return this.__operators[priority][operator] || false;
+		if( this.__operators.hasOwnProperty( priority ) && this.__operators[priority][operator] instanceof Array ) {
+			return this.__operators[priority][operator]  || false;
 		}
 		return false;
 	};
