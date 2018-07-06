@@ -5,26 +5,28 @@ var pl;
 		
 		return {
 			
-			// apply/3
-			"apply/3": function( thread, point, atom ) {
-				var name = atom.args[0], args = atom.args[1], result = atom.args[2];
-				if( pl.type.is_variable( name ) || pl.type.is_variable( args ) ) {
+			// global/1
+			"global/1": function( thread, point, atom ) {
+				thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [atom.args[0], new pl.type.JSValue( pl.__env )] ) ), point.substitution, point )] );
+			},
+			
+			// apply/3:
+			"apply/3": [
+				new pl.type.Rule(new pl.type.Term("apply", [new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z")]), new pl.type.Term(",", [new pl.type.Term("global", [new pl.type.Var("G")]),new pl.type.Term("apply", [new pl.type.Var("G"),new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z")])]))
+			],
+			
+			// apply/4
+			"apply/4": function( thread, point, atom ) {
+				var context = atom.args[0], name = atom.args[1], args = atom.args[2], result = atom.args[3];
+				if( pl.type.is_variable( context ) || pl.type.is_variable( name ) || pl.type.is_variable( args ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) && (!pl.type.is_js_object( name ) || typeof name.value !== "function") ) {
 					thread.throwError( pl.error.type( "atom_or_JSValueFUNCTION", name, atom.indicator ) );
 				} else if( !pl.type.is_list( args ) ) {
 					thread.throwError( pl.error.type( "list", args, atom.indicator ) );
 				}
-				var fn;
-				if( pl.type.is_atom( name ) ) {
-					var dots = name.id.split(".");
-					fn = pl.__env;
-					for( var i = 0; i < dots.length; i++ )
-						if( fn !== undefined )
-							fn = fn[dots[i]];
-				} else {
-					fn = name.value;
-				}
+				var ctx = context.toJavaScript();
+				var fn = pl.type.is_atom( name ) ? ctx[name.id] : name.toJavaScript();
 				if( typeof fn === "function" ) {
 					var pointer = args;
 					var pltojs;
@@ -47,63 +49,48 @@ var pl;
 					}
 					var value;
 					try {
-						value = fn.apply( null, arr );
+						value = fn.apply( ctx, arr );
 					} catch( e ) {
 						thread.throwError( pl.error.javascript( e.toString(), atom.indicator ) );
 						return;
 					}
-					if( value === undefined ) {
-						thread.success( point );
-					} else {
-						value = pl.fromJavaScript.apply( value );
-						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [value, result] ) ), point.substitution, point )] );
-					}
+					value = pl.fromJavaScript.apply( value );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [value, result] ) ), point.substitution, point )] );
 				}
 			},
 			
-			// apply/4
-			"apply/4": function( thread, point, atom ) {
-				var obj = atom.args[0], name = atom.args[1], args = atom.args[2], result = atom.args[3];
-				if( pl.type.is_variable( obj ) || pl.type.is_variable( name ) || pl.type.is_variable( args ) ) {
+			// prop/2:
+			"prop/2": [
+				new pl.type.Rule(new pl.type.Term("prop", [new pl.type.Var("X"),new pl.type.Var("Y")]), new pl.type.Term(",", [new pl.type.Term("global", [new pl.type.Var("G")]),new pl.type.Term("prop", [new pl.type.Var("G"),new pl.type.Var("X"),new pl.type.Var("Y")])]))
+			],
+			
+			// prop/3
+			"prop/3": function( thread, point, atom ) {
+				var context = atom.args[0], name = atom.args[1], result = atom.args[2];
+				if( pl.type.is_variable( context ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_atom( name ) ) {
+				} else if( !pl.type.is_variable( name ) && !pl.type.is_atom( name ) ) {
 					thread.throwError( pl.error.type( "atom", name, atom.indicator ) );
-				} else if( !pl.type.is_list( args ) ) {
-					thread.throwError( pl.error.type( "list", args, atom.indicator ) );
-				}
-				obj = obj.toJavaScript();
-				if( obj !== undefined && obj !== null && typeof obj[name.id] === "function" ) {
-					var pointer = args;
-					var pltojs;
-					var arr = [];
-					while( pointer.indicator === "./2" ) {
-						pltojs = pointer.args[0].toJavaScript();
-						if( pltojs === undefined ) {
-							thread.throwError( pl.error.domain( "javascript_object", pointer.args[0], atom.indicator ) );
-							return undefined;
+				} else {
+					if( pl.type.is_atom( name ) ) {
+						var fn = context.toJavaScript()[name.id];
+						if( fn !== undefined ) {
+							fn = pl.fromJavaScript.apply( fn );
+							thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [fn, result] ) ), point.substitution, point )] );
 						}
-						arr.push( pltojs );
-						pointer = pointer.args[1];
-					}
-					if( pl.type.is_variable( pointer ) ) {
-						thread.throwError( pl.error.instantiation( atom.indicator ) );
-						return;
-					} else if( pointer.indicator !== "[]/0" ) {
-						thread.throwError( pl.error.type( "list", args, atom.indicator ) );
-						return
-					}
-					var value;
-					try {
-						value = obj[name.id].apply( obj, arr );
-					} catch( e ) {
-						thread.throwError( pl.error.javascript( e, atom.indicator ) );
-						return;
-					}
-					if( value === undefined ) {
-						thread.success( point );
 					} else {
-						value = pl.fromJavaScript.apply( value );
-						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [value, result] ) ), point.substitution, point )] );
+						var fn = context.toJavaScript();
+						var states = [];
+						for( var x in fn ) {
+							if( true ) {
+								var fn_ = pl.fromJavaScript.apply( fn[x] );
+								states.push( new pl.type.State( point.goal.replace( new pl.type.Term( ",", [
+									new pl.type.Term( "=", [fn_, result] ),
+									new pl.type.Term( "=", [new pl.type.Term(x, []), name] )
+								]) ), point.substitution, point ) );
+							}
+						}
+						thread.prepend( states );
 					}
 				}
 			}
@@ -111,7 +98,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["apply/3", "apply/4"];
+	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3"];
 
 
 
