@@ -842,6 +842,13 @@
 		};
 	}
 	
+	// String to indicator
+	function str_indicator( str ) {
+		for( var i = str.length - 1; i >= 0; i-- )
+			if( str.charAt(i) === "/" )
+				return new Term( "/", [new Term( str.substring(0, i) ), new Num( parseInt(str.substring(i+1)), false )] );
+	}
+	
 	
 
 	// PROLOG OBJECTS
@@ -1962,6 +1969,14 @@
 		parser: {
 			tokenizer: Tokenizer,
 			expression: parseExpr
+		},
+		
+		// Utils
+		utils: {
+			
+			// String to indicator
+			str_indicator: str_indicator
+			
 		},
 		
 		// Statistics
@@ -4178,37 +4193,37 @@
 			
 			// Existence error
 			existence: function( type, object, indicator ) {
-				return new Term( "error", [new Term( "existence_error", [new Term( type ), new Term( object )] ), new Term( indicator )] );
+				return new Term( "error", [new Term( "existence_error", [new Term( type ), str_indicator( object )] ), str_indicator( indicator )] );
 			},
 			
 			// Type error
 			type: function( expected, found, indicator ) {
-				return new Term( "error", [new Term( "type_error", [new Term( expected ), found] ), new Term( indicator )] );
+				return new Term( "error", [new Term( "type_error", [new Term( expected ), found] ), str_indicator( indicator )] );
 			},
 			
 			// Instantation error
 			instantiation: function( indicator ) {
-				return new Term( "error", [new Term( "instantiation_error" ), new Term( indicator )] );
+				return new Term( "error", [new Term( "instantiation_error" ), str_indicator( indicator )] );
 			},
 			
 			// Domain error
 			domain: function( expected, found, indicator ) {
-				return new Term( "error", [new Term( "domain_error", [new Term( expected ), found]), new Term( indicator )] );
+				return new Term( "error", [new Term( "domain_error", [new Term( expected ), found]), str_indicator( indicator )] );
 			},
 			
 			// Representation error
 			representation: function( flag, indicator ) {
-				return new Term( "error", [new Term( "representation_error", [new Term( flag )] ), new Term( indicator )] );
+				return new Term( "error", [new Term( "representation_error", [new Term( flag )] ), str_indicator( indicator )] );
 			},
 			
 			// Permission error
 			permission: function( operation, type, found, indicator ) {
-				return new Term( "error", [new Term( "permission_error", [new Term( operation ), new Term( type ), found] ), new Term( indicator )] );
+				return new Term( "error", [new Term( "permission_error", [new Term( operation ), new Term( type ), found] ), str_indicator( indicator )] );
 			},
 			
 			// Evaluation error
 			evaluation: function( error, indicator ) {
-				return new Term( "error", [new Term( "evaluation_error", [new Term( error )] ), new Term( indicator )] );
+				return new Term( "error", [new Term( "evaluation_error", [new Term( error )] ), str_indicator( indicator )] );
 			},
 			
 			// Syntax error
@@ -4222,7 +4237,7 @@
 			
 			// Syntax error by predicate
 			syntax_by_predicate: function( expected, indicator ) {
-				return new Term( "error", [new Term( "syntax_error", [new Term( expected ) ] ), new Term( indicator )] );
+				return new Term( "error", [new Term( "syntax_error", [new Term( expected ) ] ), str_indicator( indicator )] );
 			}
 			
 		},
