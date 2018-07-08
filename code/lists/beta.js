@@ -121,26 +121,29 @@ var pl;
 			
 			// nth0/3
 			"nth0/3": [
-				new pl.type.Rule(new pl.type.Term("nth0", [new pl.type.Num(0, false),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("_")]),new pl.type.Var("X")]), null),
-				new pl.type.Rule(new pl.type.Term("nth0", [new pl.type.Var("N"),new pl.type.Term(".", [new pl.type.Var("_"),new pl.type.Var("Xs")]),new pl.type.Var("X")]), new pl.type.Term(",", [new pl.type.Term(">", [new pl.type.Var("N"),new pl.type.Num(0, false)]),new pl.type.Term(",", [new pl.type.Term("is", [new pl.type.Var("M"),new pl.type.Term("-", [new pl.type.Var("N"),new pl.type.Num(1, false)])]),new pl.type.Term("nth0", [new pl.type.Var("M"),new pl.type.Var("Xs"),new pl.type.Var("X")])])]))
+				new pl.type.Rule(new pl.type.Term("nth0", [new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z")]), new pl.type.Term(";", [new pl.type.Term("->", [new pl.type.Term("var", [new pl.type.Var("X")]),new pl.type.Term("nth", [new pl.type.Num(0, false),new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("_")])]),new pl.type.Term(",", [new pl.type.Term(">=", [new pl.type.Var("X"),new pl.type.Num(0, false)]),new pl.type.Term(",", [new pl.type.Term("nth", [new pl.type.Num(0, false),new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("_")]),new pl.type.Term("!", [])])])]))
 			],
 			
 			// nth1/3
 			"nth1/3": [
-				new pl.type.Rule(new pl.type.Term("nth1", [new pl.type.Num(1, false),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("_")]),new pl.type.Var("X")]), null),
-				new pl.type.Rule(new pl.type.Term("nth1", [new pl.type.Var("N"),new pl.type.Term(".", [new pl.type.Var("_"),new pl.type.Var("Xs")]),new pl.type.Var("X")]), new pl.type.Term(",", [new pl.type.Term(">", [new pl.type.Var("N"),new pl.type.Num(1, false)]),new pl.type.Term(",", [new pl.type.Term("is", [new pl.type.Var("M"),new pl.type.Term("-", [new pl.type.Var("N"),new pl.type.Num(1, false)])]),new pl.type.Term("nth1", [new pl.type.Var("M"),new pl.type.Var("Xs"),new pl.type.Var("X")])])]))
+				new pl.type.Rule(new pl.type.Term("nth1", [new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z")]), new pl.type.Term(";", [new pl.type.Term("->", [new pl.type.Term("var", [new pl.type.Var("X")]),new pl.type.Term("nth", [new pl.type.Num(1, false),new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("_")])]),new pl.type.Term(",", [new pl.type.Term(">", [new pl.type.Var("X"),new pl.type.Num(0, false)]),new pl.type.Term(",", [new pl.type.Term("nth", [new pl.type.Num(1, false),new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("_")]),new pl.type.Term("!", [])])])]))
 			],
 			
 			// nth0/4
 			"nth0/4": [
-				new pl.type.Rule(new pl.type.Term("nth0", [new pl.type.Num(0, false),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("T")]),new pl.type.Var("H"),new pl.type.Var("T")]), null),
-				new pl.type.Rule(new pl.type.Term("nth0", [new pl.type.Var("N"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("T")]),new pl.type.Var("X"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("Xs")])]), new pl.type.Term(",", [new pl.type.Term(">", [new pl.type.Var("N"),new pl.type.Num(0, false)]),new pl.type.Term(",", [new pl.type.Term("is", [new pl.type.Var("M"),new pl.type.Term("-", [new pl.type.Var("N"),new pl.type.Num(1, false)])]),new pl.type.Term("nth0", [new pl.type.Var("M"),new pl.type.Var("T"),new pl.type.Var("X"),new pl.type.Var("Xs")])])]))
+				new pl.type.Rule(new pl.type.Term("nth0", [new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("W")]), new pl.type.Term(";", [new pl.type.Term("->", [new pl.type.Term("var", [new pl.type.Var("X")]),new pl.type.Term("nth", [new pl.type.Num(0, false),new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("W")])]),new pl.type.Term(",", [new pl.type.Term(">=", [new pl.type.Var("X"),new pl.type.Num(0, false)]),new pl.type.Term(",", [new pl.type.Term("nth", [new pl.type.Num(0, false),new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("W")]),new pl.type.Term("!", [])])])]))
 			],
 			
 			// nth1/4
 			"nth1/4": [
-				new pl.type.Rule(new pl.type.Term("nth1", [new pl.type.Num(1, false),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("T")]),new pl.type.Var("H"),new pl.type.Var("T")]), null),
-				new pl.type.Rule(new pl.type.Term("nth1", [new pl.type.Var("N"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("T")]),new pl.type.Var("X"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("Xs")])]), new pl.type.Term(",", [new pl.type.Term(">", [new pl.type.Var("N"),new pl.type.Num(1, false)]),new pl.type.Term(",", [new pl.type.Term("is", [new pl.type.Var("M"),new pl.type.Term("-", [new pl.type.Var("N"),new pl.type.Num(1, false)])]),new pl.type.Term("nth1", [new pl.type.Var("M"),new pl.type.Var("T"),new pl.type.Var("X"),new pl.type.Var("Xs")])])]))
+				new pl.type.Rule(new pl.type.Term("nth1", [new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("W")]), new pl.type.Term(";", [new pl.type.Term("->", [new pl.type.Term("var", [new pl.type.Var("X")]),new pl.type.Term("nth", [new pl.type.Num(1, false),new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("W")])]),new pl.type.Term(",", [new pl.type.Term(">", [new pl.type.Var("X"),new pl.type.Num(0, false)]),new pl.type.Term(",", [new pl.type.Term("nth", [new pl.type.Num(1, false),new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z"),new pl.type.Var("W")]),new pl.type.Term("!", [])])])]))
+			],
+			
+			// nth/5
+			// DO NOT EXPORT
+			"nth/5": [
+				new pl.type.Rule(new pl.type.Term("nth", [new pl.type.Var("N"),new pl.type.Var("N"),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("Xs")]),new pl.type.Var("X"),new pl.type.Var("Xs")]), null),
+				new pl.type.Rule(new pl.type.Term("nth", [new pl.type.Var("N"),new pl.type.Var("O"),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("Xs")]),new pl.type.Var("Y"),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("Ys")])]), new pl.type.Term(",", [new pl.type.Term("is", [new pl.type.Var("M"),new pl.type.Term("+", [new pl.type.Var("N"),new pl.type.Num(1, false)])]),new pl.type.Term("nth", [new pl.type.Var("M"),new pl.type.Var("O"),new pl.type.Var("Xs"),new pl.type.Var("Y"),new pl.type.Var("Ys")])]))
 			],
 			
 			// length/2
@@ -151,17 +154,10 @@ var pl;
 				} else if( pl.type.is_integer( length ) && length.value < 0 ) {
 					thread.throwError( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
 				} else {
-					var pointer = list;
-					while( pl.type.is_term( atom ) && pointer.indicator === "./2" )
-						pointer = pointer.args[1];
-					if( pl.type.is_variable( pointer ) && pl.type.is_variable( length ) && pointer.id === length.id && length.id !== "_" ) {
-						thread.throwError( pl.error.type( "integer", new pl.type.Term( "[]", [] ), atom.indicator ) );
-					} else {
-						var newgoal = new pl.type.Term("length", [list, new pl.type.Num(0, false), length]);
-						if( pl.type.is_integer( length ) )
-							newgoal = new pl.type.Term( ",", [newgoal, new pl.type.Term( "!", [] )] );
-						thread.prepend( [new pl.type.State(point.goal.replace(newgoal), point.substitution, point)] );
-					}
+					var newgoal = new pl.type.Term("length", [list, new pl.type.Num(0, false), length]);
+					if( pl.type.is_integer( length ) )
+						newgoal = new pl.type.Term( ",", [newgoal, new pl.type.Term( "!", [] )] );
+					thread.prepend( [new pl.type.State(point.goal.replace(newgoal), point.substitution, point)] );
 				}
 			},
 			
