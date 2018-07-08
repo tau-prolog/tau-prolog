@@ -185,7 +185,7 @@ var pl;
 	
 	// JavaScript error
 	pl.error.javascript = function( error, indicator ) {
-		return new pl.type.Term( "error", [new pl.type.Term( "javascript_error", [new pl.type.Term( error )] ), new pl.type.Term( indicator )] );
+		return new pl.type.Term( "error", [new pl.type.Term( "javascript_error", [new pl.type.Term( error )] ), pl.utils.str_indicator( indicator )] );
 	};
 	
 	
