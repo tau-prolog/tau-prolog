@@ -2307,6 +2307,11 @@
 					type_result: true,
 					fn: function( _ ) { return 2*Math.PI; }
 				},
+				"epsilon/0": {
+					type_args: null,
+					type_result: true,
+					fn: function( _ ) { return Number.EPSILON; }
+				},
 				"+/1": {
 					type_args: null,
 					type_result: null,
