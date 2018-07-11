@@ -2750,6 +2750,12 @@
 				thread.prepend( [new State( point.goal.replace( new Term( ",", [new Term( "call", [goal] ), new Term( "!", [] )] ) ), point.substitution, point )] );
 			},
 			
+			// forall/2
+			"forall/2": function( thread, point, atom ) {
+				var generate = atom.args[0], test = atom.args[1];
+				thread.prepend( [new State( point.goal.replace( new Term( "\\+", [new Term( ",", [new Term( "call", [generate] ), new Term( "\\+", [new Term( "call", [test] )] )] )] ) ), point.substitution, point )] );
+			},
+			
 			// repeat/0
 			"repeat/0": function( thread, point, _ ) {
 				thread.prepend( [new State( point.goal.replace( null ), point.substitution, point ), point] );
