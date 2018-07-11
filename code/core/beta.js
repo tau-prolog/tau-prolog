@@ -920,6 +920,7 @@
 			max_arity: pl.flag.max_arity.value,
 			unknown: pl.flag.unknown.value,
 			double_quotes: pl.flag.double_quotes.value,
+			dialect: pl.flag.dialect.value,
 			nodejs: pl.flag.nodejs.value
 		};
 		this.warnings = [];
@@ -4103,6 +4104,13 @@
 				allowed: [new Term( "chars" ), new Term( "codes" ), new Term( "atom" )],
 				value: new Term( "codes" ),
 				changeable: true
+			},
+			
+			// Dialect
+			dialect: {
+				allowed: [new Term( "tau" )],
+				value: new Term( "tau" ),
+				changeable: false
 			},
 			
 			// NodeJS
