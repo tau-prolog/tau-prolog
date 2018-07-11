@@ -54,7 +54,7 @@ For further information, check the [Manual](http://tau-prolog.org/documentation#
 ## Downloads
 You can get the current stable fully-tested version [here](http://tau-prolog.org/downloads#latest). In the [Downloads](http://tau-prolog.org/downloads) section you will find the different versions of the Tau Prolog library. You can download the one that best fits your needs.
 
-On downloading the library, you can customize the download so you only get the funcionality you need. You can download the whole library, or maybe you just the core and the list module, or maybe you already had the library and only need a specific module, etc.
+When downloading the library, you can customize the download so you only get the functionality you need. You can download the whole library, or maybe you just the core and the list module, or maybe you already had the library and only need a specific module, etc.
 
 ## Documentation
 The different predicates and modules available in this interpreter are documented on the [Documentation](http://tau-prolog.org/documentation) section. Even though most of the elements included in this interpreter were implemented following the ISO Prolog Standard, some of them have been modified according to the team judgement. Those differences between the way something was implemented and the ISO Prolog Standard are documented as well.
