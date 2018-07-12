@@ -1,5 +1,10 @@
 (function() {
 	
+	// VERSION
+	var version = { major: 0, minor: 2, patch: 36, status: "beta" };
+	
+	
+	
 	// PARSER
 	
 	var indexOf;
@@ -921,6 +926,7 @@
 			unknown: pl.flag.unknown.value,
 			double_quotes: pl.flag.double_quotes.value,
 			dialect: pl.flag.dialect.value,
+			version_data: pl.flag.version_data.value,
 			nodejs: pl.flag.nodejs.value
 		};
 		this.warnings = [];
@@ -1965,6 +1971,9 @@
 		
 		// Modules
 		module: {},
+		
+		// Version
+		version: version,
 		
 		// Parser
 		parser: {
@@ -4023,7 +4032,7 @@
 					var states = [];
 					for( var name in pl.flag ) {
 						if(!pl.flag.hasOwnProperty(name)) continue;
-						var goal = new Term( ",", [new Term( "=", [new Term( name ), flag] ), new Term( "=", [new Term(thread.getFlag(name), []), value] )] );
+						var goal = new Term( ",", [new Term( "=", [new Term( name ), flag] ), new Term( "=", [thread.getFlag(name), value] )] );
 						states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
 					}
 					thread.prepend( states );
@@ -4121,6 +4130,13 @@
 			dialect: {
 				allowed: [new Term( "tau" )],
 				value: new Term( "tau" ),
+				changeable: false
+			},
+			
+			// Version
+			version_data: {
+				allowed: [new Term( "tau", [new Num(version.major,false), new Num(version.minor,false), new Num(version.patch,false), new Term(version.status)] )],
+				value: new Term( "tau", [new Num(version.major,false), new Num(version.minor,false), new Num(version.patch,false), new Term(version.status)] ),
 				changeable: false
 			},
 			
