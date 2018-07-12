@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 36, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 37, status: "beta" };
 	
 	
 	
@@ -4184,6 +4184,7 @@
 				if( !pl.type.is_number( expr2 ) ) {
 					return expr2;
 				} else {
+					return expr1.value < expr2.value ? -1 : (expr1.value > expr2.value ? 1 : 0);
 					return pl.compare( expr1, expr2 );
 				}
 			}
