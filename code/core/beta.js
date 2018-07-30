@@ -226,6 +226,7 @@
 
 		while(text !== "") {
 			var matches = [];
+			var last_is_blank = false;
 
 			if(/^\n/.exec(text) !== null) {
 				line++;
@@ -263,7 +264,6 @@
 			text = text.replace(token.value, "");
 			start += token.value.length;
 			len += token.value.length;
-
 
 			switch(token.name) {
 				case "atom":
