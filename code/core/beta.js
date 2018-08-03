@@ -4185,7 +4185,6 @@
 					return expr2;
 				} else {
 					return expr1.value < expr2.value ? -1 : (expr1.value > expr2.value ? 1 : 0);
-					return pl.compare( expr1, expr2 );
 				}
 			}
 		},
