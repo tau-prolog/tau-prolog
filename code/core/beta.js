@@ -226,6 +226,7 @@
 
 		while(text !== "") {
 			var matches = [];
+			var last_is_blank = false;
 
 			if(/^\n/.exec(text) !== null) {
 				line++;
@@ -263,7 +264,6 @@
 			text = text.replace(token.value, "");
 			start += token.value.length;
 			len += token.value.length;
-
 
 			switch(token.name) {
 				case "atom":
@@ -671,7 +671,7 @@
 			var expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
 			if(expr.type !== ERROR) {
 				var expr_position = expr.len;
-				tokens_pos = expr_position;
+				var tokens_pos = expr_position;
 				if(tokens[expr_position] && tokens[expr_position].name === "atom" && tokens[expr_position].raw === ".") {
 					thread.add_goal( body_conversion(expr.value) );
 				} else {
@@ -1718,7 +1718,7 @@
 		return this.thread.answers( callback, max );
 	}
 	Thread.prototype.answers = function( callback, max ) {
-		answers = max || 1000;
+		var answers = max || 1000;
 		var session = this;
 		if( max <= 0 ) return;
 		this.answer( function( answer ) {
