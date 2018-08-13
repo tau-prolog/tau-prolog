@@ -59,23 +59,23 @@
 		var _error = false;
 		str.replace(regex_escape, function(match, a, b, f, n, r, t, v, hex, octal, back, single, dsingle, double, backquote, error, char) {
 			switch(true) {
-				case hex != undefined:
+				case hex !== undefined:
 					s.push( parseInt(hex, 16) );
 					return "";
-				case octal != undefined:
+				case octal !== undefined:
 					s.push( parseInt(octal, 8) );
 					return "";
-				case back != undefined:
-				case single != undefined:
-				case dsingle != undefined:
-				case double != undefined:
-				case backquote != undefined:
+				case back !== undefined:
+				case single !== undefined:
+				case dsingle !== undefined:
+				case double !== undefined:
+				case backquote !== undefined:
 					s.push( match.substr(1).charCodeAt(0) );
 					return "";
-				case char != undefined:
+				case char !== undefined:
 					s.push( char.charCodeAt(0) );
 					return "";
-				case error != undefined:
+				case error !== undefined:
 					_error = true;
 				default:
 					s.push(escape_map[match]);
@@ -268,7 +268,7 @@
 			switch(token.name) {
 				case "atom":
 					token.raw = token.value;
-					if(token.value.charAt(0) == "'") {
+					if(token.value.charAt(0) === "'") {
 						token.value = escapeAtom( token.value.substr(1, token.value.length - 2), "'" );
 						if( token.value === null ) {
 							token.name = "lexical";
@@ -327,7 +327,7 @@
 		if(!tokens[start]) return {type: ERROR, value: pl.error.syntax(tokens[start-1], "expression expected", true)};
 		var error;
 
-		if(priority == "0") {
+		if(priority === "0") {
 			var token = tokens[start];
 			switch(token.name) {
 				case "number":
@@ -394,7 +394,7 @@
 			// Signed number
 			if(token.value === "-") {
 				var number = tokens[start];
-				if(number && number.name == "number") {
+				if(number && number.name === "number") {
 					return {
 						value: new pl.type.Num( token.value==="-" ? -number.value : number.value, number.float ),
 						len: ++start,
@@ -435,7 +435,7 @@
 		if(expr.type === SUCCESS) {
 			start = expr.len;
 			var token = tokens[start];
-			if(tokens[start] && tokens[start].name == "atom" && thread.__lookup_operator_classes(priority, token.value)) {
+			if(tokens[start] && tokens[start].name === "atom" && thread.__lookup_operator_classes(priority, token.value)) {
 
 				var next_priority_lt = next_priority;
 				var next_priority_eq = priority;
@@ -471,11 +471,11 @@
 						expr2.derived = true;
 						return expr2;
 					}
-				} else if(expr.type != ERROR) {
+				} else if(expr.type !== ERROR) {
 					while(true) {
 						start = expr.len;
 						var token = tokens[start];
-						if(token && token.name == "atom" && thread.__lookup_operator_classes(priority, token.value)) {
+						if(token && token.name === "atom" && thread.__lookup_operator_classes(priority, token.value)) {
 							var classes = thread.__lookup_operator_classes(priority, token.value);
 							if( classes.indexOf("yf") > -1 ) {
 								expr = {
@@ -485,7 +485,7 @@
 								};
 							} else if( classes.indexOf("yfx") > -1 ) {
 								var expr2 = parseExpr(thread, tokens, ++start, next_priority_lt, toplevel);
-								if(expr2.type == ERROR) {
+								if(expr2.type === ERROR) {
 									expr2.derived = true;
 									return expr2;
 								}
@@ -600,18 +600,18 @@
 	// Parse a rule
 	function parseRule(thread, tokens, start) {
 		var expr = parseExpr(thread, tokens, start, thread.__get_max_priority(), false);
-		if(expr.type != ERROR) {
+		if(expr.type !== ERROR) {
 			start = expr.len;
 			if(tokens[start] && tokens[start].name === "atom" && tokens[start].raw === ".") {
 				start++;
 				if( pl.type.is_term(expr.value) ) {
-					if(expr.value.indicator == ":-/2") {
+					if(expr.value.indicator === ":-/2") {
 						return {
 							value: new pl.type.Rule(expr.value.args[0], body_conversion(expr.value.args[1])),
 							len: start,
 							type: SUCCESS
 						};
-					} else if(expr.value.indicator == "-->/2") {
+					} else if(expr.value.indicator === "-->/2") {
 						var dcg = rule_to_dcg(new pl.type.Rule(expr.value.args[0], expr.value.args[1]), thread);
 						dcg.body = body_conversion( dcg.body );
 						return {
@@ -738,7 +738,7 @@
 			free = thread.next_free_variable();
 			var pointer = expr;
 			var prev;
-			while( pointer.indicator == "./2" ) {
+			while( pointer.indicator === "./2" ) {
 				prev = pointer;
 				pointer = pointer.args[1];
 			}
@@ -1029,7 +1029,7 @@
 		var str = "{";
 		for( var link in this.links ) {
 			if(!this.links.hasOwnProperty(link)) continue;
-			if( str != "{" ) {
+			if( str !== "{" ) {
 				str += ", ";
 			}
 			str += link + "/" + this.links[link].toString();
@@ -1163,7 +1163,7 @@
 	
 	// States
 	State.prototype.equals = function( obj ) {
-		return pl.type.is_state( obj ) && this.goal.equals( obj.goal ) && this.substitution.equals( obj.substitution ) && this.parent == obj.parent;
+		return pl.type.is_state( obj ) && this.goal.equals( obj.goal ) && this.substitution.equals( obj.substitution ) && this.parent === obj.parent;
 	};
 	
 	// Rules
@@ -1297,7 +1297,7 @@
 	
 	// Numbers
 	Num.prototype.unify = function( obj, _ ) {
-		if( pl.type.is_number( obj ) && this.value == obj.value && this.is_float == obj.is_float ) {
+		if( pl.type.is_number( obj ) && this.value === obj.value && this.is_float === obj.is_float ) {
 			return new State( obj, new Substitution() );
 		}
 		return null;
@@ -1305,7 +1305,7 @@
 	
 	// Terms
 	Term.prototype.unify = function( obj, occurs_check ) {
-		if( pl.type.is_term( obj ) && this.indicator == obj.indicator ) {
+		if( pl.type.is_term( obj ) && this.indicator === obj.indicator ) {
 			var subs = new Substitution();
 			for( var i = 0; i < this.args.length; i++ ) {
 				var state = pl.unify( this.args[i].apply( subs ), obj.args[i].apply( subs ), occurs_check );
@@ -4324,7 +4324,7 @@
 			error = error.args[0];
 			var obj = {};
 			obj.type = error.args[0].id;
-			obj.thrown = obj.type == "syntax_error" ? null : error.args[1].id;
+			obj.thrown = obj.type === "syntax_error" ? null : error.args[1].id;
 			obj.expected = null;
 			obj.found = null;
 			obj.representation = null;
@@ -4335,10 +4335,10 @@
 			obj.permission_operation = null;
 			obj.permission_type = null;
 			obj.evaluation_type = null;
-			if( obj.type == "type_error" || obj.type == "domain_error" ) {
+			if( obj.type === "type_error" || obj.type === "domain_error" ) {
 				obj.expected = error.args[0].args[0].id;
 				obj.found = error.args[0].args[1].toString();
-			} else if( obj.type == "syntax_error" ) {
+			} else if( obj.type === "syntax_error" ) {
 				if( error.args[1].indicator === "./2" ) {
 					obj.expected = error.args[0].args[0].id;
 					obj.found = error.args[1].args[1].args[1].args[0];
@@ -4348,15 +4348,15 @@
 				} else {
 					obj.thrown = error.args[1].id;
 				}
-			} else if( obj.type == "permission_error" ) {
+			} else if( obj.type === "permission_error" ) {
 				obj.found = error.args[0].args[2].toString();
 				obj.permission_operation = error.args[0].args[0].id;
 				obj.permission_type = error.args[0].args[1].id;
-			} else if( obj.type == "evaluation_error" ) {
+			} else if( obj.type === "evaluation_error" ) {
 				obj.evaluation_type = error.args[0].args[0].id;
-			} else if( obj.type == "representation_error" ) {
+			} else if( obj.type === "representation_error" ) {
 				obj.representation = error.args[0].args[0].id;
-			} else if( obj.type == "existence_error" ) {
+			} else if( obj.type === "existence_error" ) {
 				obj.existence = error.args[0].args[1].toString();
 				obj.existence_type = error.args[0].args[0].id;
 			}
