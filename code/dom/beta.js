@@ -586,7 +586,7 @@ var pl;
 
 	// unify
 	pl.type.DOM.prototype.unify = function( obj, _ ) {
-		if( pl.type.is_dom_object( obj ) && this.object == obj.object ) {
+		if( pl.type.is_dom_object( obj ) && this.object === obj.object ) {
 			return new pl.type.State( obj, new pl.type.Substitution() );
 		}
 		return null;
