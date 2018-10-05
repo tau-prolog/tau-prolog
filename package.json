@@ -18,6 +18,9 @@
     "javascript",
     "prolog"
   ],
+  "files": [
+    "modules"
+  ],
   "author": "jariazavalverde",
   "license": "BSD-3-Clause",
   "bugs": {
