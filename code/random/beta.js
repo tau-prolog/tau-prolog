@@ -89,7 +89,7 @@ var pl;
 				} else {
 					var array = [];
 					var pointer = list;
-					while( pointer.indicator == "./2" ) {
+					while( pointer.indicator === "./2" ) {
 						array.push(pointer.args[0]);
 						pointer = pointer.args[1];
 					}
