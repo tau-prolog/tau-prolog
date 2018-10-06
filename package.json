@@ -1,0 +1,30 @@
+{
+  "name": "tau-prolog",
+  "version": "1.0.0",
+  "description": "An open source Prolog interpreter in JavaScript",
+  "main": "./modules/core.js",
+  "scripts": {
+    "example:fruit": "node examples/nodejs/fruit",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jariazavalverde/tau-prolog.git"
+  },
+  "keywords": [
+    "tau-prolog",
+    "prolog-interpreter",
+    "iso-prolog-standard",
+    "javascript",
+    "prolog"
+  ],
+  "files": [
+    "modules"
+  ],
+  "author": "jariazavalverde",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/jariazavalverde/tau-prolog/issues"
+  },
+  "homepage": "http://tau-prolog.org/"
+}
