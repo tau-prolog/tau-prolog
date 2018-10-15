@@ -57,7 +57,7 @@ You can get the current stable fully-tested version [here](http://tau-prolog.org
 When downloading the library, you can customize the download so you only get the functionality you need. You can download the whole library, or maybe you just the core and the list module, or maybe you already had the library and only need a specific module, etc.
 
 ## Installation using the npm registry
-You can install Tau Prolog from [npm](https://www.npmjs.com/), which is common practice when using [NodeJS](https://nodejs.org/en/):
+You can install Tau Prolog from [npm](https://www.npmjs.com/), which is common practice when using [Node.js](https://nodejs.org/en/):
 ```shell
 $ npm install tau-prolog
 ```
