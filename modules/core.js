@@ -915,6 +915,8 @@
 		this.renamed_variables = {};
 		this.public_predicates = {};
 		this.limit = limit;
+		this.format_success = function( state ) { return state.substitution; };
+		this.format_error = function( state ) { return state.goal; };
 		this.flag = {	
 			bounded: pl.flag.bounded.value,
 			max_integer: pl.flag.max_integer.value,
@@ -1753,11 +1755,11 @@
 			} else if( this.points.length === 0 ) {
 				success( false );
 			} else if( pl.type.is_error( this.points[0].goal ) ) {
-				answer = this.points.shift().goal;
+				answer = this.session.format_error( this.points.shift() );
 				this.points = [];
 				success( answer );
 			} else {
-				answer = this.points.shift().substitution;
+				answer = this.session.format_success( this.points.shift() );
 				success( answer );
 			}
 		}
