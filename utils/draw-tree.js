@@ -45,6 +45,17 @@
 		}
 		return id++;
 	}
+	
+	function clear_substitution( subs ) {
+		var links = {};
+		for( var x in subs.links ) {
+			if(!subs.links.hasOwnProperty(x)) continue;
+			var link = subs.links[x];
+			if( !pl.type.is_variable(link) || link.id != x )
+				links[x] = link;
+		}
+		return new pl.type.Substitution( links );
+	}
 
 	var draw = {
 		
@@ -71,7 +82,7 @@
 				var child = null;
 				while( state != null ) {
 					state.text_goal = state.goal === null ? "□" : state.goal.toString();
-					state.text_substitution = state.substitution.toString();
+					state.text_substitution = clear_substitution(state.substitution).toString();
 					state.width = width;
 					if(state.children == null)
 						state.children = [];
