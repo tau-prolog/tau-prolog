@@ -2799,9 +2799,18 @@
 				var points = thread.points;
 				thread.points = [];
 				thread.prepend( [new State( atom.args[0], point.substitution, point )] );
+				var deb = thread.debugger;
+				var format_success = thread.session.format_success;
+				var format_error = thread.session.format_error;
+				thread.debugger = false;
+				thread.session.format_success = function(x) { return x.substitution; };
+				thread.session.format_error = function(x) { return x.goal; };
 				var callback = function( answer ) {
 					var call_points = thread.points;
 					thread.points = points;
+					thread.debugger = deb;
+					thread.session.format_success = format_success;
+					thread.session.format_error = format_error;
 					if( pl.type.is_error( answer ) ) {
 						var states = [];
 						for( var i = 0; i < thread.points.length; i++ ) {
@@ -2818,6 +2827,7 @@
 						if( state !== null ) {
 							state.substitution = point.substitution.apply( state.substitution );
 							state.goal = point.goal.replace( atom.args[2] ).apply( state.substitution );
+							state.parent = point;
 							thread.prepend( [state] );
 						} else {
 							thread.throwError( answer.args[0] );
@@ -2908,7 +2918,7 @@
 					var deb = thread.debugger;
 					var format_success = thread.session.format_success;
 					thread.debugger = false;
-					thread.session.format_success = function(x) { return x.substitution; }
+					thread.session.format_success = function(x) { return x.substitution; };
 					thread.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
@@ -2968,7 +2978,7 @@
 					var deb = thread.debugger;
 					var format_success = thread.session.format_success;
 					thread.debugger = false;
-					thread.session.format_success = function(x) { return x.substitution; }
+					thread.session.format_success = function(x) { return x.substitution; };
 					thread.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
@@ -3050,7 +3060,7 @@
 					var deb = thread.debugger;
 					var format_success = thread.session.format_success;
 					thread.debugger = false;
-					thread.session.format_success = function(x) { return x.substitution; }
+					thread.session.format_success = function(x) { return x.substitution; };
 					thread.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
