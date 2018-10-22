@@ -2719,9 +2719,12 @@
 					thread.throwError( pl.error.type( "callable", goal, thread.level ) );
 				} else {
 					var points = thread.points;
+					var deb = thread.debugger;
+					thread.debugger = false;
 					thread.points = [new State( atom.args[0], point.substitution, point )];
 					var callback = function( answer ) {
 						thread.points = points;
+						thread.debugger = deb;
 						if( answer === false )
 							thread.success( point );
 						else if( pl.type.is_error( answer ) )
@@ -2902,6 +2905,10 @@
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, template] )] );
 					var points = thread.points;
 					var limit = thread.session.limit;
+					var deb = thread.debugger;
+					var format_success = thread.session.format_success;
+					thread.debugger = false;
+					thread.session.format_success = function(x) { return x.substitution; }
 					thread.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
@@ -2912,6 +2919,8 @@
 						} else {
 							thread.points = points;
 							thread.session.limit = limit;
+							thread.debugger = deb;
+							thread.session.format_success = format_success;
 							if( pl.type.is_error( answer ) ) {
 								thread.throwError( answer.args[0] );
 							} else if( thread.current_limit > 0 ) {
@@ -2956,6 +2965,10 @@
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
 					var points = thread.points;
 					var limit = thread.session.limit;
+					var deb = thread.debugger;
+					var format_success = thread.session.format_success;
+					thread.debugger = false;
+					thread.session.format_success = function(x) { return x.substitution; }
 					thread.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
@@ -2980,6 +2993,8 @@
 						} else {
 							thread.points = points;
 							thread.session.limit = limit;
+							thread.debugger = deb;
+							thread.session.format_success = format_success;
 							if( pl.type.is_error( answer ) ) {
 								thread.throwError( answer.args[0] );
 							} else if( thread.current_limit > 0 ) {
@@ -3032,6 +3047,10 @@
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
 					var points = thread.points;
 					var limit = thread.session.limit;
+					var deb = thread.debugger;
+					var format_success = thread.session.format_success;
+					thread.debugger = false;
+					thread.session.format_success = function(x) { return x.substitution; }
 					thread.add_goal( newGoal, true );
 					var answers = [];
 					var callback = function( answer ) {
@@ -3056,6 +3075,8 @@
 						} else {
 							thread.points = points;
 							thread.session.limit = limit;
+							thread.debugger = deb;
+							thread.session.format_success = format_success;
 							if( pl.type.is_error( answer ) ) {
 								thread.throwError( answer.args[0] );
 							} else if( thread.current_limit > 0 ) {
