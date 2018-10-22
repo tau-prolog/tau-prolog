@@ -36,6 +36,15 @@
 			children = children.concat( get_states_at_level( nodes[i].children, level-1 ) );
 		return children;
 	}
+	
+	function set_preorder_id( node, id ) {
+		node.preorder_id = id;
+		for( var i = 0; i < node.children.length; i++ ) {
+			id++;
+			id = set_preorder_id( node.children[i], id );
+		}
+		return id++;
+	}
 
 	var draw = {
 		
@@ -72,6 +81,8 @@
 					state = state.parent;
 				}
 			}
+			// Set preorder id
+			set_preorder_id( parent, 0 );
 			// Get nodes by level
 			var levels = get_states_by_level( parent );
 			this.drawTree( canvas, levels );
@@ -191,7 +202,7 @@
 							ctx.fillStyle = "#ffffff";
 							ctx.font = "bold 14px Roboto Mono, Monospace, Courier New";
 							ctx.textAlign = "center"; 
-							ctx.fillText(j+1, center + x3, offset_z + font_size / 2 - 1);
+							ctx.fillText(tree[i][j].preorder_id, center + x3, offset_z + font_size / 2 - 1);
 						offset_z += radius + margin_y;
 					}
 					// Draw state
