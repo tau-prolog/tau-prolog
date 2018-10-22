@@ -2670,24 +2670,24 @@
 			";/2": function( thread, point, atom ) {
 				if( pl.type.is_term( atom.args[0] ) && atom.args[0].indicator === "->/2" ) {
 					var points = thread.points;
-					thread.points = [new State( atom.args[0].args[0], point.substitution, point.parent )];
+					thread.points = [new State( atom.args[0].args[0], point.substitution, point )];
 					var callback = function( answer ) {
 						thread.points = points;
 						if( answer === false ) {
-							thread.points = [new State( point.goal.replace( atom.args[1] ), point.substitution, point.parent )].concat( points );
+							thread.points = [new State( point.goal.replace( atom.args[1] ), point.substitution, point )].concat( points );
 						} else if( pl.type.is_error( answer ) )
 							thread.throwError( answer.args[0] );
 						else if( answer === null ) {
 							thread.points = [point].concat( points );
 							thread.__calls.shift()( null );
 						} else {
-							thread.points = [new State( point.goal.replace( atom.args[0].args[1] ), point.substitution, point.parent )].concat( points );
+							thread.points = [new State( point.goal.replace( atom.args[0].args[1] ), point.substitution, point )].concat( points );
 						}
 					};
 					thread.__calls.unshift( callback );
 				} else {
-					var left = new State( point.goal.replace( atom.args[0] ), point.substitution, point.parent );
-					var right = new State( point.goal.replace( atom.args[1] ), point.substitution, point.parent );
+					var left = new State( point.goal.replace( atom.args[0] ), point.substitution, point );
+					var right = new State( point.goal.replace( atom.args[1] ), point.substitution, point );
 					thread.prepend( [left, right] );
 				}
 			},
