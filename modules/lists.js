@@ -184,7 +184,7 @@ var pl;
 					for( var i = 0; i < times.value; i++ ) {
 						replicate = new pl.type.Term( ".", [elem, replicate] );
 					}
-					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [replicate, list] ) ), point.substitution, point.parent )] );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [replicate, list] ) ), point.substitution, point )] );
 				}
 			},
 			
@@ -212,7 +212,7 @@ var pl;
 						for( var i = sorted_arr.length - 1; i >= 0; i-- ) {
 							sorted_list = new pl.type.Term( ".", [sorted_arr[i], sorted_list] );
 						}
-						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [sorted_list, expected] ) ), point.substitution, point.parent )] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [sorted_list, expected] ) ), point.substitution, point )] );
 					}
 				}
 			},
@@ -252,7 +252,7 @@ var pl;
 							sorted_list = new pl.type.Term( ".", [new pl.type.Term( "-", [sorted_arr[i], sorted_arr[i].pair] ), sorted_list] );
 							delete sorted_arr[i].pair;
 						}
-						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [sorted_list, expected] ) ), point.substitution, point.parent )] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [sorted_list, expected] ) ), point.substitution, point )] );
 					}
 				}
 			},
@@ -282,7 +282,7 @@ var pl;
 						for( var i = arr.length - 1; i >= 0; i-- ) {
 							new_list = new pl.type.Term( ".", [arr[i], new_list] );
 						}
-						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [new_list, take] ) ), point.substitution, point.parent )] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [new_list, take] ) ), point.substitution, point )] );
 					}
 				}
 			},
@@ -308,7 +308,7 @@ var pl;
 						i--;
 					}
 					if( i === 0 )
-						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [pointer, drop] ) ), point.substitution, point.parent )] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [pointer, drop] ) ), point.substitution, point )] );
 				}
 			},
 			
@@ -332,7 +332,7 @@ var pl;
 						new_reversed = new pl.type.Term( ".", [pointer.args[0], new_reversed] );
 						pointer = pointer.args[1];
 					}
-					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [new_reversed, ins_list ? reversed : list] ) ), point.substitution, point.parent )] );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [new_reversed, ins_list ? reversed : list] ) ), point.substitution, point )] );
 				}
 			}
 			
