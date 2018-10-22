@@ -255,15 +255,21 @@
 				offset_y = offset_z;
 			}
 			// Add click event
+			var click_draw = function(){ window.open(canvas.toDataURL(), '_blank'); };
 			if (canvas.addEventListener) {
-				canvas.addEventListener("click", function(){ window.open(canvas.toDataURL(), '_blank'); }, false);
+				if(canvas.click_draw)
+					canvas.removeEventListener("click", canvas.click_draw);
+				canvas.addEventListener("click", click_draw, false);
 				canvas.style.cursor = "pointer";
 			} else {
 				if (canvas.attachEvent) {
-					canvas.attachEvent("click", function(){ window.open(canvas.toDataURL(), '_blank'); });
+					if(canvas.click_draw)
+						canvas.detachEvent("click", canvas.click_draw);
+					canvas.attachEvent("click", click_draw);
 					canvas.style.cursor = "pointer";
 				}
 			}
+			canvas.click_draw = click_draw;
 		}
 		
 	};
