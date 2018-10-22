@@ -37,7 +37,7 @@
 		return children;
 	}
 
-	var tau_prolog_derivation = {
+	var draw = {
 		
 		draw: function( canvas, session, max ) {
 			// Get parent node
@@ -46,14 +46,18 @@
 			var answers = [];
 			var format_success = session.format_success;
 			var format_error = session.format_error;
+			var deb = session.thread.debugger;
 			var id = function(x) { return x };
 			session.format_success = id;
 			session.format_error = id;
-			session.answers( function(x) { return answers.push(x); }, max );
+			session.thread.debugger = true;
+			session.answers( id, max );
 			session.format_success = format_success;
 			session.format_error = format_error;
+			session.thread.debugger = deb;
+			answers = session.thread.debugger_states;
 			// Set pointers to child nodes
-			for(var i = 0; i < answers.length-1; i++) {
+			for(var i = 0; i < answers.length; i++) {
 				var state = answers[i];
 				var child = null;
 				while( state != null ) {
@@ -79,7 +83,7 @@
 			var padding = 5;
 			var margin_x = 10;
 			var margin_y = 20;
-			var radius = 18;
+			var radius = 15;
 			var font_size = 14;
 			// Get container, canvas and context
 			var src = document.getElementById(src);
@@ -187,20 +191,36 @@
 							ctx.fillStyle = "#ffffff";
 							ctx.font = "bold 14px Roboto Mono, Monospace, Courier New";
 							ctx.textAlign = "center"; 
-							ctx.fillText(j, center + x3, offset_z + font_size / 2 - 1);
+							ctx.fillText(j+1, center + x3, offset_z + font_size / 2 - 1);
 						offset_z += radius + margin_y;
 					}
-					// Draw unifier
-					ctx.fillStyle = "#e0ccfd";
-					ctx.strokeStyle = "#43207a";
+					// Draw state
 					ctx.lineWidth = 4;
-					ctx.strokeStyle = "#43207a";
+					if(tree[i][j].children.length == 0 && tree[i][j].goal === null) { // Answer
+						ctx.fillStyle = "#a7e3a7";
+						ctx.strokeStyle = "#0b6a0d";
+						ctx.strokeStyle = "#0b6a0d";
+					} else if(tree[i][j].children.length == 0 && tree[i][j].goal !== null) { // Error
+						ctx.fillStyle = "#e38a8a";
+						ctx.strokeStyle = "#881717";
+						ctx.strokeStyle = "#881717";
+					} else {
+						ctx.fillStyle = "#e0ccfd";
+						ctx.strokeStyle = "#43207a";
+						ctx.strokeStyle = "#43207a";
+					}
 					ctx.beginPath();
 					ctx.rect(center - tree[i][j].width(ctx, 0, padding) / 2, offset_z, tree[i][j].width(ctx, 0, padding), unifier_height);
 					ctx.closePath();
 					ctx.stroke();
 					ctx.fill();
-					ctx.fillStyle = "#43207a";
+					if(tree[i][j].children.length == 0 && tree[i][j].goal === null) { // Answer
+						ctx.fillStyle = "#0b6a0d";
+					} else if(tree[i][j].children.length == 0 && tree[i][j].goal !== null) { // Error
+						ctx.fillStyle = "#881717";
+					} else {
+						ctx.fillStyle = "#43207a";
+					}
 					ctx.font = "14px Roboto Mono, Monospace, Courier New";
 					ctx.textAlign = "center"; 
 					ctx.fillText(tree[i][j].text_goal, center, offset_z + padding + font_size);
@@ -226,6 +246,6 @@
 		
 	};
 	
-	window.tau_prolog_derivation = tau_prolog_derivation;
+	window.tau_prolog_derivation = draw;
 
 }());

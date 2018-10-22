@@ -965,6 +965,8 @@
 		this.cpu_time = 0;
 		this.cpu_time_last = 0;
 		this.points = [];
+		this.debugger = false;
+		this.debugger_states = [];
 		this.level = "top_level/0";
 		this.__calls = [];
 		this.current_limit = this.session.limit;
@@ -1535,6 +1537,7 @@
 	};
 	Thread.prototype.query = function( string ) {
 		this.points = [];
+		this.debugger_points = [];
 		return parseQuery( this, string );
 	};
 	
@@ -1635,6 +1638,9 @@
 		}
 		var asyn = false;
 		var point = this.points.shift();
+		
+		if( this.debugger )
+			this.debugger_states.push( point );
 		
 		if( pl.type.is_term( point.goal ) || pl.type.is_function( point.goal ) ) {
 			
@@ -1759,6 +1765,8 @@
 				this.points = [];
 				success( answer );
 			} else {
+				if( this.debugger )
+					this.debugger_states.push( this.points[0] );
 				answer = this.session.format_success( this.points.shift() );
 				success( answer );
 			}
