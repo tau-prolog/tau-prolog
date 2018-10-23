@@ -1,0 +1,46 @@
+/* tau prolog theme for codemirror */
+
+/* Color scheme */
+
+.cm-s-tau.CodeMirror {
+  background-color:#ffffff;
+  color:#2e383c;
+  line-height:1.4375;
+}
+.cm-s-tau .cm-comment { color:#75787b; }
+.cm-s-tau .cm-atom { color:#75438a; }
+.cm-s-tau .cm-variable { color:#047d65; }
+.cm-s-tau .cm-number { color: #bc5b5b !important; }
+.cm-s-tau .cm-string { color: #488bae !important; }
+.cm-s-tau .cm-graphic { color: #b35e14 !important; }
+
+/* Editor styling */
+
+.cm-s-tau pre {
+  padding:0;
+}
+
+.cm-s-tau .CodeMirror-gutters {
+  border:none;
+  border-right:10px solid transparent;
+  background-color:transparent;
+}
+
+.cm-s-tau .CodeMirror-linenumber {
+  padding:0;
+  color:#888888;
+}
+
+.cm-s-tau .CodeMirror-guttermarker { color: #1d75b3; }
+.cm-s-tau .CodeMirror-guttermarker-subtle { color: #e0e2e5; }
+
+.cm-s-tau .CodeMirror-cursor {
+  width: 2px;
+  border: 0;
+  background: rgba(155,157,162,0.37);
+  z-index: 1;
+}
+
+.CodeMirror pre.CodeMirror-placeholder {
+	color: #bfbfbf;
+}
