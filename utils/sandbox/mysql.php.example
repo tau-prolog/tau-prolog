@@ -1,0 +1,9 @@
+<?php
+
+$servername = "servername";
+$username = "username";
+$password = "password";
+$db = "database";
+
+$_link = new mysqli( $servername, $username, $password, $db );
+$_link->set_charset( "utf8" );

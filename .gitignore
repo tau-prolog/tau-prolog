@@ -1,2 +1,6 @@
 prod-test/
 local/
+utils/sandbox/mysql.php
+utils/sandbox/codemirror/*
+!utils/sandbox/codemirror/theme/tau.css
+!utils/sandbox/codemirror/theme/tauout.css

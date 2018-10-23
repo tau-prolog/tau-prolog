@@ -1,0 +1,329 @@
+body {
+	background-color: #ffffff;
+	color: #222222;
+	font-family: 'Source Sans Pro', arial, verdana;
+	font-size: 18px;
+	margin: 0px;
+	padding: 0px;
+}
+
+a {
+	color: #442178;
+	text-decoration: none;
+}
+
+ul {
+	margin: 0px;
+}
+
+a:hover {
+	color: #442178;
+	text-decoration: underline;
+}
+
+.header {
+	color: #442178;
+	font-size: 15px;
+	padding: 10px;
+}
+
+.sep {
+	background-color: #bfbfbf;
+	height: 1px;
+	margin-bottom: 10px;
+	margin-top: 10px;
+}
+
+.answer {
+	font-size: 18px;
+	font-family: monospace;
+	padding: 5px;
+}
+
+.goal {
+	background-color: #e0e0e0;
+	margin: 10px;
+	margin-top: 20px;
+	padding: 10px;
+}
+
+.last {
+	color: #777777;
+	font-size: 14px;
+	font-family: monospace;
+	padding: 0px 10px;
+	position: relative;
+	top: 15px;
+}
+
+#max_answers-container {
+	display: none;
+} 
+
+#limit-container, #max_answers-container {
+	background-color: #dfdfdf;
+	border: 1px solid #bfbfbf;
+	position: relative;
+	left: 10px;
+	padding: 5px;
+}
+
+#limit, #max_answers {
+	background-color: #cfcfcf;
+	border: none;
+	color: #222222;
+	font-family: 'Source Sans Pro', arial, verdana;
+	font-size: 15px;
+	padding: 0px 5px;
+	width: 50px;
+}
+
+#save, #help {
+	background-color: #ffffff;
+	border: 2px solid #dfdfdf;
+	box-shadow: 0px 0px 10px #efefef;
+	display: none;
+	padding: 20px;
+	position: absolute;
+	left: 20px;
+	top: 80px;
+	width: 400px;
+	z-index: 9999;
+}
+
+#help {
+	color: #666666;
+	font-size: 19px;
+}
+
+#help ul {
+	margin-top: 20px;
+}
+
+#help li {
+	margin: 5px 0px;
+}
+
+#help span {
+	background-color: #efefef;
+	border: 1px solid #dfdfdf;
+	color: #444444;
+	cursor: pointer;
+	font-size: 14px;
+	font-family: courier;
+	font-weight: bold;
+	float: right;
+	padding: 2px;
+}
+
+#help span:hover {
+	background-color: #6d44ab;
+	border: 1px solid #442178;
+	color: #ffffff;
+}
+
+.help-bar {
+	background-color: #dfdfdf;
+	box-shadow: 0px 0px 5px #efefef;
+	margin: 20px 0px;
+	height: 2px;
+}
+
+.help-par {
+	padding: 0px;
+	margin: 0px;
+	font-weight: bold;
+}
+
+.help-list-version {
+	list-style-type: none;
+	margin: 0px;
+	padding: 0px;
+}
+
+.report-github {
+	padding-top: 10px;
+}
+
+.report-github > a  {
+	color: #ffffff;
+	font-family: 'Source Sans Pro', arial, verdana;
+	font-size: 18px;
+	background-color: #442178 !important;
+	padding: 2px 5px;
+	text-decoration: none;
+}
+.report-github > a:hover {
+	background-color: #6d44ab !important;
+	color: #ffffff !important;
+	text-decoration: none;
+}
+
+#save-title, #save-descr {
+	background-color: #ffffff;
+	border: 2px solid #cfcfcf;
+	color: #222222;
+	font-family: 'Source Sans Pro', arial, verdana;
+	font-size: 17px;
+	display: block;
+	padding: 10px;
+	width: 376px;
+}
+
+#save-title:hover, #save-descr:hover {
+	border: 2px solid #888888;
+}
+
+#save-title:focus, #save-descr:focus {
+	border: 2px solid #442178;
+}
+
+#save-descr {
+	height: 100px;
+	resize: none;
+}
+
+#save-legal {
+	color: #777777;
+	font-size: 14px;
+	font-style: oblique;
+	text-align: justify;
+}
+
+#save-title, #save-descr {
+	margin-bottom: 10px;
+}
+
+#save-submit {
+	background-color: #442178 !important;
+	border: none !important;
+	color: #ffffff !important;
+	font-family: 'Source Sans Pro', arial, verdana;
+	font-size: 17px;
+	display: block;
+	cursor: pointer;
+	font-weight: bold !important;
+	padding: 10px;
+	width: 400px !important;
+}
+
+#save-submit:hover {
+	background-color: #6d44ab !important;
+}
+
+#home {
+	background: transparent url('http://tau-prolog.org/content/img/logo/white30.png') center center no-repeat;
+	display: block;
+	height: 63px;
+	padding: 0px !important;
+	width: 80px;
+}
+
+#home:hover {
+	background-color: #6d44ab;
+}
+
+#toolbar {
+	background-color: #442178;
+}
+
+#toolbar li > * {
+	background-color: #442178;
+	border: none !important;
+	color: #ffffff;
+	cursor: pointer;
+	display: block;
+	font-family: 'Source Sans Pro', arial, verdana;
+	font-size: 18px;
+	font-weight: bold;
+	padding: 20px;
+}
+
+#toolbar li > *:hover {
+	background-color: #6d44ab;
+	text-decoration: none;
+}
+
+#toolbar ul {
+	list-style-type: none;
+	overflow: hidden;
+	padding: 0px;
+}
+
+#toolbar ul li {
+	float: left;
+}
+
+#sections {
+	background-color: #efefef;
+}
+
+#sections li > * {
+	background-color: #efefef;
+	border: none !important;
+	color: #222222;
+	cursor: pointer;
+	display: block;
+	font-family: 'Source Sans Pro', arial, verdana;
+	font-size: 18px;
+	font-weight: bold;
+	padding: 10px 20px;
+}
+
+#sections li > *:hover {
+	background-color: #bfbfbf;
+	text-decoration: none;
+}
+
+.selected-section {
+	background-color: #ffffff !important;
+}
+
+#sections ul {
+	list-style-type: none;
+	overflow: hidden;
+	padding: 0px;
+}
+
+#sections ul li {
+	float: left;
+}
+
+.canvas-note {
+	color: #666666;
+	padding: 20px;
+	font-style: oblique;
+	text-align: center;
+}
+
+#canvas-container {
+	display: none;
+	text-align: center;
+}
+
+#tau-canvas {
+	margin-top: 30px;
+}
+
+#runable {
+	background-color: #ffffff;
+	overflow: hidden;
+}
+
+#program-container, #query-container, #canvas-container {
+	float: left;
+	width: 50%;
+}
+
+#query {
+	margin-left: 10px;
+	margin-right: 10px;
+}
+
+#query-container {
+	background-color: #efefef;
+}
+
+#program-container > div, #query-container > div {
+	padding: 10px;
+}
