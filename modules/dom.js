@@ -298,7 +298,7 @@ var pl;
 				} else {
 					if( pl.type.is_variable( value ) ) {
 						var inner = new pl.type.Term( html.object.innerHTML );
-						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [inner, value] ) ), point.substitution )] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [inner, value] ) ), point.substitution, point )] );
 					} else {
 						if( pl.type.is_atom( value ) )
 							html.object.innerHTML = value.id;
@@ -320,13 +320,13 @@ var pl;
 					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( pl.type.is_variable( element ) ) {
 					var node = new pl.type.DOM( document.createElement( tag.id ) );
-					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [element, node] ) ), point.substitution )] );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [element, node] ) ), point.substitution, point )] );
 				} else if( pl.type.is_variable( element ) ) {
 					var node = new pl.type.DOM( document.createElement( tag.id.toLowerCase() ) );
-					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [element, node] ) ), point.substitution )] );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [element, node] ) ), point.substitution, point )] );
 				} else if( pl.type.is_variable( tag ) ) {
 					var type = new pl.type.Term( element.object.nodeName.toLowerCase() );
-					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [type, tag] ) ), point.substitution )] );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [type, tag] ) ), point.substitution, point )] );
 				}
 			},
 			
@@ -343,12 +343,12 @@ var pl;
 					var children = parent.object.children;
 					var states = [];
 					for( var i = 0; i < children.length; i++ ) {
-						states.push( new pl.type.State( point.goal.replace( new pl.type.Term( "=", [child, new pl.type.DOM( children[i] )] ) ), point.substitution ) );
+						states.push( new pl.type.State( point.goal.replace( new pl.type.Term( "=", [child, new pl.type.DOM( children[i] )] ) ), point.substitution, point ) );
 					}
 					thread.prepend( states );
 				} else {
 					if( child.object.parentNode ) {
-						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [parent, new pl.type.DOM( child.object.parentNode )] ) ), point.substitution )] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [parent, new pl.type.DOM( child.object.parentNode )] ) ), point.substitution, point )] );
 					}
 				}
 			},
