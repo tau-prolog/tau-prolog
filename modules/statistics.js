@@ -18,12 +18,21 @@ var pl;
 					var t0 = Date.now();
 					var c0 = pl.statistics.getCountTerms();
 					var i0 = thread.total_steps;
+					var deb = thread.debugger;
+					var format_success = thread.session.format_success;
+					var format_error = thread.session.format_error;
+					thread.debugger = false;
+					thread.session.format_success = function(x) { return x.substitution; };
+					thread.session.format_error = function(x) { return x.goal; };
 					var callback = function( answer ) {
 						var t1 = Date.now();
 						var c1 = pl.statistics.getCountTerms();
 						var i1 = thread.total_steps;
 						var newpoints = thread.points;
 						thread.points = points;
+						thread.debugger = deb;
+						thread.session.format_success = format_success;
+						thread.session.format_error = format_error;
 						if( pl.type.is_error( answer ) )
 							thread.throwError( answer.args[0] );
 						else if( answer === null ) {
