@@ -84,7 +84,7 @@ function try_tau_prolog( cm, msg, e ) {
 			session.answer( try_answer );
 		else if( mode == MODE_DERIVATION ) {
 			var max_answers = parseInt(document.getElementById("max_answers").value);
-			tau_prolog_derivation.draw("tau-canvas", session, max_answers);
+			session.draw(max_answers, "tau-canvas");
 		}
 	}
 	try_program = raw_program;

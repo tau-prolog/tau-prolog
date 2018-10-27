@@ -80,7 +80,7 @@ if( isset($_GET["id"]) ) {
 		<script type="text/javascript" src="/code/dom-latest.js?update=<?php echo $_time_dom; ?>"></script>
 		<script type="text/javascript" src="/code/js-latest.js?update=<?php echo $_js_statistics; ?>"></script>
 		<!-- Tau Prolog utils -->
-		<script type="text/javascript" src="/utils/draw-tree.js"></script>
+		<script type="text/javascript" src="/utils/draw-derivation-trees.js"></script>
 		<!-- Codemirror -->
 		<script src="codemirror/lib/codemirror.js"></script>
 		<link rel="stylesheet" href="codemirror/lib/codemirror.css">
