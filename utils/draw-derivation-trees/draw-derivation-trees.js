@@ -91,7 +91,7 @@ var pl;
 		set_style( styles["answer"], "border-width", 4 );
 		set_style( styles["answer"], "border-color", "#0b6a0d" );
 		set_style( styles["answer"], "font-color", "#0b6a0d" );
-		set_style( styles["error"], "background-color", "#e0ccfd" );
+		set_style( styles["error"], "background-color", "#ecc2c2" );
 		set_style( styles["error"], "border-width", 4 );
 		set_style( styles["error"], "border-color", "#881717" );
 		set_style( styles["error"], "font-color", "#881717" );

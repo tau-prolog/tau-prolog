@@ -48,7 +48,7 @@ This tool adds a new method `draw(max_answers, canvas, styles)` to the `pl.type.
     "font-color": "#0b6a0d"
   },
   error: {
-    "background-color": "#e0ccfd",
+    "background-color": "#ecc2c2",
     "border-width": 4,
     "border-color": "#881717",
     "font-color": "#881717"
