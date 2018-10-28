@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 37, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 38, status: "beta" };
 	
 	
 	
@@ -47,6 +47,29 @@
 			return array.map(fn);
 		};
 	}
+	
+	var codePointAt;
+	if(!String.prototype.codePointAt) {
+		codePointAt = function(str, i) {
+			return str.charCodeAt(i);
+		};
+	} else {
+		codePointAt = function(str, i) {
+			return str.codePointAt(i);
+		};
+	}
+	
+	var fromCodePoint;
+	if(!String.fromCodePoint) {
+		fromCodePoint = function() {
+			return String.fromCharCode.apply(null, arguments);
+		};
+	} else {
+		fromCodePoint = function() {
+			return String.fromCodePoint.apply(null, arguments);
+		};
+	}
+
 
 
 	var ERROR = 0;
@@ -70,10 +93,10 @@
 				case dsingle !== undefined:
 				case double !== undefined:
 				case backquote !== undefined:
-					s.push( match.substr(1).charCodeAt(0) );
+					s.push( codePointAt(match.substr(1),0) );
 					return "";
 				case char !== undefined:
-					s.push( char.charCodeAt(0) );
+					s.push( codePointAt(char,0) );
 					return "";
 				case error !== undefined:
 					_error = true;
@@ -343,12 +366,13 @@
 						case "codes":
 							str = new Term( "[]", [] );
 							for(var i = token.value.length-1; i >= 0; i-- )
-								str = new Term( ".", [new pl.type.Num( token.value[i].charCodeAt(), false ), str] );
+								str = new Term( ".", [new pl.type.Num( codePointAt(token.value,i), false ), str] );
 							break;
 						case "chars":
 							str = new Term( "[]", [] );
+							console.log(token.value);
 							for(var i = token.value.length-1; i >= 0; i-- )
-								str = new Term( ".", [new pl.type.Term( String.fromCharCode(token.value[i]), [] ), str] );
+								str = new Term( ".", [new pl.type.Term( token.value.charAt(i), [] ), str] );
 							break;
 					}
 					return {type: SUCCESS, len: start+1, value: str};
@@ -2247,7 +2271,7 @@
 			
 			// Is a character
 			is_character: function( obj ) {
-				return obj instanceof Term && obj.id.length === 1;
+				return obj instanceof Term && obj.id.length === 1 || obj.id.length > 0 && obj.id.length <= 2 && codePointAt( obj.id, 0 ) >= 65536;
 			},
 			
 			// Is a character
@@ -3610,7 +3634,7 @@
 					if( !pl.type.is_variable( atom1 ) ) {
 						var list1 = new Term( "[]" );
 						for( var i = atom1.id.length-1; i >= 0; i-- ) {
-							list1 = new Term( ".", [new Num( atom1.id.charCodeAt( i ), false ), list1] );
+							list1 = new Term( ".", [new Num( codePointAt(atom1.id,i), false ), list1] );
 						}
 						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
 					} else {			
@@ -3627,7 +3651,7 @@
 									return;
 								}
 							} else {
-								str += String.fromCharCode( pointer.args[0].value );
+								str += fromCodePoint( pointer.args[0].value );
 							}
 							pointer = pointer.args[1];
 						}
@@ -3655,10 +3679,10 @@
 					thread.throwError( pl.error.representation( "character_code", atom.indicator ) );
 				} else {
 					if( pl.type.is_variable( code ) ) {
-						var code1 = new Num( char.id.charCodeAt( 0 ), false );
+						var code1 = new Num( codePointAt(char.id,0 ), false );
 						thread.prepend( [new State( point.goal.replace( new Term( "=", [code1, code] ) ), point.substitution, point )] );
 					} else {
-						var char1 = new Term( String.fromCharCode( code.value ) );
+						var char1 = new Term( fromCodePoint( code.value ) );
 						thread.prepend( [new State( point.goal.replace( new Term( "=", [char1, char] ) ), point.substitution, point )] );
 					}
 				}
@@ -3751,7 +3775,7 @@
 									return;
 								}
 							} else {
-								str += String.fromCharCode( pointer.args[0].value );
+								str += fromCodePoint( pointer.args[0].value );
 							}
 							pointer = pointer.args[1];
 						}
@@ -3783,7 +3807,7 @@
 						str = num.toString();
 						var list2 = new Term( "[]" );
 						for( var i = str.length - 1; i >= 0; i-- ) {
-							list2 = new Term( ".", [ new Num( str.charCodeAt( i ), false ), list2 ] );
+							list2 = new Term( ".", [ new Num( codePointAt(str,i), false ), list2 ] );
 						}
 						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
 					}
