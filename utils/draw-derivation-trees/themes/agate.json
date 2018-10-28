@@ -1,0 +1,34 @@
+{
+	"font-size": 14,
+	"font-family": "Monospace, Courier New",
+	"border-width": 2,
+	"border-color": "#333333",
+	"padding": 5,
+	"margin-x": 10,
+	"margin-y": 20,
+	"order": {
+		"radius": 15,
+		"background-color": "#f2ebdf",
+		"border-width": 4,
+		"border-color": "#333333",
+		"font-color": "#333333"
+	},
+	"state": {
+		"background-color": "#a5dfe2",
+		"border-width": 4,
+		"border-color": "#333333",
+		"font-color": "#333333"
+	},
+	"answer": {
+		"background-color": "#a2fc9e",
+		"border-width": 4,
+		"border-color": "#333333",
+		"font-color": "#333333"
+	},
+	"error": {
+		"background-color": "#d36363",
+		"border-width": 4,
+		"border-color": "#333333",
+		"font-color": "#333333"
+	}
+}
