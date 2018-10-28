@@ -4,13 +4,13 @@
 
 ## Installation
 
-Upload all the files from the [sandbox](/utils/sandbox/) folder to your web server. This includes installing [codemirror](https://codemirror.net/) in `/sandbox/codemirror/`.
+1. Upload all the files from the [sandbox](/utils/sandbox/) folder to your web server. This includes installing [codemirror](https://codemirror.net/) in `/sandbox/codemirror/`.
 
-Import the [database.sql](/utils/sandbox/database.sql) file into your database manager. This file contains the database scheme.
+2. Import the [database.sql](/utils/sandbox/database.sql) file into your database manager. This file contains the database scheme.
 
-Install the tool [draw-derivation-trees](/utils/draw-derivation-trees/README.md).
+3. Install the tool [draw-derivation-trees](/utils/draw-derivation-trees/README.md).
 
-Install [Tau Prolog](/modules/). Make sure that the relative routes in the [index.php](/utils/sandbox/index.php) files are pointing to the Tau Prolog files.
+4. Install [Tau Prolog](/modules/). Make sure that the relative routes in the [index.php](/utils/sandbox/index.php) files are pointing to the Tau Prolog files.
 
 ```html
 <!-- Tau Prolog modules -->
@@ -24,6 +24,6 @@ Install [Tau Prolog](/modules/). Make sure that the relative routes in the [inde
 <script type="text/javascript" src="/utils/draw-derivation-trees.js"></script>
 ```
 
-Fill the template file [mysql.php.sample](/utils/sandbox/mysql.php.sample) with your database login credentials and rename the file to `mysql.php`.
+5. Fill the template file [mysql.php.sample](/utils/sandbox/mysql.php.sample) with your database login credentials and rename the file to `mysql.php`.
 
 [Here](http://tau-prolog.org/sandbox/) you can see how the default installation looks.
