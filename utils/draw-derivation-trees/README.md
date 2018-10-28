@@ -1,6 +1,6 @@
 ![Tau Prolog](http://tau-prolog.org/logo/tauprolog64.png "Tau Prolog")
 
-# Draw derivation trees
+# Drawing derivation trees
 
 ## Installation
 
