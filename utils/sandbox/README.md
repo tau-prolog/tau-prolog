@@ -10,7 +10,7 @@ Import the [database.sql](/utils/sandbox/database.sql) file into your database m
 
 Install the tool [draw-derivation-trees](/utils/draw-derivation-trees/README.md).
 
-Install Tau Prolog. Make sure that the relative routes in the [index.php](/utils/sandbox/index.php) files are pointing to the Tau Prolog files.
+Install [Tau Prolog](/modules/). Make sure that the relative routes in the [index.php](/utils/sandbox/index.php) files are pointing to the Tau Prolog files.
 
 ```html
 <!-- Tau Prolog modules -->
