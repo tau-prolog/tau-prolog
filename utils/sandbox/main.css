@@ -327,3 +327,37 @@ a:hover {
 #program-container > div, #query-container > div {
 	padding: 10px;
 }
+
+#tree-options {
+	display: none;
+	margin-top: 20px;
+}
+
+#tree-options > span {
+	font-weight: bold;
+}
+
+#tree-options > ul {
+	list-style-type: none;
+	margin: 0px;
+	overflow: hidden;
+	padding: 0px;
+}
+
+#tree-options > ul > li {
+	float: left;
+	margin: 5px;
+	margin-left: 0px;
+}
+
+.theme {
+	background-color: #666666;
+	border-radius: 2px;
+	color: #ffffff;
+	cursor: pointer;
+	padding: 2px 10px;
+}
+
+.theme:hover {
+	background-color: #442178;
+}

@@ -9,6 +9,7 @@ var MODE_PROGRAM = 1;
 var MODE_DERIVATION = 2;
 var mode = MODE_PROGRAM;
 var reset = 0;
+var styles = {};
 
 window.addEventListener("load", function() {
 	var value = document.getElementById("program").innerHTML.replace(/&lt;/g,"<").replace(/&gt;/g,">");
@@ -84,7 +85,7 @@ function try_tau_prolog( cm, msg, e ) {
 			session.answer( try_answer );
 		else if( mode == MODE_DERIVATION ) {
 			var max_answers = parseInt(document.getElementById("max_answers").value);
-			session.draw(max_answers, "tau-canvas");
+			session.draw(max_answers, "tau-canvas", styles);
 		}
 	}
 	try_program = raw_program;
@@ -143,6 +144,7 @@ function show_program_tab() {
 	document.getElementById( "program-container" ).style.display = "block";
 	document.getElementById( "output" ).style.display = "block";
 	document.getElementById( "max_answers-container" ).style.display = "none";
+	document.getElementById( "tree-options" ).style.display = "none";
 	mode = MODE_PROGRAM;
 }
 
@@ -153,5 +155,18 @@ function show_derivation_tab() {
 	document.getElementById( "canvas-container" ).style.display = "block";
 	document.getElementById( "output" ).style.display = "none";
 	document.getElementById( "max_answers-container" ).style.display = "inline";
+	document.getElementById( "tree-options" ).style.display = "block";
 	mode = MODE_DERIVATION;
+}
+
+function set_theme( theme ) {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+		if (this.readyState == 4 && this.status == 200) {
+			styles = JSON.parse( this.responseText );
+			try_tau_prolog( query, null, {keyCode: 13} );
+		}
+	};
+	xhttp.open("GET", "../utils/draw-derivation-trees/themes/" + theme + ".json", true);
+	xhttp.send();
 }

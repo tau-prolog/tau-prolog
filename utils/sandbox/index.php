@@ -80,7 +80,7 @@ if( isset($_GET["id"]) ) {
 		<script type="text/javascript" src="/code/dom-latest.js?update=<?php echo $_time_dom; ?>"></script>
 		<script type="text/javascript" src="/code/js-latest.js?update=<?php echo $_js_statistics; ?>"></script>
 		<!-- Tau Prolog utils -->
-		<script type="text/javascript" src="/utils/draw-derivation-trees.js"></script>
+		<script type="text/javascript" src="/utils/draw-derivation-trees/draw-derivation-trees.js"></script>
 		<!-- Codemirror -->
 		<script src="codemirror/lib/codemirror.js"></script>
 		<link rel="stylesheet" href="codemirror/lib/codemirror.css">
@@ -158,6 +158,18 @@ if( isset($_GET["id"]) ) {
 						</div>
 						<div id="query"></div>
 						<div id="output"></div>
+						<div id="tree-options">
+							<span>Theme:</span>
+<ul>
+<?php
+foreach(scandir("../utils/draw-derivation-trees/themes/") as $f)
+	if($f != "." && $f != "..") {
+		$name = str_replace(".json", "", $f);
+		echo "<li><span onClick=\"set_theme('$name')\" class=\"theme\" id=\"theme-$name\" />$name</span></li>\n";
+	}
+?>
+</ul>
+						</div>
 					</div>
 				</div>
 			</div>
