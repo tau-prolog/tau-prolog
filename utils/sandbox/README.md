@@ -8,9 +8,9 @@
 
 2. Import the [database.sql](/utils/sandbox/database.sql) file into your database manager. This file contains the database scheme.
 
-3. Install the tool [draw-derivation-trees](/utils/draw-derivation-trees/README.md).
+3. Install the tool [draw-derivation-trees](/utils/draw-derivation-trees/).
 
-4. Install [Tau Prolog](/modules/). Make sure that the relative routes in the [index.php](/utils/sandbox/index.php) files are pointing to the Tau Prolog files.
+4. Install [Tau Prolog](/modules/). Make sure that the relative routes in the [index.php](/utils/sandbox/index.php) file are pointing to the Tau Prolog files.
 
 ```html
 <!-- Tau Prolog modules -->
@@ -21,7 +21,7 @@
 <script type="text/javascript" src="/code/dom-latest.js?update=<?php echo $_time_dom; ?>"></script>
 <script type="text/javascript" src="/code/js-latest.js?update=<?php echo $_js_statistics; ?>"></script>
 <!-- Tau Prolog utils -->
-<script type="text/javascript" src="/utils/draw-derivation-trees.js"></script>
+<script type="text/javascript" src="/utils/draw-derivation-trees/draw-derivation-trees.js"></script>
 ```
 
 5. Fill the template file [mysql.php.sample](/utils/sandbox/mysql.php.sample) with your database login credentials and rename the file to `mysql.php`.
