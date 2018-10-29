@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 39, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 40, status: "beta" };
 	
 	
 	
@@ -370,7 +370,6 @@
 							break;
 						case "chars":
 							str = new Term( "[]", [] );
-							console.log(token.value);
 							for(var i = token.value.length-1; i >= 0; i-- )
 								str = new Term( ".", [new pl.type.Term( token.value.charAt(i), [] ), str] );
 							break;
@@ -2150,6 +2149,13 @@
 				} else if( ord_x > ord_y ) {
 					return 1;
 				} else {
+					if( x.constructor === Num )
+						if( x.is_float && y.is_float )
+							return 0;
+						else if( x.is_float )
+							return -1;
+						else if( y.is_float )
+							return 1;
 					return 0;
 				}
 			},
