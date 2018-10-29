@@ -2695,9 +2695,15 @@
 			";/2": function( thread, point, atom ) {
 				if( pl.type.is_term( atom.args[0] ) && atom.args[0].indicator === "->/2" ) {
 					var points = thread.points;
+					var format_success = thread.session.format_success;
+					var format_error = thread.session.format_error;
+					thread.session.format_success = function(x) { return x.substitution; };
+					thread.session.format_error = function(x) { return x.goal; };
 					thread.points = [new State( atom.args[0].args[0], point.substitution, point )];
 					var callback = function( answer ) {
 						thread.points = points;
+						thread.session.format_success = format_success;
+						thread.session.format_error = format_error;
 						if( answer === false ) {
 							thread.points = [new State( point.goal.replace( atom.args[1] ), point.substitution, point )].concat( points );
 						} else if( pl.type.is_error( answer ) )
@@ -2706,7 +2712,7 @@
 							thread.points = [point].concat( points );
 							thread.__calls.shift()( null );
 						} else {
-							thread.points = [new State( point.goal.replace( atom.args[0].args[1] ), point.substitution, point )].concat( points );
+							thread.points = [new State( point.goal.replace( atom.args[0].args[1] ).apply( answer ), point.substitution.apply( answer ), point )].concat( points );
 						}
 					};
 					thread.__calls.unshift( callback );
@@ -2753,7 +2759,7 @@
 			// ->/2 (implication)
 			"->/2": function( thread, point, atom ) {
 				var goal = point.goal.replace( new Term( ",", [atom.args[0], new Term( ",", [new Term( "!" ), atom.args[1]] )] ) );
-				thread.prepend( [new State( goal, point.substitution, point.parent )] );
+				thread.prepend( [new State( goal, point.substitution, point )] );
 			},
 			
 			// fail/0
@@ -2810,16 +2816,13 @@
 				var points = thread.points;
 				thread.points = [];
 				thread.prepend( [new State( atom.args[0], point.substitution, point )] );
-				var deb = thread.debugger;
 				var format_success = thread.session.format_success;
 				var format_error = thread.session.format_error;
-				thread.debugger = false;
 				thread.session.format_success = function(x) { return x.substitution; };
 				thread.session.format_error = function(x) { return x.goal; };
 				var callback = function( answer ) {
 					var call_points = thread.points;
 					thread.points = points;
-					thread.debugger = deb;
 					thread.session.format_success = format_success;
 					thread.session.format_error = format_error;
 					if( pl.type.is_error( answer ) ) {
