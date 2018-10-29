@@ -18,10 +18,8 @@ var pl;
 					var t0 = Date.now();
 					var c0 = pl.statistics.getCountTerms();
 					var i0 = thread.total_steps;
-					var deb = thread.debugger;
 					var format_success = thread.session.format_success;
 					var format_error = thread.session.format_error;
-					thread.debugger = false;
 					thread.session.format_success = function(x) { return x.substitution; };
 					thread.session.format_error = function(x) { return x.goal; };
 					var callback = function( answer ) {
@@ -30,7 +28,6 @@ var pl;
 						var i1 = thread.total_steps;
 						var newpoints = thread.points;
 						thread.points = points;
-						thread.debugger = deb;
 						thread.session.format_success = format_success;
 						thread.session.format_error = format_error;
 						if( pl.type.is_error( answer ) )
@@ -40,15 +37,12 @@ var pl;
 							thread.__calls.shift()( null );
 						} else {
 							console.log( "% Tau Prolog: executed in " + (t1-t0) + " milliseconds, " + (c1-c0) + " atoms created, " + (i1-i0) + " resolution steps performed.");
-							if( answer !== false ) {
-								for( var i = 0; i < newpoints.length; i++ ) {
-									if( newpoints[i].goal === null )
-										newpoints[i].goal = new pl.type.Term( "true", [] );
-									newpoints[i].substitution = newpoints[i].substitution.apply(answer);
-									newpoints[i].goal = point.goal.replace( new pl.type.Term( "time", [newpoints[i].goal.apply(answer)] ) );
-								}
-								thread.points = [ new pl.type.State( point.goal.apply(answer).replace(null), answer, point ) ].concat( newpoints.concat( points ) );
+							for( var i = 0; i < newpoints.length; i++ ) {
+								if( newpoints[i].goal === null )
+									newpoints[i].goal = new pl.type.Term( "true", [] );
+								newpoints[i].goal = point.goal.replace( new pl.type.Term( "time", [newpoints[i].goal] ) );
 							}
+							thread.points = [ new pl.type.State( point.goal.apply(answer).replace(null), answer, point ) ].concat( newpoints.concat( points ) );
 						}
 					};
 					thread.__calls.unshift( callback );
