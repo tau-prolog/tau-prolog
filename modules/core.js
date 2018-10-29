@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 40, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 41, status: "beta" };
 	
 	
 	
@@ -660,8 +660,10 @@
 	}
 
 	// Parse a program
-	function parseProgram(thread, string) {
+	function parseProgram(thread, string, from) {
 		var tokenizer = new Tokenizer( thread );
+		var reconsulted = {};
+		var indicator;
 		tokenizer.new_text( string );
 		var n = 0;
 		do {
@@ -673,7 +675,12 @@
 			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
 				var result = thread.run_directive(expr.value.head.args[0]);
 			} else {
-				var result = thread.add_rule(expr.value);
+				indicator = expr.value.head.indicator;
+				if( reconsulted[indicator] !== true ) {
+					thread.session.rules[indicator] = [];
+					reconsulted[indicator] = true;
+				}
+				var result = thread.add_rule(expr.value, from);
 			}
 			if(!result) {
 				return result;
@@ -931,6 +938,7 @@
 	function Session( limit ) {
 		limit = limit === undefined || limit <= 0 ? 1000 : limit;
 		this.rules = {};
+		this.src_predicates = {};
 		this.rename = 0;
 		this.modules = [];
 		this.thread = new Thread( this );
@@ -1441,7 +1449,8 @@
 	};
 
 	// Add a rule
-	Session.prototype.add_rule = function( rule ) {
+	Session.prototype.add_rule = function( rule, from ) {
+		this.src_predicates[rule.head.indicator] = from ? from : "$tau-js";
 		if(!this.rules[rule.head.indicator]) {
 			this.rules[rule.head.indicator] = [];
 		}
@@ -1450,8 +1459,8 @@
 			this.public_predicates[rule.head.indicator] = false;
 		return true;
 	};
-	Thread.prototype.add_rule = function( rule ) {
-		return this.session.add_rule( rule );
+	Thread.prototype.add_rule = function( rule, from ) {
+		return this.session.add_rule( rule, from );
 	};
 
 	// Run a directive
@@ -1524,10 +1533,11 @@
 	};
 
 	// Consult a program from a string
-	Session.prototype.consult = function( program ) {
-		return this.thread.consult( program );
+	Session.prototype.consult = function( program, from ) {
+		return this.thread.consult( program, from );
 	};
-	Thread.prototype.consult = function( program ) {
+	Thread.prototype.consult = function( program, from ) {
+		from = from ? from : "$tau-js";
 		var string = "";
 		if( typeof program === "string" ) {
 			string = program;
@@ -1552,7 +1562,7 @@
 		} else {
 			return false;
 		}
-		return parseProgram( this, string );
+		return parseProgram( this, string, from );
 	};
 
 	// Query goal from a string (without ?-)

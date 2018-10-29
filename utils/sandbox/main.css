@@ -361,3 +361,27 @@ a:hover {
 .theme:hover {
 	background-color: #442178;
 }
+
+#reconsult {
+	background-color: #442178;
+	border: none !important;
+	color: #ffffff;
+	cursor: pointer;
+	font-family: 'Source Sans Pro', arial, verdana;
+	font-size: 15px;
+	font-weight: bold;
+	float: right;
+	margin-right: 10px;
+	margin-top: 10px;
+	margin-bottom: -40px;
+	padding: 10px;
+	text-align: center;
+	opacity: 0.8;
+	position: relative;
+	top: -40px;
+	width: 150px;
+}
+
+#reconsult:hover {
+	opacity: 1;
+}

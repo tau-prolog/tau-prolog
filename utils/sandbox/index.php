@@ -6,6 +6,7 @@ $_time_random = filemtime("../code/random-latest.js");
 $_time_statistics = filemtime("../code/statistics-latest.js");
 $_time_dom = filemtime("../code/dom-latest.js");
 $_time_js = filemtime("../code/js-latest.js");
+$_time_draw = filemtime("../utils/draw-derivation-trees/draw-derivation-trees.js");
 
 function genid() {
 	$letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -80,7 +81,7 @@ if( isset($_GET["id"]) ) {
 		<script type="text/javascript" src="/code/dom-latest.js?update=<?php echo $_time_dom; ?>"></script>
 		<script type="text/javascript" src="/code/js-latest.js?update=<?php echo $_js_statistics; ?>"></script>
 		<!-- Tau Prolog utils -->
-		<script type="text/javascript" src="/utils/draw-derivation-trees/draw-derivation-trees.js"></script>
+		<script type="text/javascript" src="/utils/draw-derivation-trees/draw-derivation-trees.js?update=<?php echo $_time_draw; ?>"></script>
 		<!-- Codemirror -->
 		<script src="codemirror/lib/codemirror.js"></script>
 		<link rel="stylesheet" href="codemirror/lib/codemirror.css">
@@ -143,6 +144,7 @@ if( isset($_GET["id"]) ) {
 				<div id="program-container">
 					<div>
 						<div class="header">Program</div>
+						<input type="button" id="reconsult" onClick="reconsult();" value="Consult program" />
 						<div id="program"><?php echo htmlspecialchars($program); ?></div>
 					</div>
 				</div>

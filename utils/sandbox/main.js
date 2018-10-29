@@ -65,13 +65,9 @@ function try_tau_prolog( cm, msg, e ) {
 				} else if( mode == MODE_DERIVATION ) {
 					reset = 1;
 				}
-				session = pl.create(parseInt(document.getElementById("limit").value));
-				var c = session.consult( raw_program );
+				if( session == null )
+					session = pl.create(parseInt(document.getElementById("limit").value));
 				var q = session.query( raw_goal );
-				if( c !== true ) {
-					try_answer( 'error parsing program: ' + c.args[0], true );
-					return;
-				}
 				if( q !== true ) {
 					try_answer( 'error parsing query: ' + q.args[0], true );
 					return;
@@ -169,4 +165,18 @@ function set_theme( theme ) {
 	};
 	xhttp.open("GET", "../utils/draw-derivation-trees/themes/" + theme + ".json", true);
 	xhttp.send();
+}
+
+function reconsult() {
+	document.getElementById("reconsult").value = "Reconsult program";
+	var raw_program = code.getValue();
+	if( session == null )
+		session = pl.create(parseInt(document.getElementById("limit").value));
+	var c = session.consult( raw_program );
+	reset = 1;
+	new_block("consult");
+	if( c !== true )
+		try_answer( 'error parsing program: ' + c.args[0], true );
+	else
+		try_answer( 'parsing program: ok!', true );
 }
