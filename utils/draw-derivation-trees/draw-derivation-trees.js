@@ -108,7 +108,7 @@ var pl;
 		thread.session.format_success = id;
 		thread.session.format_error = id;
 		thread.session.thread.debugger = true;
-		thread.session.answers( id, max );
+		thread.session.answers( function(x) { x.status = "answer"; }, max );
 		thread.session.format_success = format_success;
 		thread.session.format_error = format_error;
 		thread.debugger = deb;
@@ -254,7 +254,7 @@ var pl;
 				}
 				// Draw state
 				var type_state;
-				if(tree[i][j].children.length == 0 && tree[i][j].goal === null) // Answer
+				if(tree[i][j].status && tree[i][j].status === "answer") // Answer
 					type_state = "answer";
 				else if(tree[i][j].children.length == 0 && tree[i][j].goal !== null) // Error
 					type_state = "error";

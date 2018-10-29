@@ -1513,14 +1513,15 @@
 	Session.prototype.add_goal = function( goal, unique ) {
 		this.thread.add_goal( goal, unique );
 	};
-	Thread.prototype.add_goal = function( goal, unique ) {
+	Thread.prototype.add_goal = function( goal, unique, parent ) {
+		parent = parent ? parent : null;
 		if( unique === true )
 			this.points = [];
 		var vars = goal.variables();
 		var links = {};
 		for( var i = 0; i < vars.length; i++ )
 			links[vars[i]] = new Var(vars[i]);
-		this.points.push( new State( goal, new Substitution(links), null ) );
+		this.points.push( new State( goal, new Substitution(links), parent ) );
 	};
 
 	// Consult a program from a string
@@ -2742,24 +2743,10 @@
 				} else if( !pl.type.is_callable( goal ) ) {
 					thread.throwError( pl.error.type( "callable", goal, thread.level ) );
 				} else {
-					var points = thread.points;
-					var deb = thread.debugger;
-					thread.debugger = false;
-					thread.points = [new State( atom.args[0], point.substitution, point )];
-					var callback = function( answer ) {
-						thread.points = points;
-						thread.debugger = deb;
-						if( answer === false )
-							thread.success( point );
-						else if( pl.type.is_error( answer ) )
-							thread.throwError( answer.args[0] );
-						else if( answer === null ) {
-							thread.points = [point].concat( points );
-							thread.__calls.shift()( null );
-						} else
-							thread.points = points;
-					};
-					thread.__calls.unshift( callback );
+					thread.prepend( [
+						new State( point.goal.replace( new Term( ",", [new Term( ",", [ new Term( "call", [goal] ), new Term( "!", [] ) ] ), new Term( "fail", [] ) ] ) ), point.substitution, point ),
+						new State( point.goal.replace( null ), point.substitution, point )
+					] );
 				}
 			},
 			
@@ -2939,11 +2926,9 @@
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, template] )] );
 					var points = thread.points;
 					var limit = thread.session.limit;
-					var deb = thread.debugger;
 					var format_success = thread.session.format_success;
-					thread.debugger = false;
 					thread.session.format_success = function(x) { return x.substitution; };
-					thread.add_goal( newGoal, true );
+					thread.add_goal( newGoal, true, point );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
@@ -2953,7 +2938,6 @@
 						} else {
 							thread.points = points;
 							thread.session.limit = limit;
-							thread.debugger = deb;
 							thread.session.format_success = format_success;
 							if( pl.type.is_error( answer ) ) {
 								thread.throwError( answer.args[0] );
@@ -2999,11 +2983,9 @@
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
 					var points = thread.points;
 					var limit = thread.session.limit;
-					var deb = thread.debugger;
 					var format_success = thread.session.format_success;
-					thread.debugger = false;
 					thread.session.format_success = function(x) { return x.substitution; };
-					thread.add_goal( newGoal, true );
+					thread.add_goal( newGoal, true, point );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
@@ -3027,7 +3009,6 @@
 						} else {
 							thread.points = points;
 							thread.session.limit = limit;
-							thread.debugger = deb;
 							thread.session.format_success = format_success;
 							if( pl.type.is_error( answer ) ) {
 								thread.throwError( answer.args[0] );
@@ -3081,11 +3062,9 @@
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
 					var points = thread.points;
 					var limit = thread.session.limit;
-					var deb = thread.debugger;
 					var format_success = thread.session.format_success;
-					thread.debugger = false;
 					thread.session.format_success = function(x) { return x.substitution; };
-					thread.add_goal( newGoal, true );
+					thread.add_goal( newGoal, true, point );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
@@ -3109,7 +3088,6 @@
 						} else {
 							thread.points = points;
 							thread.session.limit = limit;
-							thread.debugger = deb;
 							thread.session.format_success = format_success;
 							if( pl.type.is_error( answer ) ) {
 								thread.throwError( answer.args[0] );
