@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 41, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 42, status: "beta" };
 	
 	
 	
@@ -458,8 +458,10 @@
 		if(expr.type === SUCCESS) {
 			start = expr.len;
 			var token = tokens[start];
-			if(tokens[start] && tokens[start].name === "atom" && thread.__lookup_operator_classes(priority, token.value)) {
-
+			if(tokens[start] && (
+				tokens[start].name === "atom" && thread.__lookup_operator_classes(priority, token.value) ||
+				tokens[start].name === "bar" && thread.__lookup_operator_classes(priority, "|")
+			) ) {
 				var next_priority_lt = next_priority;
 				var next_priority_eq = priority;
 				var classes = thread.__lookup_operator_classes(priority, token.value);
@@ -2657,6 +2659,8 @@
 				} else if( priority.value < 0 || priority.value > 1200 ) {
 					thread.throwError( pl.error.domain( "operator_priority", priority, atom.indicator ) );
 				} else if( operator.id === "," ) {
+					thread.throwError( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
+				} else if( operator.id === "|" && (priority.value < 1001 || type.id.length !== 3 ) ) {
 					thread.throwError( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
 				} else if( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"].indexOf( type.id ) === -1 ) {
 					thread.throwError( pl.error.domain( "operator_specifier", type, atom.indicator ) );
