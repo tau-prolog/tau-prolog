@@ -168,23 +168,6 @@
 		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Module, this);"><b>pl.type.Module</b></a>
 		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Module.exports_predicate, this);">pl.type.Module.prototype.<b>exports_predicate(indicator)</b></a> - It checks wheter the module exports the predicate indicated by <span class="inline-code">indicator</span>.
 	</ul>
-	
-	<h3 id="functions"><a href="#functions">JavaScript Functions</a></h3>
-	<p>The <span class="inline-code">pl.type.Fun</span> prototype is used to insert JavaScript functions in the running threads' goals. The constructor receives a function with three parameters as an argument. These three parameters are a thread, a choice point (a state) and the selected atom from the choice point's goal.</p>
-	<p class="manual-warning">This class is used only in the implementation of just some extra-logics predicates, as <a href="http://tau-prolog.org/documentation/prolog/builtin/retract/1">retract/1</a>. In order to invoke JavaScript functions from Prolog at a user level, see the <a href="http://tau-prolog.org/documentation#js"><span class="inline-code">javascript</span> module</a>.</p>
-	<ul>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun, this);"><b>pl.type.Var</b></a>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.toString, this);">pl.type.Fun.prototype.<b>toString()</b></a> - Return a string representation of the object.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.clone, this);">pl.type.Fun.prototype.<b>clone()</b></a> - Return a copy of the object.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.rename, this);">pl.type.Fun.prototype.<b>rename(thread)</b></a> - Rename the object. Return the same object.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.variables, this);">pl.type.Fun.prototype.<b>variables()</b></a> - Return the object's list of variables.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.apply, this);">pl.type.Fun.prototype.<b>apply(substitution)</b></a> - Apply a substitution to the object. </li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.unify, this);">pl.type.Fun.prototype.<b>unify(object, occurs_check)</b></a> - Return the state resulting from unifying both objects if this succeeds, <span class="inline-code">null</span> otherwise. The second argument indicates wheter it must check for the variable itself inside of <span class="inline-code">object</span>.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.equals, this);">pl.type.Fun.prototype.<b>equals(object)</b></a> - Return <span class="inline-code">true</span> if the function and <span class="inline-code">object</span> are equal, checking that the internal attributes in both of them are equal as well.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.select, this);">pl.type.Fun.prototype.<b>select()</b></a> - Return the leftmost atom of the term.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.replace, this);">pl.type.Fun.prototype.<b>replace(object)</b></a> - Replace the leftmost atom with the object passed as an argument. If this is <span class="inline-code">null</span>, the leftmost atom is removed.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.search, this);">pl.type.Fun.prototype.<b>search(object)</b></a> - Check if the atom passed as an argument is inside of the term.</li>
-	</ul>
 
 	<h3 id="errors"><a href="#errors">Errors</a></h3>
 	<p>ISO Prolog provides with an exception handling mechanism, based on the built-in control constructions <a href="http://tau-prolog.org/documentation/prolog/builtin/catch/3">catch/3</a> y <a href="http://tau-prolog.org/documentation/prolog/builtin/throw/1">throw/1</a>. When there is an error, the current goal is replaced with a goal of the form <span class="inline-code">throw(error(Error_term, Implementation_defined_term))</span>. If the error is not handled, the error parameter in <span class="inline-code">throw/1</span> is returned.</p>

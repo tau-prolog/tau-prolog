@@ -171,24 +171,6 @@
 		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Module.prototype.exports_predicate, this);">pl.type.Module.prototype.<b>exports_predicate(indicator)</b></a> - Comprueba si el módulo exporta el predicado con indicador <span class="inline-code">indicator</span>.</li>
 	</ul>
 	
-	<h3 id="funciones"><a href="#funciones">Funciones de JavaScript</a></h3>
-	<p>El prototipo <span class="inline-code">pl.type.Fun</span> se utiliza para insertar funciones de JavaScript en los objetivos de los hilos. El constructor recibe como argumeto una función con tres parámetros: un hilo, un punto de elección (un estado), y el átomo seleccionado del objetivo de ese punto de elección.</p>
-	<p class="manual-warning"><b>Nota</b>: Esta clase sólo se utiliza en la implementación de algunos predicados extralógicos de la librería, como <a href="http://tau-prolog.org/documentation/prolog/builtin/retract/1">retract/1</a>. Para invocar funciones de JavaScript desde Prolog a nivel de usuario, véase el <a href="http://tau-prolog.org/documentation#js">módulo JavaScript</a>.</p>
-	
-	<ul>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun, this);"><b>pl.type.Fun</b></a>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.toString, this);">pl.type.Fun.prototype.<b>toString()</b></a> - Devuelve una representación textual del objeto.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.clone, this);">pl.type.Fun.prototype.<b>clone()</b></a> - Devuelve una copia del objeto.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.rename, this);">pl.type.Fun.prototype.<b>rename(thread)</b></a> - Renombra el objeto. Devuelve el mismo objeto.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.variables, this);">pl.type.Fun.prototype.<b>variables()</b></a> - Devuelve la lista de variables contenidas en el objeto.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.apply, this);">pl.type.Fun.prototype.<b>apply(substitution)</b></a> - Aplica una substitución al objeto.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.unify, this);">pl.type.Fun.prototype.<b>unify(object, occurs_check)</b></a> - Devuelve un estado resultante de unificar los dos objetos. Devuelve <span class="inline-code">null</span> si la unificación falla. El segundo argumento especifica si se debe comprobar la ocurrencia de variables o no.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.equals, this);">pl.type.Fun.prototype.<b>equals(obj)</b></a> - Comprueba si la función es igual al objeto <span class="inline-code">obj</span> comparando todos los atributos internos de ambos objetos.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.select, this);">pl.type.Fun.prototype.<b>select()</b></a> - Devuelve el primer átomo por la izquierda del término.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.replace, this);">pl.type.Fun.prototype.<b>replace(object)</b></a> - Reemplaza el primer átomo por la izquierda del término por el objeto pasado como argumento. Si el argumento es <span class="inline-code">null</span>, elimina el átomo en lugar de reemplazarlo.</li>
-		<li><a role="button" tabindex="0" onClick="show_prototype(pl.type.Fun.prototype.search, this);">pl.type.Fun.prototype.<b>search(object)</b></a> - Comprueba si el átomo pasado como argumento está contenido en el término.</li>
-	</ul>
-	
 	<h3 id="errores"><a href="#errores">Errores</a></h3>
 	<p>ISO Prolog proporciona un mecanismo de manejo de excepciones, basado en las construcciones de control incorporadas <a href="http://tau-prolog.org/documentation/prolog/builtin/catch/3">catch/3</a> y <a href="http://tau-prolog.org/documentation/prolog/builtin/throw/1">throw/1</a>. Cuando ocurre un error, el objetivo actual es reemplazado por un objetivo de la forma <span class="inline-code">throw(error(Error_term, Implementation_defined_term))</span>. Si el error no es tratado, se obtiene como respuesta el error contenido como parámetro del término <span class="inline-code">throw/1</span>.</p>
 	
