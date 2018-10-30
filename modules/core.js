@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 42, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 43, status: "beta" };
 	
 	
 	
@@ -930,11 +930,6 @@
 		this.head = head;
 		this.body = body;
 	}
-	
-	// Functions
-	function Fun( fn ) {
-		this.fn = fn;
-	}
 
 	// Session
 	function Session( limit ) {
@@ -1093,11 +1088,6 @@
 		}
 	};
 	
-	// Functions
-	Fun.prototype.toString = function() {
-		return this.fn.toString();
-	};
-	
 	
 	
 	// CLONE PROLOG OBJECTS
@@ -1139,12 +1129,6 @@
 		return new Rule( this.head.clone(), this.body !== null ? this.body.clone() : null );
 	};
 	
-	// Functions
-	Fun.prototype.clone = function() {
-		return new Fun( this.fn );
-	};
-	
-	
 	
 	
 	// COMPARE PROLOG OBJECTS
@@ -1170,11 +1154,6 @@
 			}
 		}
 		return true;
-	};
-	
-	// Functions
-	Fun.prototype.equals = function( obj ) {
-		return pl.type.is_function( obj ) && this.fn === obj.fn;
 	};
 	
 	// Substitutions
@@ -1234,11 +1213,6 @@
 		return new Rule( this.head.rename( thread ), this.body !== null ? this.body.rename( thread ) : null );
 	};
 	
-	// Functions
-	Fun.prototype.rename = function( thread ) {
-		return this;
-	};
-	
 	
 	
 	// GET VARIABLES FROM PROLOG OBJECTS
@@ -1267,11 +1241,6 @@
 		} else {
 			return this.head.variables().concat( this.body.variables() );
 		}
-	};
-	
-	// Functions
-	Fun.prototype.variables = function() {
-		return [];
 	};
 	
 	
@@ -1313,11 +1282,6 @@
 		return new Substitution( links );
 	};
 	
-	// Functions
-	Fun.prototype.apply = function( _ ) {
-		return this;
-	};
-	
 	
 	
 	// UNIFY PROLOG OBJECTS
@@ -1357,14 +1321,6 @@
 		return null;
 	};
 	
-	// Functions
-	Fun.prototype.unify = function( obj, _ ) {
-		if( pl.type.is_function( obj ) && this.fn === obj.fn ) {
-			return new State( obj, new Substitution() );
-		}
-		return null;
-	};
-	
 	
 	
 	// SELECTION FUNCTION
@@ -1376,10 +1332,6 @@
 		} else {
 			return this;
 		}
-	};
-	
-	Fun.prototype.select = function() {
-		return this;
 	};
 	
 	// Replace term
@@ -1394,10 +1346,6 @@
 			return expr;
 		}
 	};
-	
-	Fun.prototype.replace = function( expr ) {
-		return expr;
-	};
 
 	// Search term
 	Term.prototype.search = function( expr ) {
@@ -1407,10 +1355,6 @@
 			if( (pl.type.is_term( this.args[i] ) || pl.type.is_function( this.args[i] )) && this.args[i].search( expr ) )
 				return true;
 		return false;
-	};
-	
-	Fun.prototype.search = function( expr ) {
-		return pl.type.is_function( expr ) && this.fn === expr.fn;
 	};
 	
 	
@@ -2170,11 +2114,6 @@
 							return 1;
 					return 0;
 				}
-			},
-			
-			// Is a function
-			is_function: function( obj ) {
-				return obj instanceof Fun;
 			},
 			
 			// Is a substitution
@@ -3379,32 +3318,37 @@
 						head = atom.args[0];
 						body = new Term( "true" );
 					}
-					if( thread.is_public_predicate( head.indicator ) ) {
-						if( thread.session.rules[head.indicator] !== undefined ) {
-							var states = [];
-							for( var i = 0; i < thread.session.rules[head.indicator].length; i++ ) {
-								thread.session.renamed_variables = {};
-								var orule = thread.session.rules[head.indicator][i];
-								var rule = orule.rename( thread );
-								if( rule.body === null )
-									rule.body = new Term( "true", [] );
-								var state = new State( point.goal.replace( new Term(",", [
-									new Term( "=", [head, rule.head] ),
-									new Term( ",", [
-										new Term( "=", [body, rule.body] ),
-										new Fun( (function(rule){
-											return function( thread, point ) {
-												retract( thread, point, head.indicator, rule );
-											};
-										})(orule) )
-									] )
-								] ) ), point.substitution, point );
-								states.push( state );
+					if( !point.retract ) {
+						if( thread.is_public_predicate( head.indicator ) ) {
+							if( thread.session.rules[head.indicator] !== undefined ) {
+								var states = [];
+								for( var i = 0; i < thread.session.rules[head.indicator].length; i++ ) {
+									thread.session.renamed_variables = {};
+									var orule = thread.session.rules[head.indicator][i];
+									var rule = orule.rename( thread );
+									if( rule.body === null )
+										rule.body = new Term( "true", [] );
+									var unify = pl.unify( new Term( ",", [head, body] ), new Term( ",", [rule.head, rule.body] ), false );
+									if( unify !== null ) {
+										var state = new State( point.goal.replace( new Term(",", [
+											new Term( "retract", [ new Term( ":-", [head, body] ) ] ),
+											new Term( ",", [
+												new Term( "=", [head, rule.head] ),
+												new Term( "=", [body, rule.body] )
+											] )
+										] ) ), point.substitution, point );
+										state.retract = rule;
+										states.push( state );
+									}
+								}
+								thread.prepend( states );
 							}
-							thread.prepend( states );
+						} else {
+							thread.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
 						}
 					} else {
-						thread.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
+						retract( thread, point, head.indicator, point.retract );
+						thread.success( point );
 					}
 				}
 			},
