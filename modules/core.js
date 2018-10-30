@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 43, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 44, status: "beta" };
 	
 	
 	
@@ -1352,7 +1352,7 @@
 		if( pl.type.is_term( expr ) && expr.ref !== undefined && this.ref === expr.ref )
 			return true;
 		for( var i = 0; i < this.args.length; i++ )
-			if( (pl.type.is_term( this.args[i] ) || pl.type.is_function( this.args[i] )) && this.args[i].search( expr ) )
+			if( pl.type.is_term( this.args[i] ) && this.args[i].search( expr ) )
 				return true;
 		return false;
 	};
@@ -1622,7 +1622,7 @@
 		if( this.debugger )
 			this.debugger_states.push( point );
 		
-		if( pl.type.is_term( point.goal ) || pl.type.is_function( point.goal ) ) {
+		if( pl.type.is_term( point.goal ) ) {
 			
 			var atom = point.goal.select();
 			var mod = null;
@@ -1639,44 +1639,40 @@
 					mod = atom.args[0].id;
 					atom = atom.args[1];
 				}
-				
-				if( pl.type.is_function( atom ) ) {
-					atom.fn( this, point );
+
+				if( mod === null && pl.type.is_builtin( atom ) ) {
+					this.__call_indicator = atom.indicator;
+					asyn = pl.predicate[atom.indicator]( this, point, atom );
 				} else {
-					if( mod === null && pl.type.is_builtin( atom ) ) {
-						this.__call_indicator = atom.indicator;
-						asyn = pl.predicate[atom.indicator]( this, point, atom );
-					} else {
-						var srule = this.stepRule(mod, atom);
-						if( srule === null ) {
-							if( !this.session.rules.hasOwnProperty( atom.indicator ) ) {
-								if( this.getFlag( "unknown" ).id === "error" ) {
-									this.throwError( pl.error.existence( "procedure", atom.indicator, this.level ) );
-								} else if( this.getFlag( "unknown" ).id === "warning" ) {
-									this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level + ")" );
-								}
+					var srule = this.stepRule(mod, atom);
+					if( srule === null ) {
+						if( !this.session.rules.hasOwnProperty( atom.indicator ) ) {
+							if( this.getFlag( "unknown" ).id === "error" ) {
+								this.throwError( pl.error.existence( "procedure", atom.indicator, this.level ) );
+							} else if( this.getFlag( "unknown" ).id === "warning" ) {
+								this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level + ")" );
 							}
-						} else if( srule instanceof Function ) {
-							asyn = srule( this, point, atom );
-						} else {
-							for( var _rule in srule ) {
-								if(!srule.hasOwnProperty(_rule)) continue;
-								var rule = srule[_rule];
-								this.session.renamed_variables = {};
-								rule = rule.rename( this );
-								var state = pl.unify( atom, rule.head );
-								if( state !== null ) {
-									state.goal = point.goal.replace( rule.body );
-									if( state.goal !== null ) {
-										state.goal = state.goal.apply( state.substitution );
-									}
-									state.substitution = point.substitution.apply( state.substitution );
-									state.parent = point;
-									states.push( state );
-								}
-							}
-							this.prepend( states );
 						}
+					} else if( srule instanceof Function ) {
+						asyn = srule( this, point, atom );
+					} else {
+						for( var _rule in srule ) {
+							if(!srule.hasOwnProperty(_rule)) continue;
+							var rule = srule[_rule];
+							this.session.renamed_variables = {};
+							rule = rule.rename( this );
+							var state = pl.unify( atom, rule.head );
+							if( state !== null ) {
+								state.goal = point.goal.replace( rule.body );
+								if( state.goal !== null ) {
+									state.goal = state.goal.apply( state.substitution );
+								}
+								state.substitution = point.substitution.apply( state.substitution );
+								state.parent = point;
+								states.push( state );
+							}
+						}
+						this.prepend( states );
 					}
 				}
 			}
@@ -3318,7 +3314,7 @@
 						head = atom.args[0];
 						body = new Term( "true" );
 					}
-					if( !point.retract ) {
+					if( typeof point.retract === "undefined" ) {
 						if( thread.is_public_predicate( head.indicator ) ) {
 							if( thread.session.rules[head.indicator] !== undefined ) {
 								var states = [];
@@ -3337,7 +3333,7 @@
 												new Term( "=", [body, rule.body] )
 											] )
 										] ) ), point.substitution, point );
-										state.retract = rule;
+										state.retract = orule;
 										states.push( state );
 									}
 								}
@@ -3348,7 +3344,6 @@
 						}
 					} else {
 						retract( thread, point, head.indicator, point.retract );
-						thread.success( point );
 					}
 				}
 			},
