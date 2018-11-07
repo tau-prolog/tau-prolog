@@ -955,6 +955,7 @@
 			max_arity: pl.flag.max_arity.value,
 			unknown: pl.flag.unknown.value,
 			double_quotes: pl.flag.double_quotes.value,
+			occurs_check: pl.flag.occurs_check.value,
 			dialect: pl.flag.dialect.value,
 			version_data: pl.flag.version_data.value,
 			nodejs: pl.flag.nodejs.value
@@ -1661,7 +1662,8 @@
 							var rule = srule[_rule];
 							this.session.renamed_variables = {};
 							rule = rule.rename( this );
-							var state = pl.unify( atom, rule.head );
+							var occurs_check = this.getFlag( "occurs_check" ).indicator === "true/0";
+							var state = pl.unify( atom, rule.head, occurs_check );
 							if( state !== null ) {
 								state.goal = point.goal.replace( rule.body );
 								if( state.goal !== null ) {
@@ -2792,7 +2794,8 @@
 								states.push( state );
 						}
 						thread.points = states;
-						var state = pl.unify( answer.args[0], atom.args[1], false );
+						var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
+						var state = pl.unify( answer.args[0], atom.args[1], occurs_check );
 						if( state !== null ) {
 							state.substitution = point.substitution.apply( state.substitution );
 							state.goal = point.goal.replace( atom.args[2] ).apply( state.substitution );
@@ -2832,7 +2835,8 @@
 			
 			// =/2 (unification)
 			"=/2": function( thread, point, atom ) {
-				var state = pl.unify( atom.args[0], atom.args[1], false );
+				var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
+				var state = pl.unify( atom.args[0], atom.args[1], occurs_check );
 				if( state !== null ) {
 					state.goal = point.goal.apply( state.substitution ).replace( null );
 					state.substitution = point.substitution.apply( state.substitution );
@@ -2854,7 +2858,8 @@
 			
 			// \=/2
 			"\\=/2": function( thread, point, atom ) {
-				var state = pl.unify( atom.args[0], atom.args[1] );
+				var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
+				var state = pl.unify( atom.args[0], atom.args[1], occurs_check );
 				if( state === null ) {
 					thread.success( point );
 				}
@@ -2862,7 +2867,8 @@
 			
 			// subsumes_term/2
 			"subsumes_term/2": function( thread, point, atom ) {
-				var state = pl.unify( atom.args[1], atom.args[0] );
+				var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
+				var state = pl.unify( atom.args[1], atom.args[0], occurs_check );
 				if( state !== null && atom.args[1].apply( state.substitution ).equals( atom.args[1] ) ) {
 					thread.success( point );
 				}
@@ -3324,7 +3330,8 @@
 									var rule = orule.rename( thread );
 									if( rule.body === null )
 										rule.body = new Term( "true", [] );
-									var unify = pl.unify( new Term( ",", [head, body] ), new Term( ",", [rule.head, rule.body] ), false );
+									var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
+									var unify = pl.unify( new Term( ",", [head, body] ), new Term( ",", [rule.head, rule.body] ), occurs_check );
 									if( unify !== null ) {
 										var state = new State( point.goal.replace( new Term(",", [
 											new Term( "retract", [ new Term( ":-", [head, body] ) ] ),
@@ -4128,6 +4135,13 @@
 			double_quotes: {
 				allowed: [new Term( "chars" ), new Term( "codes" ), new Term( "atom" )],
 				value: new Term( "codes" ),
+				changeable: true
+			},
+			
+			// Occurs check behavior
+			occurs_check: {
+				allowed: [new Term( "false" ), new Term( "true" )],
+				value: new Term( "false" ),
 				changeable: true
 			},
 			
