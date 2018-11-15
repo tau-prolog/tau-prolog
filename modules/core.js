@@ -678,7 +678,7 @@
 				var result = thread.run_directive(expr.value.head.args[0]);
 			} else {
 				indicator = expr.value.head.indicator;
-				if( reconsulted[indicator] !== true ) {
+				if( reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
 					thread.session.rules[indicator] = [];
 					reconsulted[indicator] = true;
 				}
@@ -942,6 +942,7 @@
 		this.total_threads = 1;
 		this.renamed_variables = {};
 		this.public_predicates = {};
+		this.multifile_predicates = {};
 		this.limit = limit;
 		this.format_success = function( state ) { return state.substitution; };
 		this.format_error = function( state ) { return state.goal; };
@@ -1565,6 +1566,14 @@
 	};
 	Thread.prototype.is_public_predicate = function( indicator ) {
 		return this.session.is_public_predicate( indicator );
+	};
+	
+	// Check if a predicate is multifile
+	Session.prototype.is_multifile_predicate = function( indicator ) {
+		return this.multifile_predicates.hasOwnProperty( indicator ) && this.multifile_predicates[indicator] === true;
+	};
+	Thread.prototype.is_multifile_predicate = function( indicator ) {
+		return this.session.is_multifile_predicate( indicator );
 	};
 	
 	// Insert states at the beginning
@@ -2525,6 +2534,24 @@
 					thread.throwError( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
 					thread.session.public_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
+				}
+			},
+			
+			// multifile/1
+			"multifile/1": function( thread, atom ) {
+				var indicator = atom.args[0];
+				if( pl.type.is_variable( indicator ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_compound( indicator ) || indicator.indicator !== "//2" ) {
+					thread.throwError( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
+				} else if( pl.type.is_variable( indicator.args[0] ) || pl.type.is_variable( indicator.args[1] ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_atom( indicator.args[0] ) ) {
+					thread.throwError( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
+				} else if( !pl.type.is_integer( indicator.args[1] ) ) {
+					thread.throwError( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
+				} else {
+					thread.session.multifile_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
 				}
 			},
 			
