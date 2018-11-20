@@ -114,6 +114,12 @@
 	function escapeAtom(str, quote) {
 		var atom = '';
 		if( str.length < 2 ) return str;
+		str = str.replace(/\\([0-7]+)\\/g, function(match, g1) {
+			return fromCodePoint(parseInt(g1, 8));
+		});
+		str = str.replace(/\\x([0-9a-fA-F]+)\\/g, function(match, g1) {
+			return fromCodePoint(parseInt(g1, 16));
+		});
 		for( var i = 0; i < str.length; i++) {
 			var a = str.charAt(i);
 			var b = str.charAt(i+1);
