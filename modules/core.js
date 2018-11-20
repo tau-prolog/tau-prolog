@@ -1992,7 +1992,7 @@
 			count[variables[i]]++;
 		}
 		for( var key in count )
-			if( count[key] === 1 )
+			if( key !== "_" && count[key] === 1 )
 				singleton.push( key );
 		return singleton;
 	};
