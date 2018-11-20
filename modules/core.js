@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 44, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 45, status: "beta" };
 	
 	
 	
@@ -624,33 +624,42 @@
 
 	// Parse a rule
 	function parseRule(thread, tokens, start) {
+		var line = tokens[start].line;
 		var expr = parseExpr(thread, tokens, start, thread.__get_max_priority(), false);
+		var rule;
+		var obj;
 		if(expr.type !== ERROR) {
 			start = expr.len;
 			if(tokens[start] && tokens[start].name === "atom" && tokens[start].raw === ".") {
 				start++;
 				if( pl.type.is_term(expr.value) ) {
 					if(expr.value.indicator === ":-/2") {
-						return {
-							value: new pl.type.Rule(expr.value.args[0], body_conversion(expr.value.args[1])),
+						rule = new pl.type.Rule(expr.value.args[0], body_conversion(expr.value.args[1]))
+						obj = {
+							value: rule,
 							len: start,
 							type: SUCCESS
 						};
 					} else if(expr.value.indicator === "-->/2") {
-						var dcg = rule_to_dcg(new pl.type.Rule(expr.value.args[0], expr.value.args[1]), thread);
-						dcg.body = body_conversion( dcg.body );
-						return {
-							value: dcg,
+						rule = rule_to_dcg(new pl.type.Rule(expr.value.args[0], expr.value.args[1]), thread);
+						rule.body = body_conversion( rule.body );
+						obj = {
+							value: rule,
 							len: start,
 							type: pl.type.is_rule( dcg ) ? SUCCESS : ERROR
 						};
 					} else {
-						return {
-							value: new pl.type.Rule(expr.value, null),
+						rule = new pl.type.Rule(expr.value, null);
+						obj = {
+							value: rule,
 							len: start,
 							type: SUCCESS
 						};
 					}
+					var singleton = rule.singleton_variables();
+					if( singleton.length > 0 )
+						thread.throw_warning( pl.warning.singleton( singleton, rule.head.indicator, line ) );
+					return obj;
 				} else {
 					return { type: ERROR, value: pl.error.syntax(tokens[start], "callable expected") };
 				}
@@ -961,7 +970,6 @@
 			version_data: pl.flag.version_data.value,
 			nodejs: pl.flag.nodejs.value
 		};
-		this.warnings = [];
 		this.__loaded_modules = [];
 		this.__char_conversion = {};
 		this.__operators = {
@@ -1000,6 +1008,7 @@
 		this.level = "top_level/0";
 		this.__calls = [];
 		this.current_limit = this.session.limit;
+		this.warnings = [];
 	}
 	
 	// Modules
@@ -1464,6 +1473,14 @@
 	Thread.prototype.throw_warning = function( warning ) {
 		this.warnings.push( warning );
 	};
+	
+	// Get warnings
+	Session.prototype.getWarnings = function() {
+		return this.thread.getWarnings();
+	};
+	Thread.prototype.getWarnings = function() {
+		return this.warnings;
+	};
 
 	// Add a goal
 	Session.prototype.add_goal = function( goal, unique ) {
@@ -1510,6 +1527,7 @@
 		} else {
 			return false;
 		}
+		this.warnings = [];
 		return parseProgram( this, string, from );
 	};
 
@@ -1759,7 +1777,7 @@
 			}
 		}
 	};
-	
+
 	
 	
 	// INTERPRET EXPRESSIONS
@@ -1955,6 +1973,28 @@
 				return arr;
 		}
 		return undefined;
+	};
+	
+	
+	
+	// RULES
+	
+	// Return singleton variables in the session
+	Rule.prototype.singleton_variables = function() {
+		var variables = this.head.variables();
+		var count = {};
+		var singleton = [];
+		if( this.body !== null )
+			variables = variables.concat( this.body.variables() );
+		for( var i = 0; i < variables.length; i++ ) {
+			if( count[variables[i]] === undefined )
+				count[variables[i]] = 0;
+			count[variables[i]]++;
+		}
+		for( var key in count )
+			if( count[key] === 1 )
+				singleton.push( key );
+		return singleton;
 	};
 	
 	
@@ -4321,6 +4361,19 @@
 				return new Term( "error", [new Term( "syntax_error", [new Term( expected ) ] ), str_indicator( indicator )] );
 			}
 			
+		},
+		
+		// Warnings
+		warning: {
+			
+			// Singleton variables
+			singleton: function( variables, rule, line ) {
+				var list = new Term( "[]" );
+				for( var i = variables.length-1; i >= 0; i-- )
+					list = new Term( ".", [new Var(variables[i]), list] );
+				return new Term( "warning", [new Term( "singleton_variables", [list, str_indicator(rule)]), new Term(".",[new Term( "line", [ new Num( line, false ) ]), new Term("[]")])] );
+			}
+
 		},
 		
 		// Format of renamed variables

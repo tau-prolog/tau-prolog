@@ -67,6 +67,7 @@ function try_tau_prolog( cm, msg, e ) {
 				}
 				if( session == null )
 					session = pl.create(parseInt(document.getElementById("limit").value));
+				session.limit = parseInt(document.getElementById("limit").value);
 				var q = session.query( raw_goal );
 				if( q !== true ) {
 					try_answer( 'error parsing query: ' + q.args[0], true );
@@ -179,4 +180,7 @@ function reconsult() {
 		try_answer( 'error parsing program: ' + c.args[0], true );
 	else
 		try_answer( 'parsing program: ok!', true );
+	var warnings = session.getWarnings();
+	for( var i = warnings.length-1; i >= 0; i-- )
+		try_answer( 'warning parsing program: ' + warnings[i].toString(), true );
 }
