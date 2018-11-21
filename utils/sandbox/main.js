@@ -136,8 +136,11 @@ function removeClassName( elem, name ) {
 
 function show_program_tab() {
 	removeClassName(document.getElementById( "derivation-tab" ), "selected-section");
+	removeClassName(document.getElementById( "transformations-tab" ), "selected-section");
 	addClassName(document.getElementById( "program-tab" ), "selected-section");
+	document.getElementById( "query-container" ).style.display = "block";
 	document.getElementById( "canvas-container" ).style.display = "none";
+	document.getElementById( "transformations-container" ).style.display = "none";
 	document.getElementById( "program-container" ).style.display = "block";
 	document.getElementById( "output" ).style.display = "block";
 	document.getElementById( "max_answers-container" ).style.display = "none";
@@ -147,13 +150,30 @@ function show_program_tab() {
 
 function show_derivation_tab() {
 	removeClassName(document.getElementById( "program-tab" ), "selected-section");
+	removeClassName(document.getElementById( "transformations-tab" ), "selected-section");
 	addClassName(document.getElementById( "derivation-tab" ), "selected-section");
+	document.getElementById( "query-container" ).style.display = "block";
 	document.getElementById( "program-container" ).style.display = "none";
+	document.getElementById( "transformations-container" ).style.display = "none";
 	document.getElementById( "canvas-container" ).style.display = "block";
 	document.getElementById( "output" ).style.display = "none";
 	document.getElementById( "max_answers-container" ).style.display = "inline";
 	document.getElementById( "tree-options" ).style.display = "block";
 	mode = MODE_DERIVATION;
+}
+
+function show_transformations_tab() {
+	removeClassName(document.getElementById( "program-tab" ), "selected-section");
+	removeClassName(document.getElementById( "derivation-tab" ), "selected-section");
+	addClassName(document.getElementById( "transformations-tab" ), "selected-section");
+	document.getElementById( "query-container" ).style.display = "none";
+	document.getElementById( "program-container" ).style.display = "none";
+	document.getElementById( "canvas-container" ).style.display = "none";
+	document.getElementById( "transformations-container" ).style.display = "block";
+	document.getElementById( "output" ).style.display = "none";
+	document.getElementById( "max_answers-container" ).style.display = "none";
+	document.getElementById( "tree-options" ).style.display = "none";
+	mode = MODE_PROGRAM;
 }
 
 function set_theme( theme ) {
@@ -176,11 +196,34 @@ function reconsult() {
 	var c = session.consult( raw_program );
 	reset = 1;
 	new_block("consult");
-	if( c !== true )
+	if( c !== true && c.args )
 		try_answer( 'error parsing program: ' + c.args[0], true );
+	else if( c === false )
+		try_answer( 'parsing program: fail!', true );
 	else
 		try_answer( 'parsing program: ok!', true );
 	var warnings = session.getWarnings();
 	for( var i = warnings.length-1; i >= 0; i-- )
 		try_answer( 'warning parsing program: ' + warnings[i].toString(), true );
+	update_transformation();
+}
+
+function update_transformation() {
+	var t = document.getElementById("transformations-container");
+	var html = "<div><ul>";
+	for(var key in session.rules) {
+		html += "<li class=\"transformation-header\"><div></div><span>" + key + "</span></li><ul>";
+		for(var i = 0; i < session.rules[key].length; i++) {
+			html += "<li><input type=\"button\" class=\"transformation-button\" value=\"unfold\" onClick=\"unfold(session.rules['" + key + "'][" + i + "]);\" /> " + session.rules[key][i].toString() + "</li>";
+		}
+		html += "</ul>";
+	}
+	html += "</ul></div>";
+	t.innerHTML = html;
+}
+
+function unfold(rule) {
+	session.unfold(rule);
+	code.setValue(session.toString().trim());
+	update_transformation();
 }

@@ -301,6 +301,68 @@ a:hover {
 	text-align: center;
 }
 
+#transformations-container {
+	display: none;
+}
+
+#transformations-container > div > ul {
+	list-style-type: none;
+	padding: 0px;
+	margin: 0px;
+}
+
+#transformations-container > div > ul > li {
+	font-weight: bold;
+	font-size: 120%;
+	margin-bottom: 10px;
+}
+
+#transformations-container > div > ul > ul {
+	list-style-type: upper-greek;
+}
+
+#transformations-container > div > ul > ul > li {
+	font-family: monospace, courier, arial;
+	margin-bottom: 5px;
+}
+
+.transformation-header > div {
+	background-color: #efefef;
+	height: 5px;
+	position: relative;
+	top: 20px;
+	z-index: 0;
+}
+
+.transformation-header > span {
+	background-color: #ffffff;
+	padding: 0px 20px;
+	position: relative;
+	z-index: 9;
+}
+
+.transformation-header {
+	margin-top: 30px;
+	text-align: center;
+}
+
+.transformation-button {
+	background-color: #442178;
+	border: none !important;
+	color: #ffffff;
+	cursor: pointer;
+	font-family: 'Source Sans Pro', arial, verdana;
+	font-size: 15px;
+	font-weight: bold;
+	padding: 2px 10px;
+	text-align: center;
+	opacity: 0.8;
+}
+
+.transformation-button:hover {
+	opacity: 1.0;
+}
+
 #tau-canvas {
 	margin-top: 30px;
 }
@@ -324,7 +386,7 @@ a:hover {
 	background-color: #efefef;
 }
 
-#program-container > div, #query-container > div {
+#program-container > div, #query-container > div, #transformations-container > div {
 	padding: 10px;
 }
 

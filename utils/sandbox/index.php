@@ -137,6 +137,7 @@ if( isset($_GET["id"]) ) {
 			<ul>
 					<li><input type="button" id="program-tab" onClick="show_program_tab();" value="Program editor" class="selected-section" /></li>
 					<li><input type="button" id="derivation-tab" onClick="show_derivation_tab();" value="Derivation tree visualization" /></li>
+					<li><input type="button" id="transformations-tab" onClick="show_transformations_tab();" value="Transformations" /></li>
 			</ul>
 		</div>
 		<div id="content">
@@ -151,6 +152,9 @@ if( isset($_GET["id"]) ) {
 				<div id="canvas-container">
 						<div class="canvas-note">Only queries executed under this tab will be drawn.</div>
 						<canvas id="tau-canvas"></canvas>
+				</div>
+				<div id="transformations-container">
+					<div></div>
 				</div>
 				<div id="query-container">
 					<div>
