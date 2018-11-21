@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 47, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 48, status: "beta" };
 	
 	
 	
@@ -2683,7 +2683,8 @@
 				} else {
 					if( pl.type.is_module( module ) ) {
 						var name = module.args[0].id;
-						thread.session.modules.push( name );
+						if( indexOf(thread.session.modules, name) === -1 )
+							thread.session.modules.push( name );
 					} else {
 						// TODO
 						// error no existe modulo
