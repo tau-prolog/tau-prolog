@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 45, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 47, status: "beta" };
 	
 	
 	
@@ -1107,6 +1107,22 @@
 		} else {
 			return this.head + " :- " + this.body + ".";
 		}
+	};
+	
+	// Session
+	Session.prototype.toString = function() {
+		var str = "";
+		for(var i = 0; i < this.modules.length; i++) {
+			str += ":- use_module(library(" + this.modules[i] + ")).\n";
+		}
+		str += "\n";
+		for(key in this.rules) {
+			for(i = 0; i < this.rules[key].length; i++) {
+				str += this.rules[key][i].toString();
+				str += "\n";
+			}
+		}
+		return str;
 	};
 	
 	
