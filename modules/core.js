@@ -656,7 +656,7 @@
 						obj = {
 							value: rule,
 							len: start,
-							type: pl.type.is_rule( dcg ) ? SUCCESS : ERROR
+							type: pl.type.is_rule( rule ) ? SUCCESS : ERROR
 						};
 					} else {
 						rule = new pl.type.Rule(expr.value, null);
