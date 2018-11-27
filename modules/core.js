@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 48, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 49, status: "beta" };
 	
 	
 	
@@ -687,14 +687,19 @@
 		var indicator;
 		tokenizer.new_text( string );
 		var n = 0;
+		var tokens = tokenizer.get_tokens( n );
 		do {
-			var tokens = tokenizer.get_tokens( n );
-			if( tokens === null ) break;
-			var expr = parseRule(thread, tokens, 0);
+			if( tokens === null || !tokens[n] ) break;
+			var expr = parseRule(thread, tokens, n);
 			if( expr.type === ERROR ) {
 				return new Term("throw", [expr.value]);
 			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
 				var result = thread.run_directive(expr.value.head.args[0]);
+				n = expr.len;
+				if(expr.value.head.args[0].indicator === "char_conversion/2") {
+					tokens = tokenizer.get_tokens( n );
+					n = 0;
+				}
 			} else {
 				indicator = expr.value.head.indicator;
 				if( reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
@@ -702,11 +707,11 @@
 					reconsulted[indicator] = true;
 				}
 				var result = thread.add_rule(expr.value, from);
+				n = expr.len;
 			}
 			if(!result) {
 				return result;
 			}
-			n = expr.len;
 		} while( true );
 		return true;
 	}
