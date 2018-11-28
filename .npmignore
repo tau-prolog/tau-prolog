@@ -1,2 +1,4 @@
-docs/*
+doc/*
 logo/*
+local/*
+utils/*
