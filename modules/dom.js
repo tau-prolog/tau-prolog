@@ -422,6 +422,39 @@ var pl;
 				}
 			},
 			
+			// prepend_child/2
+			"prepend_child/2": function( thread, point, atom ) {
+				var parent = atom.args[0], child = atom.args[1];
+				if( pl.type.is_variable( parent ) || pl.type.is_variable( child ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( parent ) ) {
+					thread.throwError( pl.error.type( "HTMLObject", parent, atom.indicator ) );
+				} else if( !pl.type.is_dom_object( child ) ) {
+					thread.throwError( pl.error.type( "HTMLObject", child, atom.indicator ) );
+				} else {
+					if( parent.object.firstChild )
+						parent.object.insertBefore( child.object, parent.object.firstChild );
+					else
+						parent.object.appendChild( child.object );
+					thread.success( point );
+				}
+			},
+			
+			// append_child/2
+			"append_child/2": function( thread, point, atom ) {
+				var parent = atom.args[0], child = atom.args[1];
+				if( pl.type.is_variable( parent ) || pl.type.is_variable( child ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( parent ) ) {
+					thread.throwError( pl.error.type( "HTMLObject", parent, atom.indicator ) );
+				} else if( !pl.type.is_dom_object( child ) ) {
+					thread.throwError( pl.error.type( "HTMLObject", child, atom.indicator ) );
+				} else {
+					parent.object.appendChild( child.object );
+					thread.success( point );
+				}
+			},
+			
 			// add_class/2
 			"add_class/2": function( thread, point, atom ) {
 				var element = atom.args[0], name = atom.args[1];
@@ -499,7 +532,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["show/1", "hide/1", "toggle/1", "create/2", "get_by_id/2", "get_by_tag/2", "get_by_class/2", "attr/3", "style/3", "html/2", "parent_of/2", "insert_after/2", "insert_before/2", "sibling/2", "remove/1", "add_class/2", "remove_class/2", "has_class/2", "bind/4", "unbind/2", "unbind/3", "event_property/3", "prevent_default/1"];
+	var exports = ["show/1", "hide/1", "toggle/1", "create/2", "get_by_id/2", "get_by_tag/2", "get_by_class/2", "attr/3", "style/3", "html/2", "parent_of/2", "insert_after/2", "insert_before/2", "append_child/2", "prepend_child/2", "sibling/2", "remove/1", "add_class/2", "remove_class/2", "has_class/2", "bind/4", "unbind/2", "unbind/3", "event_property/3", "prevent_default/1"];
 	
 	
 	
