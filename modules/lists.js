@@ -339,7 +339,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "fold/4", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "sort/2", "keysort/2", "take/3", "drop/3", "reverse/2"];
+	var exports = ["append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "sort/2", "keysort/2", "take/3", "drop/3", "reverse/2"];
 
 
 	if( typeof module !== 'undefined' ) {
