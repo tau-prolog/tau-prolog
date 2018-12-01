@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 49, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 50, status: "beta" };
 	
 	
 	
@@ -2638,7 +2638,10 @@
 				} else if( !pl.type.is_integer( indicator.args[1] ) ) {
 					thread.throwError( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
-					thread.session.public_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
+					var key = atom.args[0].args[0].id + "/" + atom.args[0].args[1].value;
+					thread.session.public_predicates[key] = true;
+					if( !thread.session.rules[key] )
+						thread.session.rules[key] = [];
 				}
 			},
 			
