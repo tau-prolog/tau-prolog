@@ -68,3 +68,16 @@ $ npm run example:fruit
 
 ## Documentation
 The different predicates and modules available in this interpreter are documented on the [Documentation](http://tau-prolog.org/documentation) section. Even though most of the elements included in this interpreter were implemented following the ISO Prolog Standard, some of them have been modified according to the team judgement. Those differences between the way something was implemented and the ISO Prolog Standard are documented as well.
+
+## Testing
+Given that you have cloned the repository.
+
+Run the following command to ensure the test suite dependencies are installed.
+```shell
+$ npm install
+```
+
+Then simply run the test suite with the following command.
+```shell
+$ npm test
+```
