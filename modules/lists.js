@@ -334,12 +334,46 @@ var pl;
 					}
 					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [new_reversed, ins_list ? reversed : list] ) ), point.substitution, point )] );
 				}
+			},
+			
+			// list_to_set/2
+			"list_to_set/2": function( thread, point, atom ) {
+				var list = atom.args[0], lset = atom.args[1];
+				if( pl.type.is_variable( list ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else {
+					var pointer = list;
+					var elems = [];
+					while( pointer.indicator === "./2" ) {
+						elems.push( pointer.args[0] );
+						pointer = pointer.args[1];
+					}
+					if( pl.type.is_variable( pointer ) ) {
+						thread.throwError( pl.error.instantiation( atom.indicator ) );
+					} else if( !pl.type.is_term( pointer ) || pointer.indicator !== "[]/0" ) {
+						thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+					} else {
+						var arr = [], nub = new pl.type.Term( "[]", [] );
+						var match;
+						for( var i = 0; i < elems.length; i++ ) {
+							match = false
+							for( var j = 0; j < arr.length && !match; j++ ) {
+								match = pl.compare( elems[i], arr[j] ) === 0;
+							}
+							if( !match )
+								arr.push( elems[i] );
+						}
+						for( i = arr.length - 1; i >= 0; i-- )
+							nub = new pl.type.Term( ".", [arr[i],nub] );
+						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [lset,nub] ) ), point.substitution, point )] );
+					}
+				}
 			}
 			
 		};
 	};
 	
-	var exports = ["append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "sort/2", "keysort/2", "take/3", "drop/3", "reverse/2"];
+	var exports = ["append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "sort/2", "keysort/2", "take/3", "drop/3", "reverse/2", "list_to_set/2"];
 
 
 	if( typeof module !== 'undefined' ) {
