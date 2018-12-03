@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 50, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 51, status: "beta" };
 	
 	
 	
@@ -1810,28 +1810,25 @@
 	};
 	
 	// Unfolding transformation
-	Session.prototype.unfold = function(rule) {
+	Session.prototype.unfold = function( rule ) {
 		if(rule.body === null)
 			return false;
 		var head = rule.head;
 		var body = rule.body;
 		var atom = body.select();
-		var rules = this.rules[atom.indicator];
+		var thread = new Thread( this );
 		var unfolded = [];
-		for( var i = 0; i < rules.length; i++ ) {
-			this.renamed_variables = {};
-			var rule2 = rules[i].rename( this );
-			var occurs_check = this.getFlag( "occurs_check" ).indicator === "true/0";
-			var state = pl.unify( atom, rule2.head, occurs_check );
-			if( state !== null ) {
-				var head2 = head.apply( state.substitution );
-				var body2 = body.replace( rule2.body );
-				if( body2 !== null )
-					body2 = body2.apply( state.substitution );
-				unfolded.push( new Rule( head2, body2 ) );
-			}
+		thread.add_goal( atom );
+		thread.step();
+		for( var i = 0; i < thread.points.length; i++ ) {
+			var point = thread.points[i];
+			var head2 = head.apply( point.substitution );
+			var body2 = body.replace( point.goal );
+			if( body2 !== null )
+				body2 = body2.apply( point.substitution );
+			unfolded.push( new Rule( head2, body2 ) );
 		}
-		rules = this.rules[head.indicator];
+		var rules = this.rules[head.indicator];
 		var index = indexOf( rules, rule );
 		if( unfolded.length > 0 && index !== -1 ) {
 			rules.splice.apply( rules, [index, 1].concat(unfolded) );
