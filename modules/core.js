@@ -1656,9 +1656,11 @@
 	}
 	Thread.prototype.stepRule = function( mod, atom ) {
 		var name = atom.indicator;
+		if( mod === "user" )
+			mod = null;
 		if( mod === null && this.session.rules.hasOwnProperty(name) )
 			return this.session.rules[name];
-		var modules = mod === null ? this.session.modules : [mod];
+		var modules = mod === null ? this.session.modules : (indexOf(this.session.modules, mod) === -1 ? [] : [mod]);
 		for( var i = 0; i < modules.length; i++ ) {
 			var module = pl.module[modules[i]];
 			if( module.rules.hasOwnProperty(name) && (module.rules.hasOwnProperty(this.level) || module.exports_predicate(name)) )
