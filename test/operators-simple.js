@@ -1,0 +1,302 @@
+/***********************************
+ * Program to be tested
+	:- op(1000, yf, ++).
+	p(a,b,[1,c,2]).
+	p(c,d,[1,X|Y]).
+	q(+,+).
+	q( * , * ).
+	q( <, <).
+	r(a,(b,c)).
+	r((c,d),e).
+	r(i, (j,k)).
+	r((f,g), h).
+ * Predicates
+ * X is 10+20.
+ * X is 2*3+6.
+ * X is 2*3+6.
+ * X is 2 -5.
+ * X is 2-5.
+ * X is 1+2+3+4.
+ * X is 2**3.
+ * X is 2**3**4.
+ * p(X,Y,Z).
+ * q(X,Y).
+ * p(X,Y,Z).
+ * r(X,Y).
+ * X = (a++).
+ * X = (a++ ++).
+ * X = a++ .
+***********************************/
+
+QUnit.test("Goal  'X is 10+20.'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  var thread = session.thread;
+  session.query("X is 10+20.");
+  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.points[0].goal.args[1].id, "+", "Second 'is' argument is '+/2'");
+  session.answer(function(success) {
+    assert.equal(success.links.X.value, 30, "X is 30");
+  });
+});
+
+QUnit.test("Goal  'X is 2*3+6'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  var thread = session.thread;
+  session.query("X is 2*3+6.");
+  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.points[0].goal.args[1].id, "+", "Second 'is' argument is '+/2'");
+  assert.equal(thread.points[0].goal.args[1].args[0].id, "*", "First '+' argument is '*/2'");
+  session.answer(function(success) {
+    assert.equal(success.links.X.value, 12, "X is 12");
+  });
+});
+
+
+QUnit.test("Goal  'X is 2*(3+6).'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  var thread = session.thread;
+  session.query("X is 2*(3+6).");
+  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.points[0].goal.args[1].id, "*", "Second 'is' argument is '*/2'");
+  assert.equal(thread.points[0].goal.args[1].args[1].id, "+", "First '*' argument is '+/2'");
+  session.answer(function(success) {
+    assert.equal(success.links.X.value, 18, "X is 18");
+  });
+});
+
+QUnit.test("Goal  'X is 2 -5.'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  var thread = session.thread;
+  session.query("X is 2 -5.");
+  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.points[0].goal.args[1].id, "-", "Second 'is' argument is '-/2'");
+  session.answer(function(success) {
+    assert.equal(success.links.X.value, -3, "X is -3");
+  });
+});
+
+QUnit.test("Goal  'X is 2-5.'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  var thread = session.thread;
+  session.query("X is 2-5.");
+  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.points[0].goal.args[1].id, "-", "Second 'is' argument is '-/2'");
+  session.answer(function(success) {
+    assert.equal(success.links.X.value, -3, "X is -3");
+  });
+});
+
+QUnit.test("Goal  'X is 1+2+3+4.'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  var thread = session.thread;
+  session.query("X is 1+2+3+4.");
+  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.points[0].goal.args[1].id, "+", "Second 'is' argument is '+/2'");
+  assert.equal(thread.points[0].goal.args[1].args[1], 4, "Second '+' argument is 4");
+  assert.equal(thread.points[0].goal.args[1].args[0].id, "+", "First '+' argument is Term (+/2)");
+  assert.equal(thread.points[0].goal.args[1].args[0].args[1], 3, "Second '+' argument is 3");
+  session.answer(function(success) {
+    assert.equal(success.links.X.value, 10, "X is 10");
+  });
+});
+
+QUnit.test("Goal  'X is 2**3.'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  var thread = session.thread;
+  session.query("X is 2**3.");
+  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.points[0].goal.args[1].id, "**", "Second 'is' argument is '**/2'");
+  assert.equal(thread.points[0].goal.args[1].args[0], 2, "First '**' argument is 2");
+  assert.equal(thread.points[0].goal.args[1].args[1], 3, "Second '**' argument is 3");
+  session.answer(function(success) {
+    assert.equal(success.links.X.value, 8, "X is 8");
+  });
+});
+
+QUnit.test("Goal  'X is 2**3**4.'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  var thread = session.thread;
+  session.query("X is 2**3**4.");
+  assert.equal(thread.points.length, 0, "Program not parsed");
+});
+
+QUnit.test("Goal  'p(X,Y,Z).'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  var thread = session.thread;
+  session.consult(":- op(1000, yf, ++).\
+		p(a,b,[1,c,2]).\
+		p(c,d,[1,X|Y]).\
+		q(+,+).\
+		q( * , * ).\
+		q( <, <).\
+		r(a,(b,c)).\
+		r((c,d),e).\
+		r(i, (j,k)).\
+		r((f,g), h).");
+  session.query("p(X,Y,Z).");
+  assert.notEqual(thread.points.length, 0, "Program parsed");
+  assert.equal(thread.points[0].goal.id, "p", "Goal is predicate 'p'");
+
+  // Rules
+  assert.equal(Object.keys(session.rules).length, 3, "Number of distinct predicates correct");
+  assert.ok("p/3" in session.rules, "p/3 in rules");
+  assert.ok("q/2" in session.rules, "q/2 in rules");
+  assert.ok("r/2" in session.rules, "r/2 in rules");
+  assert.notOk("q/1" in session.rules, "q/1 not in rules");
+
+  // Number of rules
+  assert.equal(session.rules["p/3"].length, 2, "p/3 has two rules");
+  assert.equal(session.rules["q/2"].length, 3, "q/2 has three rules");
+  assert.equal(session.rules["r/2"].length, 4, "r/2 has four rules");
+
+  // Rules in p
+  assert.equal(session.rules["p/3"][0].body, null, "First p rule's body is null");
+  assert.equal(session.rules["p/3"][0].head.args.length, 3, "First p rule has three arguments");
+  assert.equal(session.rules["p/3"][0].head.args[0].id, "a", "First argument in p is 'a'");
+  assert.equal(session.rules["p/3"][0].head.args[1].id, "b", "Second argument in p is 'b'");
+  assert.equal(session.rules["p/3"][0].head.args[2].id, ".", "Third argument in p is [](.)");
+  assert.equal(session.rules["p/3"][1].head.args.length, 3, "Second p rule has three arguments");
+  assert.equal(session.rules["p/3"][1].head.args[0].id, "c", "First argument in p is 'c'");
+  assert.equal(session.rules["p/3"][1].head.args[1].id, "d", "Second argument in p is 'd'");
+  assert.equal(session.rules["p/3"][1].head.args[2].id, ".", "Third argument in p is [](.)");
+
+  // Rules in q
+  assert.equal(session.rules["q/2"][0].body, null, "First q rule's body is null");
+  assert.equal(session.rules["q/2"][0].head.args.length, 2, "First q rule has two arguments");
+  assert.equal(session.rules["q/2"][0].head.args[0].id, "+", "First argument in q is +");
+  assert.equal(session.rules["q/2"][0].head.args[1].id, "+", "Second argument in q is +");
+  assert.equal(session.rules["q/2"][1].head.args.length, 2, "Second q rule has two arguments");
+  assert.equal(session.rules["q/2"][1].head.args[0].id, "*", "First argument in p is *");
+  assert.equal(session.rules["q/2"][1].head.args[1].id, "*", "Second argument in p is *");
+  assert.equal(session.rules["q/2"][2].head.args.length, 2, "Second q rule has two arguments");
+  assert.equal(session.rules["q/2"][2].head.args[0].id, "<", "First argument in p is <");
+  assert.equal(session.rules["q/2"][2].head.args[1].id, "<", "Second argument in p is <");
+
+  // Rules in r
+  assert.equal(session.rules["r/2"].length, 4, "r/2 has four rules");
+  assert.equal(session.rules["r/2"][0].body, null, "First r rule's body is null");
+  assert.equal(session.rules["r/2"][0].head.args[0].id, "a", "First argument in r is 'a'");
+  assert.equal(session.rules["r/2"][0].head.args[1].id, ",", "Second argument in r is ','");
+  assert.equal(session.rules["r/2"][0].head.args[1].args[0], "b", "First argument of ',' is 'b'");
+  assert.equal(session.rules["r/2"][0].head.args[1].args[1], "c", "Second argument of ',' is 'c'");
+
+  assert.equal(session.rules["r/2"][1].body, null, "Second r rule's body is null");
+  assert.equal(session.rules["r/2"][1].head.args[0].id, ",", "First argument in r is ','");
+  assert.equal(session.rules["r/2"][1].head.args[0].args[0], "c", "First argument of ',' is 'c'");
+  assert.equal(session.rules["r/2"][1].head.args[0].args[1], "d", "Second argument of ',' is 'd'");
+  assert.equal(session.rules["r/2"][1].head.args[1].id, "e", "Second argument in r is 'e'");
+
+  assert.equal(session.rules["r/2"][2].body, null, "Third r rule's body is null");
+  assert.equal(session.rules["r/2"][2].head.args[0].id, "i", "First argument in r is 'i'");
+  assert.equal(session.rules["r/2"][2].head.args[1].id, ",", "Second argument in r is ','");
+  assert.equal(session.rules["r/2"][2].head.args[1].args[0], "j", "First argument of ',' is 'j'");
+  assert.equal(session.rules["r/2"][2].head.args[1].args[1], "k", "Second argument of ',' is 'k'");
+
+  assert.equal(session.rules["r/2"][3].body, null, "Fourth r rule's body is null");
+  assert.equal(session.rules["r/2"][3].head.args[0].id, ",", "First argument in r is ','");
+  assert.equal(session.rules["r/2"][3].head.args[0].args[0], "f", "First argument of ',' is 'f'");
+  assert.equal(session.rules["r/2"][3].head.args[0].args[1], "g", "Second argument of ',' is 'g'");
+  assert.equal(session.rules["r/2"][3].head.args[1].id, "h", "Second argument in r is 'h'");
+
+  session.answer(function(success) {
+    assert.equal(success.links.X.id, "a", "X is a");
+    assert.equal(success.links.Y.id, "b", "Y is b");
+    assert.equal(success.links.Z.id, ".", "Z is a list ('.')");
+    assert.equal(success.links.Z.args[0].value, 1, "First element in list is 1");
+    assert.equal(success.links.Z.args[1].args[0].id, "c", "Second element in list is term (c)");
+    assert.equal(success.links.Z.args[1].args[1].args[0].value, 2, "Third element in list is 2");
+  });
+
+  session.answer(function(success) {
+    assert.equal(success.links.X.id, "c", "X is c");
+    assert.equal(success.links.Y.id, "d", "Y is d");
+    assert.equal(success.links.Z.id, ".", "Z is a list ('.')");
+    assert.equal(success.links.Z.args[0].value, 1, "First element in list is 1");
+    assert.equal(success.links.Z.args[1].args[0].id, "_1", "Second element in list is '_1'");
+    assert.equal(success.links.Z.args[1].args[1].id, "_2", "Third element in list is '_2'");
+  });
+});
+
+QUnit.test("Goal  'q(X,Y).'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  session.consult(":- op(1000, yf, ++).\
+		p(a,b,[1,c,2]).\
+		p(c,d,[1,X|Y]).\
+		q(+,+).\
+		q( * , * ).\
+		q( <, <).\
+		r(a,(b,c)).\
+		r((c,d),e).\
+		r(i, (j,k)).\
+		r((f,g), h).");
+  session.query("q(X,Y).");
+  // First call
+  session.answer(function(success) {
+    assert.equal(success.links.X.id, "+", "X is +");
+    assert.equal(success.links.Y.id, "+", "Y is +");
+  });
+  // Second call
+  session.answer(function(success) {
+    assert.equal(success.links.X.id, "*", "X is *");
+    assert.equal(success.links.Y.id, "*", "Y is *");
+  });
+  // Third call
+  session.answer(function(success) {
+    assert.equal(success.links.X.id, "<", "X is <");
+    assert.equal(success.links.Y.id, "<", "Y is <");
+  });
+});
+
+QUnit.test("Goal  'r(X,Y).'", function(assert) {
+  var session = new pl.type.Session( 10000 );
+  session.consult(":- op(1000, yf, ++).\
+		p(a,b,[1,c,2]).\
+		p(c,d,[1,X|Y]).\
+		q(+,+).\
+		q( * , * ).\
+		q( <, <).\
+		r(a,(b,c)).\
+		r((c,d),e).\
+		r(i, (j,k)).\
+		r((f,g), h).");
+  session.query("r(X,Y).");
+
+  session.answer(function(success) {
+	console.log(success);
+    assert.equal(success.links.X.id, "a", "X is a");
+    assert.equal(success.links.Y.id, ",", "Y is a couple (',')");
+    assert.equal(success.links.Y.args[0].id, "b", "First element in couple is b");
+    assert.equal(success.links.Y.args[1].id, "c", "Second element in couple is c");
+  });
+
+  session.answer(function(success) {
+	console.log(success);
+    assert.equal(success.links.X.id, ",", "X is a couple (',')");
+    assert.equal(success.links.X.args[0].id, "c", "First element in couple is c");
+    assert.equal(success.links.X.args[1].id, "d", "Second element in couple is d");
+    assert.equal(success.links.Y.id, "e", "Y is e");
+  });
+  
+   session.answer(function(success) {
+	console.log(success);
+    assert.equal(success.links.X.id, "i", "X is i");
+    assert.equal(success.links.Y.id, ",", "Y is a couple (',')");
+    assert.equal(success.links.Y.args[0].id, "j", "First element in couple is j");
+    assert.equal(success.links.Y.args[1].id, "k", "Second element in couple is k");
+  });
+  
+   session.answer(function(success) {
+	console.log(success);
+    assert.equal(success.links.X.id, ",", "X is a couple (',')");
+    assert.equal(success.links.X.args[0].id, "f", "First element in couple is f");
+    assert.equal(success.links.X.args[1].id, "g", "Second element in couple is g");
+    assert.equal(success.links.Y.id, "h", "Y is h");
+  });
+});
