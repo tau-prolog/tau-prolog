@@ -13,10 +13,10 @@ var pl;
 				} else if( !pl.type.is_integer( time ) ) {
 					thread.throwError( pl.error.type( "integer", time, thread.level ) );
 				} else {
-					thread.success( point );
 					setTimeout( function() {
+						thread.success( point );
 						thread.again();
-					}, time );
+					}, time.value );
 					return true;
 				}
 			}

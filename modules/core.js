@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 51, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 52, status: "beta" };
 	
 	
 	
@@ -1765,12 +1765,15 @@
 	}
 	Thread.prototype.answers = function( callback, max ) {
 		var answers = max || 1000;
-		var session = this;
+		var thread = this;
 		if( max <= 0 ) return;
 		this.answer( function( answer ) {
 			callback( answer );
-			if( answer !== false )
-				session.answers( callback, max-1 );
+			if( answer !== false ) {
+				setTimeout( function() {
+					thread.answers( callback, max-1 );
+				}, 1 );
+			}
 		} );
 	};
 
