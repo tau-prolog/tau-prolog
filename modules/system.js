@@ -19,12 +19,28 @@ var pl;
 					}, time.value );
 					return true;
 				}
+			},
+			// async/1
+			"async/1": function( thread, point, atom ) {
+				var closure = atom.args[0];
+				if( pl.type.is_variable( closure ) ) {
+					thread.throwError( pl.error.instantiation( thread.level ) ); 
+				} else if( pl.type.is_callable( closure ) ) {
+					var n_thread = new pl.type.Thread( thread.session );
+					n_thread.add_goal( closure.clone(), true );
+					thread.success( point );
+					setTimeout( function() {
+						n_thread.answers( function() {} );
+					}, 0 );
+				} else {
+					thread.throwError( pl.error.type( "callable", closure, thread.level ) ); 
+				}
 			}
 
 		};
 	};
 	
-	var exports = ["sleep/1"];
+	var exports = ["sleep/1", "async/1"];
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
