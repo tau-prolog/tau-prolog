@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 52, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 53, status: "beta" };
 	
 	
 	
@@ -45,6 +45,23 @@
 	} else {
 		map = function(array, fn) {
 			return array.map(fn);
+		};
+	}
+	
+	var filter;
+	if(!Array.prototype.filter) {
+		filter = function(array, fn) {
+			var a = [];
+			var len = array.length;
+			for(var i = 0; i < len; i++) {
+				if(fn(array[i]))
+					a.push( array[i] );
+			}
+			return a;
+		};
+	} else {
+		filter = function(array, fn) {
+			return array.filter(fn);
 		};
 	}
 	
@@ -636,7 +653,7 @@
 	function parseRule(thread, tokens, start) {
 		var line = tokens[start].line;
 		var expr = parseExpr(thread, tokens, start, thread.__get_max_priority(), false);
-		var rule;
+		var rule = null;
 		var obj;
 		if(expr.type !== ERROR) {
 			start = expr.len;
@@ -666,9 +683,11 @@
 							type: SUCCESS
 						};
 					}
-					var singleton = rule.singleton_variables();
-					if( singleton.length > 0 )
-						thread.throw_warning( pl.warning.singleton( singleton, rule.head.indicator, line ) );
+					if( rule ) {
+						var singleton = rule.singleton_variables();
+						if( singleton.length > 0 )
+							thread.throw_warning( pl.warning.singleton( singleton, rule.head.indicator, line ) );
+					}
 					return obj;
 				} else {
 					return { type: ERROR, value: pl.error.syntax(tokens[start], "callable expected") };
@@ -693,6 +712,18 @@
 			var expr = parseRule(thread, tokens, n);
 			if( expr.type === ERROR ) {
 				return new Term("throw", [expr.value]);
+			} else if(expr.value.body === null && expr.value.head.indicator === "?-/1") {
+				var n_thread = new Thread( thread.session );
+				n_thread.add_goal( expr.value.head.args[0] );
+				n_thread.answer( function( answer ) {
+					if( pl.type.is_error( answer ) ) {
+						thread.throw_warning( answer.args[0] );
+					} else if( answer === false || answer === null ) {
+						thread.throw_warning( pl.warning.failed_goal( expr.value.head.args[0], expr.len ) );
+					}
+				} );
+				n = expr.len;
+				var result = true;
 			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
 				var result = thread.run_directive(expr.value.head.args[0]);
 				n = expr.len;
@@ -703,7 +734,7 @@
 			} else {
 				indicator = expr.value.head.indicator;
 				if( reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
-					thread.session.rules[indicator] = [];
+					thread.session.rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
 					reconsulted[indicator] = true;
 				}
 				var result = thread.add_rule(expr.value, from);
@@ -950,9 +981,10 @@
 	}
 	
 	// Rules
-	function Rule( head, body ) {
+	function Rule( head, body, dynamic ) {
 		this.head = head;
 		this.body = body;
+		this.dynamic = dynamic ? dynamic : false;
 	}
 
 	// Session
@@ -3403,7 +3435,7 @@
 							thread.session.rules[head.indicator] = [];
 						}
 						thread.session.public_predicates[head.indicator] = true;
-						thread.session.rules[head.indicator] = [new Rule( head, body )].concat( thread.session.rules[head.indicator] );
+						thread.session.rules[head.indicator] = [new Rule( head, body, true )].concat( thread.session.rules[head.indicator] );
 						thread.success( point );
 					} else {
 						thread.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
@@ -3435,7 +3467,7 @@
 							thread.session.rules[head.indicator] = [];
 						}
 						thread.session.public_predicates[head.indicator] = true;
-						thread.session.rules[head.indicator].push( new Rule( head, body ) );
+						thread.session.rules[head.indicator].push( new Rule( head, body, true ) );
 						thread.success( point );
 					} else {
 						thread.throwError( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
@@ -4443,6 +4475,11 @@
 				for( var i = variables.length-1; i >= 0; i-- )
 					list = new Term( ".", [new Var(variables[i]), list] );
 				return new Term( "warning", [new Term( "singleton_variables", [list, str_indicator(rule)]), new Term(".",[new Term( "line", [ new Num( line, false ) ]), new Term("[]")])] );
+			},
+			
+			// Failed goal
+			failed_goal: function( goal, line ) {
+				return new Term( "warning", [new Term( "failed_goal", [goal]), new Term(".",[new Term( "line", [ new Num( line, false ) ]), new Term("[]")])] );
 			}
 
 		},
