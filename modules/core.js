@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 53, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 54, status: "beta" };
 	
 	
 	
@@ -1792,19 +1792,25 @@
 	};
 	
 	// Find all computed answers
-	Session.prototype.answers = function( callback, max ) {
-		return this.thread.answers( callback, max );
+	Session.prototype.answers = function( callback, max, after ) {
+		return this.thread.answers( callback, max, after );
 	}
-	Thread.prototype.answers = function( callback, max ) {
+	Thread.prototype.answers = function( callback, max, after ) {
 		var answers = max || 1000;
 		var thread = this;
-		if( max <= 0 ) return;
+		if( max <= 0 ) {
+			if(after)
+				after();
+			return;
+		}
 		this.answer( function( answer ) {
 			callback( answer );
 			if( answer !== false ) {
 				setTimeout( function() {
-					thread.answers( callback, max-1 );
+					thread.answers( callback, max-1, after );
 				}, 1 );
+			} else if(after) {
+				after();
 			}
 		} );
 	};

@@ -105,35 +105,37 @@ var pl;
 		var format_error = thread.session.format_error;
 		var deb = thread.session.thread.debugger;
 		var id = function(x) { return x };
+		var after = function() {
+			thread.session.format_success = format_success;
+			thread.session.format_error = format_error;
+			thread.debugger = deb;
+			answers = thread.debugger_states;
+			// Set pointers to child nodes
+			for(var i = 0; i < answers.length; i++) {
+				var state = answers[i];
+				var child = null;
+				while( state != null ) {
+					state.text_goal = state.goal === null ? "□" : state.goal.toString();
+					state.text_substitution = clear_substitution(state.substitution).toString();
+					state.width = width;
+					if(state.children == null)
+						state.children = [];
+					if( child != null && !contains(child, state.children) )
+						state.children.push( child );
+					child = state;
+					state = state.parent;
+				}
+			}
+			// Set preorder id
+			set_preorder_id( parent, 0 );
+			// Get nodes by level
+			var levels = get_states_by_level( parent );
+			draw( levels, canvas, styles );
+		};
 		thread.session.format_success = id;
 		thread.session.format_error = id;
 		thread.session.thread.debugger = true;
-		thread.session.answers( function(x) { x.status = "answer"; }, max );
-		thread.session.format_success = format_success;
-		thread.session.format_error = format_error;
-		thread.debugger = deb;
-		answers = thread.debugger_states;
-		// Set pointers to child nodes
-		for(var i = 0; i < answers.length; i++) {
-			var state = answers[i];
-			var child = null;
-			while( state != null ) {
-				state.text_goal = state.goal === null ? "□" : state.goal.toString();
-				state.text_substitution = clear_substitution(state.substitution).toString();
-				state.width = width;
-				if(state.children == null)
-					state.children = [];
-				if( child != null && !contains(child, state.children) )
-					state.children.push( child );
-				child = state;
-				state = state.parent;
-			}
-		}
-		// Set preorder id
-		set_preorder_id( parent, 0 );
-		// Get nodes by level
-		var levels = get_states_by_level( parent );
-		draw( levels, canvas, styles );
+		thread.session.answers( function(x) { x.status = "answer"; }, max, after );
 	};
 
 	var draw = function( tree, canvas_id, styles ) {
