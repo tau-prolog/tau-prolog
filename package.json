@@ -26,5 +26,8 @@
   "bugs": {
     "url": "https://github.com/jariazavalverde/tau-prolog/issues"
   },
-  "homepage": "http://tau-prolog.org/"
+  "homepage": "http://tau-prolog.org/",
+  "dependencies": {
+    "qunit": "^2.8.0"
+  }
 }
