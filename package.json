@@ -5,7 +5,7 @@
   "main": "./modules/core.js",
   "scripts": {
     "example:fruit": "node examples/nodejs/fruit",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node_modules/.bin/qunit test"
   },
   "repository": {
     "type": "git",
@@ -26,5 +26,8 @@
   "bugs": {
     "url": "https://github.com/jariazavalverde/tau-prolog/issues"
   },
-  "homepage": "http://tau-prolog.org/"
+  "homepage": "http://tau-prolog.org/",
+  "dependencies": {
+    "qunit": "^2.8.0"
+  }
 }
