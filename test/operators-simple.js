@@ -28,6 +28,10 @@
  * X = a++ .
 ***********************************/
 
+if (typeof process === 'object') {
+  var pl = require('../modules/core.js')
+}
+
 QUnit.test("Goal  'X is 10+20.'", function(assert) {
   var session = new pl.type.Session( 10000 );
   var thread = session.thread;
@@ -269,7 +273,7 @@ QUnit.test("Goal  'r(X,Y).'", function(assert) {
   session.query("r(X,Y).");
 
   session.answer(function(success) {
-	console.log(success);
+    // console.log(success);
     assert.equal(success.links.X.id, "a", "X is a");
     assert.equal(success.links.Y.id, ",", "Y is a couple (',')");
     assert.equal(success.links.Y.args[0].id, "b", "First element in couple is b");
@@ -277,7 +281,7 @@ QUnit.test("Goal  'r(X,Y).'", function(assert) {
   });
 
   session.answer(function(success) {
-	console.log(success);
+    // console.log(success);
     assert.equal(success.links.X.id, ",", "X is a couple (',')");
     assert.equal(success.links.X.args[0].id, "c", "First element in couple is c");
     assert.equal(success.links.X.args[1].id, "d", "Second element in couple is d");
@@ -285,7 +289,7 @@ QUnit.test("Goal  'r(X,Y).'", function(assert) {
   });
   
    session.answer(function(success) {
-	console.log(success);
+    // console.log(success);
     assert.equal(success.links.X.id, "i", "X is i");
     assert.equal(success.links.Y.id, ",", "Y is a couple (',')");
     assert.equal(success.links.Y.args[0].id, "j", "First element in couple is j");
@@ -293,7 +297,7 @@ QUnit.test("Goal  'r(X,Y).'", function(assert) {
   });
   
    session.answer(function(success) {
-	console.log(success);
+    // console.log(success);
     assert.equal(success.links.X.id, ",", "X is a couple (',')");
     assert.equal(success.links.X.args[0].id, "f", "First element in couple is f");
     assert.equal(success.links.X.args[1].id, "g", "Second element in couple is g");

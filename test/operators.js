@@ -1,3 +1,7 @@
+if (typeof process === 'object') {
+  var pl = require('../modules/core.js')
+}
+
 QUnit.test("Operation 'X is 4 + 5 - 9'", function(assert){
     var session = new pl.type.Session( 10000 );
     var thread = session.thread;
@@ -12,7 +16,7 @@ QUnit.test("Operation 'X is 4 + 5 - 9'", function(assert){
     assert.equal( thread.points[0].goal.args[1].args[0].args[0], 4, "First '+' argument is 4");
     assert.equal( thread.points[0].goal.args[1].args[0].args[1], 5, "First '+' argument is 5");
     session.answer( function(success){
-        console.log(success);
+        // console.log(success);
         assert.equal( success.links.X.value, 0, "X is 0");
     });
 });
@@ -31,7 +35,7 @@ QUnit.test("Operation 'X is 4 + (5 - 9)'", function(assert){
     assert.equal( thread.points[0].goal.args[1].args[1].args[0], 5, "First '-' argument is 5");
     assert.equal( thread.points[0].goal.args[1].args[1].args[1], 9, "First '-' argument is 9");
     session.answer( function(success){
-        console.log(success);
+        // console.log(success);
         assert.equal( success.links.X.value, 0, "X is 0");
     });
 });
@@ -59,7 +63,7 @@ QUnit.test("Operation 'X is 10 + 7 \\/ 6 - 1 /\\ 15 + 3'", function(assert){
     assert.equal( thread.points[0].goal.args[1].args[0].args[0].args[0].args[0].args[0], 10, "First '+' argument is 10");
     assert.equal( thread.points[0].goal.args[1].args[0].args[0].args[0].args[0].args[1], 7, "First '+' argument is 7");
     session.answer( function(success){
-        console.log(success);
+        // console.log(success);
         assert.equal( success.links.X.value, 9, "X is 9");
     });
 });
@@ -87,7 +91,7 @@ QUnit.test("Operation 'X is (10 + 7) \\/ (6 - 1) /\\ (15 + 3)'", function(assert
     assert.ok( thread.points[0].goal.args[1].args[1].args[0], 15, "First '+' argument is 15");
     assert.ok( thread.points[0].goal.args[1].args[1].args[1], 3, "Second '+' argument is 3");
     session.answer( function(success){
-        console.log(success);
+        // console.log(success);
         assert.equal( success.links.X.value, 16, "X is 16");
     });
 });

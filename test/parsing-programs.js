@@ -1,3 +1,7 @@
+if (typeof process === 'object') {
+  var pl = require('../modules/core.js')
+}
+
 // Test 1 - Parse a correct program
 QUnit.test("ParseProgram - Correct program", function (assert) {
 	var session = new pl.type.Session(10000);
