@@ -68,3 +68,27 @@ $ npm run example:fruit
 
 ## Documentation
 The different predicates and modules available in this interpreter are documented on the [Documentation](http://tau-prolog.org/documentation) section. Even though most of the elements included in this interpreter were implemented following the ISO Prolog Standard, some of them have been modified according to the team judgement. Those differences between the way something was implemented and the ISO Prolog Standard are documented as well.
+
+## Testing
+Automated unit tests are written using the [QUnit](https://qunitjs.com) test framework and located in the `test` directory of this repository. To run the tests in a node runtime use the following command:
+```shell
+$ npm test
+```
+You should see output in the terminal similar to the following:
+```shell
+> tau-prolog@0.2.49 test /Users/username/path-to-repo/tau-prolog
+> qunit test
+
+TAP version 13
+ok 1 Goal  'X is 10+20.'
+ok 2 Goal  'X is 2*3+6'
+ok 3 Goal  'X is 2*(3+6).'
+...
+ok 22 Answer - Limite reached
+1..22
+# pass 22
+# skip 0
+# todo 0
+# fail 0
+```
+To run the tests in a client runtime, simply open `test/test.html` in your favourite browser.
