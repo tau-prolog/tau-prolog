@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 54, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 55, status: "beta" };
 	
 	
 	
@@ -3934,6 +3934,34 @@
 						}
 						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
 					}
+				}
+			},
+			
+			// upcase_atom/2
+			"upcase_atom/2": function( thread, point, atom ) {
+				var original = atom.args[0], upcase = atom.args[1];
+				if( pl.type.is_variable( original ) ) {
+					thread.throwError( pl.error.instantiation( original ) );
+				} else if( !pl.type.is_atom( original ) ) {
+					thread.throwError( pl.error.type( "atom", original, atom.indicator ) );
+				} else if( !pl.type.is_variable( upcase ) && !pl.type.is_atom( upcase ) ) {
+					thread.throwError( pl.error.type( "atom", upcase, atom.indicator ) );
+				} else {
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [upcase, new Term( original.id.toUpperCase(), [] )] ) ), point.substitution, point )] );
+				}
+			},
+			
+			// downcase_atom/2
+			"downcase_atom/2": function( thread, point, atom ) {
+				var original = atom.args[0], downcase = atom.args[1];
+				if( pl.type.is_variable( original ) ) {
+					thread.throwError( pl.error.instantiation( original ) );
+				} else if( !pl.type.is_atom( original ) ) {
+					thread.throwError( pl.error.type( "atom", original, atom.indicator ) );
+				} else if( !pl.type.is_variable( downcase ) && !pl.type.is_atom( downcase ) ) {
+					thread.throwError( pl.error.type( "atom", downcase, atom.indicator ) );
+				} else {
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [downcase, new Term( original.id.toLowerCase(), [] )] ) ), point.substitution, point )] );
 				}
 			},
 			
