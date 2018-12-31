@@ -3,7 +3,10 @@ local/
 utils/sandbox/mysql.php
 utils/sandbox/codemirror/*
 !utils/sandbox/codemirror/theme/
+!utils/sandbox/codemirror/mode/
 utils/sandbox/codemirror/theme/*
 !utils/sandbox/codemirror/theme/tau.css
 !utils/sandbox/codemirror/theme/tauout.css
+utils/sandbox/codemirror/mode/*
+!utils/sandbox/codemirror/mode/prolog
 node_modules/
