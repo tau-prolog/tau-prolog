@@ -3941,7 +3941,7 @@
 			"upcase_atom/2": function( thread, point, atom ) {
 				var original = atom.args[0], upcase = atom.args[1];
 				if( pl.type.is_variable( original ) ) {
-					thread.throwError( pl.error.instantiation( original ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( original ) ) {
 					thread.throwError( pl.error.type( "atom", original, atom.indicator ) );
 				} else if( !pl.type.is_variable( upcase ) && !pl.type.is_atom( upcase ) ) {
@@ -3955,13 +3955,65 @@
 			"downcase_atom/2": function( thread, point, atom ) {
 				var original = atom.args[0], downcase = atom.args[1];
 				if( pl.type.is_variable( original ) ) {
-					thread.throwError( pl.error.instantiation( original ) );
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( original ) ) {
 					thread.throwError( pl.error.type( "atom", original, atom.indicator ) );
 				} else if( !pl.type.is_variable( downcase ) && !pl.type.is_atom( downcase ) ) {
 					thread.throwError( pl.error.type( "atom", downcase, atom.indicator ) );
 				} else {
 					thread.prepend( [new State( point.goal.replace( new Term( "=", [downcase, new Term( original.id.toLowerCase(), [] )] ) ), point.substitution, point )] );
+				}
+			},
+			
+			// atomic_list_concat/2
+			"atomic_list_concat/2": function( thread, point, atom ) {
+				var list = atom.args[0], concat = atom.args[1];
+				thread.prepend( [new State( point.goal.replace( new Term( "atomic_list_concat", [list, new Term( "", [] ), concat] ) ), point.substitution, point )] );
+			},
+			
+			// atomic_list_concat/3
+			"atomic_list_concat/3": function( thread, point, atom ) {
+				var list = atom.args[0], separator = atom.args[1], concat = atom.args[2];
+				if( pl.type.is_variable( separator ) || pl.type.is_variable( list ) && pl.type.is_variable( concat ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
+					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+				} else if( !pl.type.is_variable( concat ) && !pl.type.is_atom( concat ) ) {
+					thread.throwError( pl.error.type( "atom", concat, atom.indicator ) );
+				} else {
+					if( !pl.type.is_variable( concat ) ) {
+						var atomic = arrayToList( map(
+							concat.id.split( separator.id ),
+							function( id ) {
+								return new Term( id, [] );
+							}
+						) );
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [atomic, list] ) ), point.substitution, point )] );
+					} else {
+						var id = "";
+						var pointer = list;
+						while( pl.type.is_term( pointer ) && pointer.indicator === "./2" ) {
+							if( !pl.type.is_atom( pointer.args[0] ) && !pl.type.is_number( pointer.args[0] ) ) {
+								thread.throwError( pl.error.type( "atomic", pointer.args[0], atom.indicator ) );
+								return;
+							}
+							if( id !== "" )
+								id += separator.id;
+							if( pl.type.is_atom( pointer.args[0] ) )
+								id += pointer.args[0].id;
+							else
+								id += "" + pointer.args[0].value;
+							pointer = pointer.args[1];
+						}
+						id = new Term( id, [] );
+						if( pl.type.is_variable( pointer ) ) {
+							thread.throwError( pl.error.instantiation( atom.indicator ) );
+						} else if( !pl.type.is_term( pointer ) || pointer.indicator !== "[]/0" ) {
+							thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+						} else {
+							thread.prepend( [new State( point.goal.replace( new Term( "=", [id, concat] ) ), point.substitution, point )] );
+						}
+					}
 				}
 			},
 			
