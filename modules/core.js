@@ -2817,6 +2817,7 @@
 							if( !thread.session.__operators[priority.value][operator.id] ) thread.session.__operators[priority.value][operator.id] = [];
 							thread.session.__operators[priority.value][operator.id].push( type.id );
 						}
+						return true;
 					}
 				}
 			}
@@ -2825,6 +2826,37 @@
 		
 		// Built-in predicates
 		predicate: {
+			
+			// INPUT AND OUTPUT
+			
+			// op/3
+			"op/3": function( thread, point, atom ) {
+				if( pl.directive["op/3"]( thread, atom ) )
+					thread.success( point );
+			},
+			
+			// current_op/3
+			"current_op/3": function( thread, point, atom ) {
+				var priority = atom.args[0], specifier = atom.args[1], operator = atom.args[2];
+				var points = [];
+				for( var p in thread.session.__operators )
+					for( var o in thread.session.__operators[p] )
+						for( var i = 0; i < thread.session.__operators[p][o].length; i++ )
+							points.push( new State(
+								point.goal.replace(
+									new Term( ",", [
+										new Term( "=", [new Num( p, false ), priority] ),
+										new Term( ",", [
+											new Term( "=", [new Term( thread.session.__operators[p][o][i], [] ), specifier] ),
+											new Term( "=", [new Term( o, [] ), operator] )
+										] )
+									] )
+								),
+								point.substitution,
+								point
+							) );
+				thread.prepend( points );
+			},
 		
 			// LOGIC AND CONTROL STRUCTURES
 		
