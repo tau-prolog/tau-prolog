@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 55, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 56, status: "beta" };
 	
 	
 	
@@ -700,7 +700,10 @@
 	}
 
 	// Parse a program
-	function parseProgram(thread, string, from) {
+	function parseProgram(thread, string, options) {
+		options = options ? options : {};
+		options.from = options.from ? options.from : "$tau-js";
+		options.reconsult = options.reconsult !== undefined ? options.reconsult : true;
 		var tokenizer = new Tokenizer( thread );
 		var reconsulted = {};
 		var indicator;
@@ -733,11 +736,11 @@
 				}
 			} else {
 				indicator = expr.value.head.indicator;
-				if( reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
+				if( options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
 					thread.session.rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
 					reconsulted[indicator] = true;
 				}
-				var result = thread.add_rule(expr.value, from);
+				var result = thread.add_rule(expr.value, options);
 				n = expr.len;
 			}
 			if(!result) {
@@ -1469,8 +1472,10 @@
 	};
 
 	// Add a rule
-	Session.prototype.add_rule = function( rule, from ) {
-		this.src_predicates[rule.head.indicator] = from ? from : "$tau-js";
+	Session.prototype.add_rule = function( rule, options ) {
+		options = options ? options : {};
+		options.from = options.from ? options.from : "$tau-js";
+		this.src_predicates[rule.head.indicator] = options.from;
 		if(!this.rules[rule.head.indicator]) {
 			this.rules[rule.head.indicator] = [];
 		}
@@ -1479,8 +1484,8 @@
 			this.public_predicates[rule.head.indicator] = false;
 		return true;
 	};
-	Thread.prototype.add_rule = function( rule, from ) {
-		return this.session.add_rule( rule, from );
+	Thread.prototype.add_rule = function( rule, options ) {
+		return this.session.add_rule( rule, options );
 	};
 
 	// Run a directive
@@ -1561,11 +1566,10 @@
 	};
 
 	// Consult a program from a string
-	Session.prototype.consult = function( program, from ) {
-		return this.thread.consult( program, from );
+	Session.prototype.consult = function( program, options ) {
+		return this.thread.consult( program, options );
 	};
-	Thread.prototype.consult = function( program, from ) {
-		from = from ? from : "$tau-js";
+	Thread.prototype.consult = function( program, options ) {
 		var string = "";
 		if( typeof program === "string" ) {
 			string = program;
@@ -1591,7 +1595,7 @@
 			return false;
 		}
 		this.warnings = [];
-		return parseProgram( this, string, from );
+		return parseProgram( this, string, options );
 	};
 
 	// Query goal from a string (without ?-)
