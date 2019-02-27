@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 57, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 58, status: "beta" };
 	
 	
 	
@@ -3324,13 +3324,13 @@
 						for( var i = 0; i < arity.value; i++ )
 							args.push( thread.next_free_variable() );
 						var functor = pl.type.is_integer( name ) ? name : new Term( name.id, args );
-						thread.prepend( [new State( point.goal.replace( new Term( "=", [term, functor] ) ), point.substitution, point.parent )] );
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [term, functor] ) ), point.substitution, point )] );
 					}
 				} else {
 					var id = pl.type.is_integer( term ) ? term : new Term( term.id, [] );
 					var length = pl.type.is_integer( term ) ? new Num( 0, false ) : new Num( term.args.length, false );
 					var goal = new Term( ",", [new Term( "=", [id, name] ), new Term( "=", [length, arity] )] );
-					thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point.parent )] );
+					thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
 				}
 			},
 			
