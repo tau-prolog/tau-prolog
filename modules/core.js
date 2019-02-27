@@ -1781,7 +1781,7 @@
 							this.session.renamed_variables = {};
 							rule = rule.rename( this );
 							var occurs_check = this.getFlag( "occurs_check" ).indicator === "true/0";
-							var state = {};
+							var state = new State();
 							var mgu = pl.unify( atom, rule.head, occurs_check );
 							if( mgu !== null ) {
 								state.goal = point.goal.replace( rule.body );
@@ -3029,7 +3029,7 @@
 						}
 						thread.points = states;
 						var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
-						var state = {};
+						var state = new State();
 						var mgu = pl.unify( answer.args[0], atom.args[1], occurs_check );
 						if( mgu !== null ) {
 							state.substitution = point.substitution.apply( mgu );
@@ -3045,7 +3045,14 @@
 							point.substitution.apply( answer ),
 							point
 						)];
-						var catch_points = map( call_points, function( state ) {
+						var filter_points = [];
+						for( var i = call_points.length-1; i >= 0; i-- ) {
+							filter_points.push( call_points[i] );
+							var selected = call_points[i].goal !== null ? call_points[i].goal.select() : null;
+							if( pl.type.is_term( selected ) && selected.indicator === "!/0" )
+								break;
+						}
+						var catch_points = map( filter_points, function( state ) {
 							if( state.goal === null )
 								state.goal = new Term( "true", [] );
 							state = new State(
@@ -3072,7 +3079,7 @@
 			// =/2 (unification)
 			"=/2": function( thread, point, atom ) {
 				var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
-				var state = {};
+				var state = new State();
 				var mgu = pl.unify( atom.args[0], atom.args[1], occurs_check );
 				if( mgu !== null ) {
 					state.goal = point.goal.apply( mgu ).replace( null );
@@ -3084,7 +3091,7 @@
 			
 			// unify_with_occurs_check/2
 			"unify_with_occurs_check/2": function( thread, point, atom ) {
-				var state = {};
+				var state = new State();
 				var mgu = pl.unify( atom.args[0], atom.args[1], true );
 				if( mgu !== null ) {
 					state.goal = point.goal.apply( mgu ).replace( null );
