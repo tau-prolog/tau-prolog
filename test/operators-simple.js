@@ -36,9 +36,9 @@ QUnit.test("Goal  'X is 10+20.'", function(assert) {
   var session = new pl.type.Session( 10000 );
   var thread = session.thread;
   session.query("X is 10+20.");
-  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
-  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
-  assert.equal(thread.points[0].goal.args[1].id, "+", "Second 'is' argument is '+/2'");
+  assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.head_point().goal.args[1].id, "+", "Second 'is' argument is '+/2'");
   session.answer(function(success) {
     assert.equal(success.links.X.value, 30, "X is 30");
   });
@@ -48,10 +48,10 @@ QUnit.test("Goal  'X is 2*3+6'", function(assert) {
   var session = new pl.type.Session( 10000 );
   var thread = session.thread;
   session.query("X is 2*3+6.");
-  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
-  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
-  assert.equal(thread.points[0].goal.args[1].id, "+", "Second 'is' argument is '+/2'");
-  assert.equal(thread.points[0].goal.args[1].args[0].id, "*", "First '+' argument is '*/2'");
+  assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.head_point().goal.args[1].id, "+", "Second 'is' argument is '+/2'");
+  assert.equal(thread.head_point().goal.args[1].args[0].id, "*", "First '+' argument is '*/2'");
   session.answer(function(success) {
     assert.equal(success.links.X.value, 12, "X is 12");
   });
@@ -62,10 +62,10 @@ QUnit.test("Goal  'X is 2*(3+6).'", function(assert) {
   var session = new pl.type.Session( 10000 );
   var thread = session.thread;
   session.query("X is 2*(3+6).");
-  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
-  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
-  assert.equal(thread.points[0].goal.args[1].id, "*", "Second 'is' argument is '*/2'");
-  assert.equal(thread.points[0].goal.args[1].args[1].id, "+", "First '*' argument is '+/2'");
+  assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.head_point().goal.args[1].id, "*", "Second 'is' argument is '*/2'");
+  assert.equal(thread.head_point().goal.args[1].args[1].id, "+", "First '*' argument is '+/2'");
   session.answer(function(success) {
     assert.equal(success.links.X.value, 18, "X is 18");
   });
@@ -75,9 +75,9 @@ QUnit.test("Goal  'X is 2 -5.'", function(assert) {
   var session = new pl.type.Session( 10000 );
   var thread = session.thread;
   session.query("X is 2 -5.");
-  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
-  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
-  assert.equal(thread.points[0].goal.args[1].id, "-", "Second 'is' argument is '-/2'");
+  assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.head_point().goal.args[1].id, "-", "Second 'is' argument is '-/2'");
   session.answer(function(success) {
     assert.equal(success.links.X.value, -3, "X is -3");
   });
@@ -87,9 +87,9 @@ QUnit.test("Goal  'X is 2-5.'", function(assert) {
   var session = new pl.type.Session( 10000 );
   var thread = session.thread;
   session.query("X is 2-5.");
-  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
-  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
-  assert.equal(thread.points[0].goal.args[1].id, "-", "Second 'is' argument is '-/2'");
+  assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.head_point().goal.args[1].id, "-", "Second 'is' argument is '-/2'");
   session.answer(function(success) {
     assert.equal(success.links.X.value, -3, "X is -3");
   });
@@ -99,12 +99,12 @@ QUnit.test("Goal  'X is 1+2+3+4.'", function(assert) {
   var session = new pl.type.Session( 10000 );
   var thread = session.thread;
   session.query("X is 1+2+3+4.");
-  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
-  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
-  assert.equal(thread.points[0].goal.args[1].id, "+", "Second 'is' argument is '+/2'");
-  assert.equal(thread.points[0].goal.args[1].args[1], 4, "Second '+' argument is 4");
-  assert.equal(thread.points[0].goal.args[1].args[0].id, "+", "First '+' argument is Term (+/2)");
-  assert.equal(thread.points[0].goal.args[1].args[0].args[1], 3, "Second '+' argument is 3");
+  assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.head_point().goal.args[1].id, "+", "Second 'is' argument is '+/2'");
+  assert.equal(thread.head_point().goal.args[1].args[1], 4, "Second '+' argument is 4");
+  assert.equal(thread.head_point().goal.args[1].args[0].id, "+", "First '+' argument is Term (+/2)");
+  assert.equal(thread.head_point().goal.args[1].args[0].args[1], 3, "Second '+' argument is 3");
   session.answer(function(success) {
     assert.equal(success.links.X.value, 10, "X is 10");
   });
@@ -114,11 +114,11 @@ QUnit.test("Goal  'X is 2**3.'", function(assert) {
   var session = new pl.type.Session( 10000 );
   var thread = session.thread;
   session.query("X is 2**3.");
-  assert.equal(thread.points[0].goal.id, "is", "First term is 'is/2'");
-  assert.ok(pl.type.is_term(thread.points[0].goal.args[1]), "Second 'is' argument is Term");
-  assert.equal(thread.points[0].goal.args[1].id, "**", "Second 'is' argument is '**/2'");
-  assert.equal(thread.points[0].goal.args[1].args[0], 2, "First '**' argument is 2");
-  assert.equal(thread.points[0].goal.args[1].args[1], 3, "Second '**' argument is 3");
+  assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
+  assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
+  assert.equal(thread.head_point().goal.args[1].id, "**", "Second 'is' argument is '**/2'");
+  assert.equal(thread.head_point().goal.args[1].args[0], 2, "First '**' argument is 2");
+  assert.equal(thread.head_point().goal.args[1].args[1], 3, "Second '**' argument is 3");
   session.answer(function(success) {
     assert.equal(success.links.X.value, 8, "X is 8");
   });
@@ -146,7 +146,7 @@ QUnit.test("Goal  'p(X,Y,Z).'", function(assert) {
 		r((f,g), h).");
   session.query("p(X,Y,Z).");
   assert.notEqual(thread.points.length, 0, "Program parsed");
-  assert.equal(thread.points[0].goal.id, "p", "Goal is predicate 'p'");
+  assert.equal(thread.head_point().goal.id, "p", "Goal is predicate 'p'");
 
   // Rules
   assert.equal(Object.keys(session.rules).length, 3, "Number of distinct predicates correct");
