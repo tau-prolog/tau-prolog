@@ -34,7 +34,7 @@ QUnit.test("ParseProgram - Program that should be read correctly (2)", function 
 	session.query("p(X,Y,Z).");
 
 	assert.notEqual(thread.points.length, 0, "Program parsed");
-	assert.equal(thread.points[0].goal.id, "p", "Goal is predicate 'p'");
+	assert.equal(thread.head_point().goal.id, "p", "Goal is predicate 'p'");
 	
 	// Rules
 	assert.equal(Object.keys(session.rules).length, 3, "Number of distinct predicates correct");
@@ -136,7 +136,7 @@ QUnit.test("ParseGoal - Correct goal", function (assert) {
 	assert.ok(thread.points.length == 0, "Program before parsing goal > Substitution points empty !");
 	session.query("append(X,Y,[1,2,3]).");
 	assert.ok(thread.points.length != 0, "Program after parsing goal > Substitution points are not empty !");
-	var subs_point = thread.points[0];
+	var subs_point = thread.head_point();
 	assert.ok(pl.type.is_term(subs_point.goal), "Substitation point has goal");
 	assert.ok(pl.type.is_substitution(subs_point.substitution), "Substitation point has substitution");
 	var goal = subs_point.goal;
