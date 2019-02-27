@@ -2928,8 +2928,8 @@
 					if( node === null && node !== parent_cut.parent )
 						states.push( state );
 				}
-				thread.points = states;
-				thread.prepend( [new State( point.goal.replace( null ), point.substitution, point )] );
+				thread.points = states.reverse();
+				thread.success( point );
 			},
 			
 			// \+ (negation)
@@ -4516,15 +4516,17 @@
 					// Occurs check
 					if( occurs_check === true && t.variables().indexOf( s.id ) !== -1 )
 						return null;
-					var subs = new Substitution();
-					subs.add( s.id, t );
-					for( var i = 0; i < G.length; i++ ) {
-						G[i].left = G[i].left.apply( subs );
-						G[i].right = G[i].right.apply( subs );
+					if( s.id !== "_" ) {
+						var subs = new Substitution();
+						subs.add( s.id, t );
+						for( var i = 0; i < G.length; i++ ) {
+							G[i].left = G[i].left.apply( subs );
+							G[i].right = G[i].right.apply( subs );
+						}
+						for( var i in links )
+							links[i] = links[i].apply( subs );
+						links[s.id] = t;
 					}
-					for( var i in links )
-						links[i] = links[i].apply( subs );
-					links[s.id] = t;
 				} else if( pl.type.is_variable(t) ) {
 					G.push( {left: t, right: s} );
 				} else if( s.unify !== undefined ) {
