@@ -20,6 +20,7 @@ var pl;
 					return true;
 				}
 			},
+			
 			// async/1
 			"async/1": function( thread, point, atom ) {
 				var closure = atom.args[0];

@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 56, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 57, status: "beta" };
 	
 	
 	
@@ -1074,6 +1074,46 @@
 	};
 
 
+
+	// UNIFY PROLOG OBJECTS
+	
+	// Variables
+	Var.prototype.unify = function( obj, occurs_check ) {
+		if( occurs_check && indexOf( obj.variables(), this.id ) !== -1 && !pl.type.is_variable( obj ) ) {
+			return null;
+		}
+		var links = {};
+		links[this.id] = obj;
+		return new Substitution( links );
+	};
+	
+	// Numbers
+	Num.prototype.unify = function( obj, _ ) {
+		if( pl.type.is_number( obj ) && this.value === obj.value && this.is_float === obj.is_float ) {
+			return new Substitution();
+		}
+		return null;
+	};
+	
+	// Terms
+	Term.prototype.unify = function( obj, occurs_check ) {
+		if( pl.type.is_term( obj ) && this.indicator === obj.indicator ) {
+			var subs = new Substitution();
+			for( var i = 0; i < this.args.length; i++ ) {
+				var mgu = pl.unify( this.args[i].apply( subs ), obj.args[i].apply( subs ), occurs_check );
+				if( mgu === null )
+					return null;
+				for( var x in mgu.links )
+					subs.links[x] = mgu.links[x];
+				subs = subs.apply( mgu );
+			}
+			return subs;
+		}
+		return null;
+	};
+	
+	
+
 	// PROLOG OBJECTS TO STRING
 	
 	// Variables
@@ -1339,6 +1379,19 @@
 	
 	// Terms
 	Term.prototype.apply = function( subs ) {
+		if( this.indicator === "./2" ) {
+			var arr = [];
+			var pointer = this;
+			while( pointer.indicator === "./2" ) {
+				arr.push( pointer.args[0].apply( subs ) );
+				pointer = pointer.args[1];
+			}
+			var list = pointer.apply( subs );
+			for(var i = arr.length-1; i >= 0; i--) {
+				list = new Term( ".", [arr[i], list] );
+			}
+			return list;
+		}
 		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.apply( subs );
 		} ), this.ref );
@@ -1357,45 +1410,6 @@
 			links[link] = this.links[link].apply(subs);
 		}
 		return new Substitution( links );
-	};
-	
-	
-	
-	// UNIFY PROLOG OBJECTS
-	
-	// Variables
-	Var.prototype.unify = function( obj, occurs_check ) {
-		if( occurs_check && indexOf( obj.variables(), this.id ) !== -1 && !pl.type.is_variable( obj ) ) {
-			return null;
-		}
-		var links = {};
-		links[this.id] = obj;
-		return new State( obj, new Substitution( links ) );
-	};
-	
-	// Numbers
-	Num.prototype.unify = function( obj, _ ) {
-		if( pl.type.is_number( obj ) && this.value === obj.value && this.is_float === obj.is_float ) {
-			return new State( obj, new Substitution() );
-		}
-		return null;
-	};
-	
-	// Terms
-	Term.prototype.unify = function( obj, occurs_check ) {
-		if( pl.type.is_term( obj ) && this.indicator === obj.indicator ) {
-			var subs = new Substitution();
-			for( var i = 0; i < this.args.length; i++ ) {
-				var state = pl.unify( this.args[i].apply( subs ), obj.args[i].apply( subs ), occurs_check );
-				if( state === null ) {
-					return null;
-				}
-				for( var x in state.substitution.links ) subs.links[x] = state.substitution.links[x];
-				subs = subs.apply( state.substitution );
-			}
-			return new State( this.apply( subs ), subs );
-		}
-		return null;
 	};
 	
 	
@@ -1759,13 +1773,14 @@
 							this.session.renamed_variables = {};
 							rule = rule.rename( this );
 							var occurs_check = this.getFlag( "occurs_check" ).indicator === "true/0";
-							var state = pl.unify( atom, rule.head, occurs_check );
-							if( state !== null ) {
+							var state = {};
+							var mgu = pl.unify( atom, rule.head, occurs_check );
+							if( mgu !== null ) {
 								state.goal = point.goal.replace( rule.body );
 								if( state.goal !== null ) {
-									state.goal = state.goal.apply( state.substitution );
+									state.goal = state.goal.apply( mgu );
 								}
-								state.substitution = point.substitution.apply( state.substitution );
+								state.substitution = point.substitution.apply( mgu );
 								state.parent = point;
 								states.push( state );
 							}
@@ -1993,9 +2008,7 @@
 	
 	// Add link
 	Substitution.prototype.add = function( variable, value ) {
-		var subs = new Substitution();
-		subs.links[variable] = value;
-		return subs;
+		this.links[variable] = value;
 	};
 	
 	// Get domain
@@ -3007,10 +3020,11 @@
 						}
 						thread.points = states;
 						var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
-						var state = pl.unify( answer.args[0], atom.args[1], occurs_check );
-						if( state !== null ) {
-							state.substitution = point.substitution.apply( state.substitution );
-							state.goal = point.goal.replace( atom.args[2] ).apply( state.substitution );
+						var state;
+						var mgu = pl.unify( answer.args[0], atom.args[1], occurs_check );
+						if( mgu !== null ) {
+							state.substitution = point.substitution.apply( mgu );
+							state.goal = point.goal.replace( atom.args[2] ).apply( mgu );
 							state.parent = point;
 							thread.prepend( [state] );
 						} else {
@@ -3048,10 +3062,11 @@
 			// =/2 (unification)
 			"=/2": function( thread, point, atom ) {
 				var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
-				var state = pl.unify( atom.args[0], atom.args[1], occurs_check );
-				if( state !== null ) {
-					state.goal = point.goal.apply( state.substitution ).replace( null );
-					state.substitution = point.substitution.apply( state.substitution );
+				var state = {};
+				var mgu = pl.unify( atom.args[0], atom.args[1], occurs_check );
+				if( mgu !== null ) {
+					state.goal = point.goal.apply( mgu ).replace( null );
+					state.substitution = point.substitution.apply( mgu );
 					state.parent = point;
 					thread.prepend( [state] );
 				}
@@ -3059,10 +3074,11 @@
 			
 			// unify_with_occurs_check/2
 			"unify_with_occurs_check/2": function( thread, point, atom ) {
-				var state = pl.unify( atom.args[0], atom.args[1], true );
-				if( state !== null ) {
-					state.goal = point.goal.apply( state.substitution ).replace( null );
-					state.substitution = point.substitution.apply( state.substitution );
+				var state = {};
+				var mgu = pl.unify( atom.args[0], atom.args[1], true );
+				if( mgu !== null ) {
+					state.goal = point.goal.apply( mgu ).replace( null );
+					state.substitution = point.substitution.apply( mgu );
 					state.parent = point;
 					thread.prepend( [state] );
 				}
@@ -3071,8 +3087,8 @@
 			// \=/2
 			"\\=/2": function( thread, point, atom ) {
 				var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
-				var state = pl.unify( atom.args[0], atom.args[1], occurs_check );
-				if( state === null ) {
+				var mgu = pl.unify( atom.args[0], atom.args[1], occurs_check );
+				if( mgu === null ) {
 					thread.success( point );
 				}
 			},
@@ -3080,8 +3096,8 @@
 			// subsumes_term/2
 			"subsumes_term/2": function( thread, point, atom ) {
 				var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
-				var state = pl.unify( atom.args[1], atom.args[0], occurs_check );
-				if( state !== null && atom.args[1].apply( state.substitution ).equals( atom.args[1] ) ) {
+				var mgu = pl.unify( atom.args[1], atom.args[0], occurs_check );
+				if( mgu !== null && atom.args[1].apply( mgu ).equals( atom.args[1] ) ) {
 					thread.success( point );
 				}
 			},
@@ -3543,8 +3559,8 @@
 									if( rule.body === null )
 										rule.body = new Term( "true", [] );
 									var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
-									var unify = pl.unify( new Term( ",", [head, body] ), new Term( ",", [rule.head, rule.body] ), occurs_check );
-									if( unify !== null ) {
+									var mgu = pl.unify( new Term( ",", [head, body] ), new Term( ",", [rule.head, rule.body] ), occurs_check );
+									if( mgu !== null ) {
 										var state = new State( point.goal.replace( new Term(",", [
 											new Term( "retract", [ new Term( ":-", [head, body] ) ] ),
 											new Term( ",", [
@@ -4293,7 +4309,7 @@
 				var test = point.substitution.apply( point.substitution );
 				var variables = atom.args[0].variables();
 				for( var i = 0; i < variables.length; i++ )
-					if( !point.substitution.links[variables[i]].equals( test.links[variables[i]] ) )
+					if( point.substitution.links[variables[i]] !== undefined && !point.substitution.links[variables[i]].equals( test.links[variables[i]] ) )
 						return;
 				thread.success( point );
 			},
@@ -4461,23 +4477,49 @@
 		},
 		
 		// Unify
-		unify: function( obj1, obj2, occurs_check ) {
+		unify: function( s, t, occurs_check ) {
 			occurs_check = occurs_check === undefined ? false : occurs_check;
-			if( this.type.is_anonymous_var( obj1 ) ) {
-				return new State( obj2, new Substitution() );
-			} else if( this.type.is_anonymous_var( obj2 ) ) {
-				return new State( obj1, new Substitution() );
-			} else if( this.type.is_variable( obj2 ) ) {
-				var links = {};
-				if( occurs_check && indexOf( obj1.variables(), obj2.id ) !== -1 && !pl.type.is_variable( obj1 ) ) {
+			var G = [{left: s, right: t}], links = {};
+			while( G.length !== 0 ) {
+				var eq = G.pop();
+				s = eq.left;
+				t = eq.right;
+				if( pl.type.is_term(s) && pl.type.is_term(t) ) {
+					if( s.indicator !== t.indicator )
+						return null;
+					for( var i = 0; i < s.args.length; i++ )
+						G.push( {left: s.args[i], right: t.args[i]} );
+				} else if( pl.type.is_number(s) && pl.type.is_number(t) ) {
+					if( s.value !== t.value || s.is_float !== t.is_float )
+						return null;
+				} else if( pl.type.is_variable(s) ) {
+					// X = X
+					if( pl.type.is_variable(t) && s.id === t.id )
+						continue;
+					// Occurs check
+					if( occurs_check === true && t.variables().indexOf( s.id ) !== -1 )
+						return null;
+					var subs = new Substitution();
+					subs.add( s.id, t );
+					for( var i = 0; i < G.length; i++ ) {
+						G[i].left = G[i].left.apply( subs );
+						G[i].right = G[i].right.apply( subs );
+					}
+					for( var i in links )
+						links[i] = links[i].apply( subs );
+					links[s.id] = t;
+				} else if( pl.type.is_variable(t) ) {
+					G.push( {left: t, right: s} );
+				} else if( s.unify !== undefined ) {
+					if( !s.unify(t) )
+						return null;
+				} else {
 					return null;
 				}
-				links[obj2.id] = obj1;
-				return new State( obj1, new Substitution( links ) );
-			} else {
-				return obj1.unify( obj2, occurs_check );
 			}
+			return new Substitution( links );
 		},
+		
 		
 		// Compare
 		compare: function( obj1, obj2 ) {
