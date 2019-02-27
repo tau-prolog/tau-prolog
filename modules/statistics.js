@@ -33,7 +33,8 @@ var pl;
 						if( pl.type.is_error( answer ) ) {
 							thread.throwError( answer.args[0] );
 						} else if( answer === null ) {
-							thread.points = [point].concat( points );
+							thread.points = points;
+							thread.prepend( [point] );
 							thread.__calls.shift()( null );
 						} else {
 							console.log( "% Tau Prolog: executed in " + (t1-t0) + " milliseconds, " + (c1-c0) + " atoms created, " + (i1-i0) + " resolution steps performed.");
@@ -43,7 +44,9 @@ var pl;
 										newpoints[i].goal = new pl.type.Term( "true", [] );
 									newpoints[i].goal = point.goal.replace( new pl.type.Term( "time", [newpoints[i].goal] ) );
 								}
-								thread.points = [ new pl.type.State( point.goal.apply(answer).replace(null), answer, point ) ].concat( newpoints.concat( points ) );
+								thread.points = points;
+								thread.prepend( newpoints );
+								thread.prepend( [ new pl.type.State( point.goal.apply(answer).replace(null), answer, point ) ] );
 							}
 						}
 					};

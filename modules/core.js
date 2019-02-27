@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 58, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 59, status: "beta" };
 	
 	
 	
@@ -1418,11 +1418,10 @@
 	
 	// Select term
 	Term.prototype.select = function() {
-		if( this.indicator === ",/2" ) {
-			return this.args[0].select();
-		} else {
-			return this;
-		}
+		var pointer = this;
+		while( pointer.indicator === ",/2" )
+			pointer = pointer.args[0];
+		return pointer;
 	};
 	
 	// Replace term
@@ -1622,6 +1621,14 @@
 		return parseQuery( this, string );
 	};
 	
+	// Get first choice point
+	Session.prototype.head_point = function() {
+		return this.thread.head_point();
+	};
+	Thread.prototype.head_point = function() {
+		return this.points[this.points.length-1];
+	};
+	
 	// Get free variable
 	Session.prototype.get_free_variable = function( variable ) {
 		return this.thread.get_free_variable( variable );
@@ -1631,7 +1638,7 @@
 		if( variable.id === "_" || this.session.renamed_variables[variable.id] === undefined ) {
 			this.session.rename++;
 			if( this.points.length > 0 )
-				variables = this.points[0].substitution.domain();
+				variables = this.head_point().substitution.domain();
 			while( indexOf( variables, pl.format_variable( this.session.rename ) ) !== -1 ) {
 				this.session.rename++;
 			}
@@ -1652,7 +1659,7 @@
 		this.session.rename++;
 		var variables = [];
 		if( this.points.length > 0 )
-			variables = this.points[0].substitution.domain();
+			variables = this.head_point().substitution.domain();
 		while( indexOf( variables, pl.format_variable( this.session.rename ) ) !== -1 ) {
 			this.session.rename++;
 		}
@@ -1680,7 +1687,8 @@
 		return this.thread.prepend( states );
 	};
 	Thread.prototype.prepend = function( states ) {
-		this.points = states.concat( this.points );
+		for(var i = states.length-1; i >= 0; i--)
+			this.points.push( states[i] );
 	};
 	
 	// Remove the selected term and prepend the current state
@@ -1728,7 +1736,7 @@
 			return;
 		}
 		var asyn = false;
-		var point = this.points.shift();
+		var point = this.points.pop();
 		
 		if( this.debugger )
 			this.debugger_states.push( point );
@@ -1844,7 +1852,7 @@
 		while( this.__calls.length > 0 ) {
 			this.warnings = [];
 			this.current_limit = this.session.limit;
-			while( this.current_limit > 0 && this.points.length > 0 && this.points[0].goal !== null && !pl.type.is_error( this.points[0].goal ) ) {
+			while( this.current_limit > 0 && this.points.length > 0 && this.head_point().goal !== null && !pl.type.is_error( this.head_point().goal ) ) {
 				this.current_limit--;
 				if( this.step() === true ) {
 					return;
@@ -1858,14 +1866,14 @@
 				success( null );
 			} else if( this.points.length === 0 ) {
 				success( false );
-			} else if( pl.type.is_error( this.points[0].goal ) ) {
-				answer = this.session.format_error( this.points.shift() );
+			} else if( pl.type.is_error( this.head_point().goal ) ) {
+				answer = this.session.format_error( this.points.pop() );
 				this.points = [];
 				success( answer );
 			} else {
 				if( this.debugger )
-					this.debugger_states.push( this.points[0] );
-				answer = this.session.format_success( this.points.shift() );
+					this.debugger_states.push( this.head_point() );
+				answer = this.session.format_success( this.points.pop() );
 				success( answer );
 			}
 		}
@@ -1882,7 +1890,7 @@
 		var unfolded = [];
 		thread.add_goal( atom );
 		thread.step();
-		for( var i = 0; i < thread.points.length; i++ ) {
+		for( var i = thread.points.length-1; i >= 0; i-- ) {
 			var point = thread.points[i];
 			var head2 = head.apply( point.substitution );
 			var body2 = body.replace( point.goal );
@@ -2887,14 +2895,14 @@
 						thread.session.format_success = format_success;
 						thread.session.format_error = format_error;
 						if( answer === false ) {
-							thread.points = [new State( point.goal.replace( atom.args[1] ), point.substitution, point )].concat( points );
+							thread.prepend( [new State( point.goal.replace( atom.args[1] ), point.substitution, point )] );
 						} else if( pl.type.is_error( answer ) )
 							thread.throwError( answer.args[0] );
 						else if( answer === null ) {
-							thread.points = [point].concat( points );
+							thread.prepend( [point] );
 							thread.__calls.shift()( null );
 						} else {
-							thread.points = [new State( point.goal.replace( atom.args[0].args[1] ).apply( answer ), point.substitution.apply( answer ), point )].concat( points );
+							thread.prepend( [new State( point.goal.replace( atom.args[0].args[1] ).apply( answer ), point.substitution.apply( answer ), point )] );
 						}
 					};
 					thread.__calls.unshift( callback );
@@ -2911,7 +2919,7 @@
 				parent_cut = point;
 				while( parent_cut.parent !== null && parent_cut.parent.goal.search( atom ) )
 					parent_cut = parent_cut.parent;
-				for( var i = 0; i < thread.points.length; i++ ) {
+				for( var i = thread.points.length-1; i >= 0; i-- ) {
 					var state = thread.points[i];
 					var node = state.parent;
 					while( node !== null && node !== parent_cut.parent ) {
@@ -2920,7 +2928,8 @@
 					if( node === null && node !== parent_cut.parent )
 						states.push( state );
 				}
-				thread.points = [new State( point.goal.replace( null ), point.substitution, point )].concat( states );
+				thread.points = states;
+				thread.prepend( [new State( point.goal.replace( null ), point.substitution, point )] );
 			},
 			
 			// \+ (negation)
@@ -3009,7 +3018,7 @@
 					thread.session.format_error = format_error;
 					if( pl.type.is_error( answer ) ) {
 						var states = [];
-						for( var i = 0; i < thread.points.length; i++ ) {
+						for( var i = thread.points.length-1 ; i >= 0; i-- ) {
 							var state = thread.points[i];
 							var node = state.parent;
 							while( node !== null && node !== point.parent ) {
@@ -3020,7 +3029,7 @@
 						}
 						thread.points = states;
 						var occurs_check = thread.getFlag( "occurs_check" ).indicator === "true/0";
-						var state;
+						var state = {};
 						var mgu = pl.unify( answer.args[0], atom.args[1], occurs_check );
 						if( mgu !== null ) {
 							state.substitution = point.substitution.apply( mgu );
@@ -3046,8 +3055,9 @@
 							);
 							state.exclude = atom.args[0].variables();
 							return state;
-						} );
-						thread.prepend( answer_state.concat( catch_points ) );
+						} ).reverse();
+						thread.prepend( catch_points );
+						thread.prepend( answer_state );
 						if( answer === null ) {
 							this.current_limit = 0;
 							thread.__calls.shift()( null );
