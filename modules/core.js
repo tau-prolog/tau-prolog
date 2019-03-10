@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 60, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 61, status: "beta" };
 	
 	
 	
@@ -2916,10 +2916,20 @@
 			
 			// !/0 (cut)
 			"!/0": function( thread, point, atom ) {
-				var parent_cut, states = [];
+				var parent_cut, last_cut, states = [];
 				parent_cut = point;
-				while( parent_cut.parent !== null && parent_cut.parent.goal.search( atom ) )
+				last_cut = null;
+				while( parent_cut.parent !== null && parent_cut.parent.goal.search( atom ) ) {
+					last_cut = parent_cut;
 					parent_cut = parent_cut.parent;
+					if(parent_cut.goal !== null) {
+						var selected = parent_cut.goal.select();
+						if( selected && selected.id === "call" && selected.search(atom) ) {
+							parent_cut = last_cut;
+							break;
+						}
+					}
+				}
 				for( var i = thread.points.length-1; i >= 0; i-- ) {
 					var state = thread.points[i];
 					var node = state.parent;
