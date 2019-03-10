@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 59, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 60, status: "beta" };
 	
 	
 	
@@ -1843,15 +1843,16 @@
 	};
 
 	// Again finding next computed answer
-	Session.prototype.again = function() {
-		return this.thread.again();
+	Session.prototype.again = function( reset_limit ) {
+		return this.thread.again( reset_limit );
 	};
-	Thread.prototype.again = function() {
+	Thread.prototype.again = function( reset_limit ) {
 		var answer;
 		var t0 = Date.now();
 		while( this.__calls.length > 0 ) {
 			this.warnings = [];
-			this.current_limit = this.session.limit;
+			if( reset_limit !== false )
+				this.current_limit = this.session.limit;
 			while( this.current_limit > 0 && this.points.length > 0 && this.head_point().goal !== null && !pl.type.is_error( this.head_point().goal ) ) {
 				this.current_limit--;
 				if( this.step() === true ) {
@@ -2940,10 +2941,26 @@
 				} else if( !pl.type.is_callable( goal ) ) {
 					thread.throwError( pl.error.type( "callable", goal, thread.level ) );
 				} else {
-					thread.prepend( [
-						new State( point.goal.replace( new Term( ",", [new Term( ",", [ new Term( "call", [goal] ), new Term( "!", [] ) ] ), new Term( "fail", [] ) ] ) ), point.substitution, point ),
-						new State( point.goal.replace( null ), point.substitution, point )
-					] );
+					var neg_thread;
+					if(point.negation_thread) {
+						neg_thread = point.negation_thread;
+					} else {
+						neg_thread = new Thread( thread.session );
+						neg_thread.add_goal( goal );
+						point.negation_thread = neg_thread;
+					}
+					neg_thread.answer( function( answer ) {
+						if(answer === false) {
+							thread.success( point );
+						} else if(pl.type.is_error( answer )) {
+							thread.throwError( answer.args[0] );
+						} else if(answer === null) {
+							thread.prepend( [point] );
+							thread.current_limit = 0;
+						}
+						thread.again( answer !== null );
+					} );
+					return true;
 				}
 			},
 			
