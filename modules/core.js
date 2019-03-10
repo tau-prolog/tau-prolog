@@ -2951,7 +2951,8 @@
 				} else if( !pl.type.is_callable( goal ) ) {
 					thread.throwError( pl.error.type( "callable", goal, thread.level ) );
 				} else {
-					var neg_thread;
+					// TRANSPARENT VERSION OF THE NEGATION
+					/*var neg_thread;
 					if(point.negation_thread) {
 						neg_thread = point.negation_thread;
 					} else {
@@ -2970,7 +2971,13 @@
 						}
 						thread.again( answer !== null );
 					} );
-					return true;
+					return true;*/
+					// '\+'(X) :- call(X), !, fail.
+					// '\+'(_).
+					thread.prepend( [
+						new State( point.goal.replace( new Term( ",", [new Term( ",", [ new Term( "call", [goal] ), new Term( "!", [] ) ] ), new Term( "fail", [] ) ] ) ), point.substitution, point ),
+						new State( point.goal.replace( null ), point.substitution, point )
+					] );
 				}
 			},
 			
