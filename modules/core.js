@@ -978,6 +978,8 @@
 		this.type = type !== undefined ? type : "text"; // "text" or "binary"
 		this.reposition = reposition !== undefined ? reposition : true; // true or false
 		this.eof_action = eof_action !== undefined ? eof_action : "eof_code"; // "error" or "eof_code" or "reset"
+		this.output = this.mode === "write" || this.mode === "append";
+		this.input = this.mode === "read";
 	}
 	
 	// Substitutions
@@ -1015,13 +1017,12 @@
 		this.public_predicates = {};
 		this.multifile_predicates = {};
 		this.limit = limit;
-		this.current_input = new Stream(
-			function(){ return window.prompt(); },
-			"read", "user_input", "text", false, "reset" );
-		this.current_output = new Stream(
-			function(x){ window.alert(x); },
-			"write", "user_output", "text", false, "eof_code"
-		);
+		this.streams = {
+			"user_input": new Stream( function(){ return window.prompt(); }, "read", "user_input", "text", false, "reset" ),
+			"user_output": new Stream( function(x){ window.alert(x); }, "write", "user_output", "text", false, "eof_code" )
+		};
+		this.current_input = this.streams["user_input"];
+		this.current_output = this.streams["user_output"];
 		this.format_success = function( state ) { return state.substitution; };
 		this.format_error = function( state ) { return state.goal; };
 		this.flag = {	
@@ -1186,7 +1187,7 @@
 
 	// Streams
 	Stream.prototype.toString = function() {
-		return "@stream" + this.id;
+		return "<stream>(" + this.id + ")";
 	};
 	
 	// Substitutions
@@ -1534,10 +1535,18 @@
 
 	// Set current output
 	Session.prototype.set_current_output = function( output ) {
-		this.surrent_input = output;
+		this.current_input = output;
 	};
 	Thread.prototype.set_current_output = function( output ) {
 		return this.session.set_current_output( output);
+	};
+
+	// Get stream by alias
+	Session.prototype.get_stream_by_alias = function( alias ) {
+		return this.streams[alias];
+	};
+	Thread.prototype.get_stream_by_alias = function( alias ) {
+		return this.session.get_stream_by_alias( alias );
 	};
 
 	// Get conversion of the char
@@ -4474,9 +4483,11 @@
 			// current_input/1
 			"current_input/1": function( thread, point, atom ) {
 				var stream = atom.args[0];
-				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) ) {
+				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throwError( pl.error.domain("stream", stream, atom.indicator) );
 				} else {
+					if( pl.type.is_atom( stream ) && thread.get_stream_by_alias( stream.id ) )
+						stream = thread.get_stream_by_alias( stream.id );
 					thread.prepend( [new State(
 						point.goal.replace(new Term("=", [stream, thread.get_current_input()])),
 						point.substitution,
@@ -4488,9 +4499,11 @@
 			// current_output/1
 			"current_output/1": function( thread, point, atom ) {
 				var stream = atom.args[0];
-				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) ) {
+				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throwError( pl.error.domain("stream_or_alias", stream, atom.indicator) );
 				} else {
+					if( pl.type.is_atom( stream ) && thread.get_stream_by_alias( stream.id ) )
+						stream = thread.get_stream_by_alias( stream.id );
 					thread.prepend( [new State(
 						point.goal.replace(new Term("=", [stream, thread.get_current_output()])),
 						point.substitution,
@@ -4501,10 +4514,38 @@
 
 			// set_input/1
 			"set_input/1": function( thread, point, atom ) {
+				var input = atom.args[0];
+				var stream = pl.type.is_stream( input ) ? input : thread.get_stream_by_alias( input.id );
+				if( pl.type.is_variable( input ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( input ) && !pl.type.is_stream( input ) && !pl.type.is_atom( input ) ) {
+					thread.throwError( pl.error.domain( "stream_or_alias", input, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream ) ) {
+					thread.throwError( pl.error.existence( "stream", input, atom.indicator ) );
+				} else if( stream.output === true ) {
+					thread.throwError( pl.error.permission( "input", "stream", input, atom.indicator ) );
+				} else {
+					thread.set_current_input( stream );
+					thread.success( point );
+				}
 			},
 
 			// set_output/1
 			"set_output/1": function( thread, point, atom ) {
+				var output = atom.args[0];
+				var stream = pl.type.is_stream( output ) ? output : thread.get_stream_by_alias( output.id );
+				if( pl.type.is_variable( output ) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( output ) && !pl.type.is_stream( output ) && !pl.type.is_atom( output ) ) {
+					thread.throwError( pl.error.domain( "stream_or_alias", output, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream ) ) {
+					thread.throwError( pl.error.existence( "stream", output, atom.indicator ) );
+				} else if( stream.input === true ) {
+					thread.throwError( pl.error.permission( "output", "stream", output, atom.indicator ) );
+				} else {
+					thread.set_current_output( stream );
+					thread.success( point );
+				}
 			},
 
 
@@ -4524,26 +4565,29 @@
 			// get_char/2
 			"get_char/2": function( thread, point, atom ) {
 				var stream = atom.args[0], char = atom.args[1];
-				if( pl.type.is_variable(stream) ) {
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
 					thread.throwError( pl.error.type( "in_character", char, atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) ) {
+				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throwError( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( stream.output ) {
+				} else if( !pl.type.is_stream( stream2 ) ) {
+					thread.throwError( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.output ) {
 					thread.throwError( pl.error.permission( "input", "stream", stream, atom.indicator ) );
-				} else if( stream.type === "binary" ) {
+				} else if( stream2.type === "binary" ) {
 					thread.throwError( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
-				} else if( stream.position === "past_end_of_stream" && stream.eof_action === "error" ) {
+				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
 					thread.throwError( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
 				} else {
 					var stream_char;
-					if( stream.position === "end_of_stream" ) {
+					if( stream2.position === "end_of_stream" ) {
 						stream_char = "end_of_file";
-						stream.position = "past_end_of_stream";
+						stream2.position = "past_end_of_stream";
 					} else {
-						stream_char = stream.stream();
-						if( stream_char.length < 1 ) {
+						stream_char = stream2.stream();
+						if( stream_char === null || stream_char.length < 1 ) {
 							thread.throwError( pl.error.representation( "character", atom.indicator ) );
 							return;
 						}
@@ -4570,26 +4614,29 @@
 			// get_code/2
 			"get_code/2": function( thread, point, atom ) {
 				var stream = atom.args[0], code = atom.args[1];
-				if( pl.type.is_variable(stream) ) {
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) ) {
 					thread.throwError( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
-					thread.throwError( pl.error.type( "integer", code, atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) ) {
+					thread.throwError( pl.error.type( "integer", char, atom.indicator ) );
+				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throwError( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( stream.output ) {
+				} else if( !pl.type.is_stream( stream2 ) ) {
+					thread.throwError( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.output ) {
 					thread.throwError( pl.error.permission( "input", "stream", stream, atom.indicator ) );
-				} else if( stream.type === "binary" ) {
+				} else if( stream2.type === "binary" ) {
 					thread.throwError( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
-				} else if( stream.position === "past_end_of_stream" && stream.eof_action === "error" ) {
+				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
 					thread.throwError( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
 				} else {
 					var stream_code;
-					if( stream.position === "end_of_stream" ) {
+					if( stream2.position === "end_of_stream" ) {
 						stream_code = -1;
-						stream.position = "past_end_of_stream";
+						stream2.position = "past_end_of_stream";
 					} else {
-						stream_code = stream.stream();
-						if( stream_code.length < 1 ) {
+						stream_code = stream2.stream();
+						if( stream_code === null || stream_code.length < 1 ) {
 							thread.throwError( pl.error.representation( "character", atom.indicator ) );
 							return;
 						}
@@ -4866,7 +4913,9 @@
 			
 			// Existence error
 			existence: function( type, object, indicator ) {
-				return new Term( "error", [new Term( "existence_error", [new Term( type ), str_indicator( object )] ), str_indicator( indicator )] );
+				if( typeof object === "string" )
+					object = str_indicator( object );
+				return new Term( "error", [new Term( "existence_error", [new Term( type ), object] ), str_indicator( indicator )] );
 			},
 			
 			// Type error
