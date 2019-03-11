@@ -967,6 +967,18 @@
 		this.args = args || [];
 		this.indicator = id + "/" + this.args.length;
 	}
+
+	// Streams
+	var stream_ref = 0;
+	function Stream( stream, mode, alias, type, reposition, eof_action ) {
+		this.id = stream_ref++;
+		this.stream = stream;
+		this.mode = mode; // "read" or "write" or "append"
+		this.alias = alias;
+		this.type = type !== undefined ? type : "text"; // "text" or "binary"
+		this.reposition = reposition !== undefined ? reposition : true; // true or false
+		this.eof_action = eof_action !== undefined ? eof_action : "eof_code"; // "error" or "eof_code" or "reset"
+	}
 	
 	// Substitutions
 	function Substitution( links ) {
@@ -1003,6 +1015,13 @@
 		this.public_predicates = {};
 		this.multifile_predicates = {};
 		this.limit = limit;
+		this.current_input = new Stream(
+			function(){ return window.prompt(); },
+			"read", "user_input", "text", false, "reset" );
+		this.current_output = new Stream(
+			function(x){ window.alert(x); },
+			"write", "user_output", "text", false, "eof_code"
+		);
 		this.format_success = function( state ) { return state.substitution; };
 		this.format_error = function( state ) { return state.goal; };
 		this.flag = {	
@@ -1111,6 +1130,14 @@
 		}
 		return null;
 	};
+
+	// Streams
+	Stream.prototype.unify = function( obj, occurs_check ) {
+		if( pl.type.is_stream( obj ) && this.id === obj.id ) {
+			return new Substitution();
+		}
+		return null;
+	};
 	
 	
 
@@ -1155,6 +1182,11 @@
 					id = "'" + redoEscape(id) + "'";
 				return id + (this.args.length ? "(" + this.args.join(", ") + ")" : "");
 		}
+	};
+
+	// Streams
+	Stream.prototype.toString = function() {
+		return "@stream" + this.id;
 	};
 	
 	// Substitutions
@@ -1225,6 +1257,11 @@
 			return arg.clone();
 		} ) );
 	};
+
+	// Streams
+	Stream.prototype.clone = function() {
+		return new Stram( this.stream, this.mode, this.alias, this.type, this.reposition, this.eof_action );
+	};
 	
 	// Substitutions
 	Substitution.prototype.clone = function() {
@@ -1271,6 +1308,11 @@
 			}
 		}
 		return true;
+	};
+
+	// Streams
+	Stream.prototype.equals = function( obj ) {
+		return pl.type.is_stream( obj ) && this.id === obj.id;
 	};
 	
 	// Substitutions
@@ -1324,6 +1366,11 @@
 			return arg.rename( thread );
 		} ) );
 	};
+
+	// Streams
+	Stream.prototype.rename = function( thread ) {
+		return this;
+	};
 	
 	// Rules
 	Rule.prototype.rename = function( thread ) {
@@ -1349,6 +1396,11 @@
 		return [].concat.apply( [], map( this.args, function( arg ) {
 			return arg.variables();
 		} ) );
+	};
+
+	// Streams
+	Stream.prototype.variables = function() {
+		return [];
 	};
 	
 	// Rules
@@ -1395,6 +1447,11 @@
 		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.apply( subs );
 		} ), this.ref );
+	};
+
+	// Streams
+	Stream.prototype.apply = function( _ ) {
+		return this;
 	};
 	
 	// Rules
@@ -1451,6 +1508,38 @@
 	
 	// PROLOG SESSIONS AND THREADS
 
+	// Get current input
+	Session.prototype.get_current_input = function() {
+		return this.current_input;
+	};
+	Thread.prototype.get_current_input = function() {
+		return this.session.get_current_input();
+	};
+
+	// Get current output
+	Session.prototype.get_current_output = function() {
+		return this.current_output;
+	};
+	Thread.prototype.get_current_output = function() {
+		return this.session.get_current_output();
+	};
+
+	// Set current input
+	Session.prototype.set_current_input = function( input ) {
+		this.current_input = input;
+	};
+	Thread.prototype.set_current_input = function( input ) {
+		return this.session.set_current_input( input );
+	};
+
+	// Set current output
+	Session.prototype.set_current_output = function( output ) {
+		this.surrent_input = output;
+	};
+	Thread.prototype.set_current_output = function( output ) {
+		return this.session.set_current_output( output);
+	};
+
 	// Get conversion of the char
 	Session.prototype.getCharConversion = function( char ) {
 		return this.__char_conversion[char] || char;
@@ -1463,7 +1552,6 @@
 	Session.prototype.parse = function( string ) {
 		return this.thread.parse( string );
 	};
-	
 	Thread.prototype.parse = function( string ) {
 		var tokenizer = new Tokenizer( this );
 		tokenizer.new_text( string );
@@ -2266,13 +2354,14 @@
 			Term: Term,
 			Rule: Rule,
 			State: State,
+			Stream: Stream,
 			Module: Module,
 			Thread: Thread,
 			Session: Session,
 			Substitution: Substitution,
 			
 			// Order
-			order: [Var, Num, Term],
+			order: [Var, Num, Term, Stream],
 			
 			// Compare types
 			compare: function( x, y ) {
@@ -2312,6 +2401,11 @@
 			// Is a variable
 			is_variable: function( obj ) {
 				return obj instanceof Var;
+			},
+
+			// Is a stream
+			is_stream: function( obj ) {
+				return obj instanceof Stream;
 			},
 			
 			// Is an anonymous variable
@@ -2972,6 +3066,7 @@
 						thread.again( answer !== null );
 					} );
 					return true;*/
+					
 					// '\+'(X) :- call(X), !, fail.
 					// '\+'(_).
 					thread.prepend( [
@@ -4371,7 +4466,144 @@
 					thread.success( point );
 				}
 			},
+
+
+
+			// STREAM SELECTION AND CONTROL
+
+			// current_input/1
+			"current_input/1": function( thread, point, atom ) {
+				var stream = atom.args[0];
+				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) ) {
+					thread.throwError( pl.error.domain("stream", stream, atom.indicator) );
+				} else {
+					thread.prepend( [new State(
+						point.goal.replace(new Term("=", [stream, thread.get_current_input()])),
+						point.substitution,
+						point)
+					] );
+				}
+			},
+
+			// current_output/1
+			"current_output/1": function( thread, point, atom ) {
+				var stream = atom.args[0];
+				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) ) {
+					thread.throwError( pl.error.domain("stream_or_alias", stream, atom.indicator) );
+				} else {
+					thread.prepend( [new State(
+						point.goal.replace(new Term("=", [stream, thread.get_current_output()])),
+						point.substitution,
+						point)
+					] );
+				}
+			},
+
+			// set_input/1
+			"set_input/1": function( thread, point, atom ) {
+			},
+
+			// set_output/1
+			"set_output/1": function( thread, point, atom ) {
+			},
+
+
+
+			//  CHARACTER INPUT OUTPUT
 			
+			// get_char/1
+			"get_char/1": function( thread, point, atom ) {
+				var char = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_char", [new Var("S"),char])]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// get_char/2
+			"get_char/2": function( thread, point, atom ) {
+				var stream = atom.args[0], char = atom.args[1];
+				if( pl.type.is_variable(stream) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
+					thread.throwError( pl.error.type( "in_character", char, atom.indicator ) );
+				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) ) {
+					thread.throwError( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( stream.output ) {
+					thread.throwError( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+				} else if( stream.type === "binary" ) {
+					thread.throwError( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+				} else if( stream.position === "past_end_of_stream" && stream.eof_action === "error" ) {
+					thread.throwError( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+				} else {
+					var stream_char;
+					if( stream.position === "end_of_stream" ) {
+						stream_char = "end_of_file";
+						stream.position = "past_end_of_stream";
+					} else {
+						stream_char = stream.stream();
+						if( stream_char.length < 1 ) {
+							thread.throwError( pl.error.representation( "character", atom.indicator ) );
+							return;
+						}
+						stream_char = stream_char[0];
+					}
+					thread.prepend( [new State(
+						point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
+						point.substitution,
+						point
+					)] );
+				}
+			},
+
+			// get_code/1
+			"get_code/1": function( thread, point, atom ) {
+				var code = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_code", [new Var("S"),code])]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// get_code/2
+			"get_code/2": function( thread, point, atom ) {
+				var stream = atom.args[0], code = atom.args[1];
+				if( pl.type.is_variable(stream) ) {
+					thread.throwError( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
+					thread.throwError( pl.error.type( "integer", code, atom.indicator ) );
+				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) ) {
+					thread.throwError( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( stream.output ) {
+					thread.throwError( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+				} else if( stream.type === "binary" ) {
+					thread.throwError( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+				} else if( stream.position === "past_end_of_stream" && stream.eof_action === "error" ) {
+					thread.throwError( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+				} else {
+					var stream_code;
+					if( stream.position === "end_of_stream" ) {
+						stream_code = -1;
+						stream.position = "past_end_of_stream";
+					} else {
+						stream_code = stream.stream();
+						if( stream_code.length < 1 ) {
+							thread.throwError( pl.error.representation( "character", atom.indicator ) );
+							return;
+						}
+						stream_code = codePointAt( stream_code, 0 );
+					}
+					thread.prepend( [new State(
+						point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
+						point.substitution,
+						point
+					)] );
+				}
+			},
+
+
 			
 			// IMPLEMENTATION DEFINED HOOKS
 			
