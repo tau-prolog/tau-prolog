@@ -160,9 +160,9 @@ var pl;
 			"length/2": function( thread, point, atom ) {
 				var list = atom.args[0], length = atom.args[1];
 				if( !pl.type.is_variable( length ) && !pl.type.is_integer( length ) ) {
-					thread.throwError( pl.error.type( "integer", length, atom.indicator ) );
+					thread.throw_error( pl.error.type( "integer", length, atom.indicator ) );
 				} else if( pl.type.is_integer( length ) && length.value < 0 ) {
-					thread.throwError( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
+					thread.throw_error( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
 				} else {
 					var newgoal = new pl.type.Term("length", [list, new pl.type.Num(0, false), length]);
 					if( pl.type.is_integer( length ) )
@@ -182,13 +182,13 @@ var pl;
 			"replicate/3": function( thread, point, atom ) {
 				var elem = atom.args[0], times = atom.args[1], list = atom.args[2];
 				if( pl.type.is_variable( times ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_integer( times ) ) {
-					thread.throwError( pl.error.type( "integer", times, atom.indicator ) );
+					thread.throw_error( pl.error.type( "integer", times, atom.indicator ) );
 				} else if( times.value < 0 ) {
-					thread.throwError( pl.error.domain( "not_less_than_zero", times, atom.indicator ) );
+					thread.throw_error( pl.error.domain( "not_less_than_zero", times, atom.indicator ) );
 				} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
-					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 				} else {
 					var replicate = new pl.type.Term( "[]" );
 					for( var i = 0; i < times.value; i++ ) {
@@ -202,9 +202,9 @@ var pl;
 			"sort/2": function( thread, point, atom ) {
 				var list = atom.args[0], expected = atom.args[1];
 				if( pl.type.is_variable( list ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( expected ) && !pl.type.is_fully_list( expected ) ) {
-					thread.throwError( pl.error.type( "list", expected, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", expected, atom.indicator ) );
 				} else {
 					var arr = [];
 					var pointer = list;
@@ -213,9 +213,9 @@ var pl;
 						pointer = pointer.args[1];
 					}
 					if( pl.type.is_variable( pointer ) ) {
-						thread.throwError( pl.error.instantiation( atom.indicator ) );
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
 					} else if( !pl.type.is_empty_list( pointer ) ) {
-						thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+						thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 					} else {
 						var sorted_arr = arr.sort( pl.compare );
 						for( var i = sorted_arr.length-1; i > 0; i-- ) {
@@ -235,9 +235,9 @@ var pl;
 			"msort/2": function( thread, point, atom ) {
 				var list = atom.args[0], expected = atom.args[1];
 				if( pl.type.is_variable( list ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( expected ) && !pl.type.is_fully_list( expected ) ) {
-					thread.throwError( pl.error.type( "list", expected, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", expected, atom.indicator ) );
 				} else {
 					var arr = [];
 					var pointer = list;
@@ -246,9 +246,9 @@ var pl;
 						pointer = pointer.args[1];
 					}
 					if( pl.type.is_variable( pointer ) ) {
-						thread.throwError( pl.error.instantiation( atom.indicator ) );
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
 					} else if( !pl.type.is_empty_list( pointer ) ) {
-						thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+						thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 					} else {
 						var sorted_arr = arr.sort( pl.compare );
 						var sorted_list = new pl.type.Term( "[]" );
@@ -264,9 +264,9 @@ var pl;
 			"keysort/2": function( thread, point, atom ) {
 				var list = atom.args[0], expected = atom.args[1];
 				if( pl.type.is_variable( list ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( expected ) && !pl.type.is_fully_list( expected ) ) {
-					thread.throwError( pl.error.type( "list", expected, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", expected, atom.indicator ) );
 				} else {
 					var arr = [];
 					var elem;
@@ -274,10 +274,10 @@ var pl;
 					while( pointer.indicator === "./2" ) {
 						elem = pointer.args[0];
 						if( pl.type.is_variable( elem ) ) {
-							thread.throwError( pl.error.instantiation( atom.indicator ) );
+							thread.throw_error( pl.error.instantiation( atom.indicator ) );
 							return;
 						} else if( !pl.type.is_term( elem ) || elem.indicator !== "-/2" ) {
-							thread.throwError( pl.error.type( "pair", elem, atom.indicator ) );
+							thread.throw_error( pl.error.type( "pair", elem, atom.indicator ) );
 							return;
 						}
 						elem.args[0].pair = elem.args[1];
@@ -285,9 +285,9 @@ var pl;
 						pointer = pointer.args[1];
 					}
 					if( pl.type.is_variable( pointer ) ) {
-						thread.throwError( pl.error.instantiation( atom.indicator ) );
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
 					} else if( !pl.type.is_empty_list( pointer ) ) {
-						thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+						thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 					} else {
 						var sorted_arr = arr.sort( pl.compare );
 						var sorted_list = new pl.type.Term( "[]" );
@@ -304,13 +304,13 @@ var pl;
 			"take/3": function( thread, point, atom ) {
 				var number = atom.args[0], list = atom.args[1], take = atom.args[2];
 				if( pl.type.is_variable( list ) || pl.type.is_variable( number ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_list( list ) ) {
-					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 				} else if( !pl.type.is_integer( number ) ) {
-					thread.throwError( pl.error.type( "integer", number, atom.indicator ) );
+					thread.throw_error( pl.error.type( "integer", number, atom.indicator ) );
 				} else if( !pl.type.is_variable( take ) && !pl.type.is_list( take ) ) {
-					thread.throwError( pl.error.type( "list", take, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", take, atom.indicator ) );
 				} else {
 					var i = number.value;
 					var arr = [];
@@ -334,13 +334,13 @@ var pl;
 			"drop/3": function( thread, point, atom ) {
 				var number = atom.args[0], list = atom.args[1], drop = atom.args[2];
 				if( pl.type.is_variable( list ) || pl.type.is_variable( number ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_list( list ) ) {
-					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 				} else if( !pl.type.is_integer( number ) ) {
-					thread.throwError( pl.error.type( "integer", number, atom.indicator ) );
+					thread.throw_error( pl.error.type( "integer", number, atom.indicator ) );
 				} else if( !pl.type.is_variable( drop ) && !pl.type.is_list( drop ) ) {
-					thread.throwError( pl.error.type( "list", drop, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", drop, atom.indicator ) );
 				} else {
 					var i = number.value;
 					var arr = [];
@@ -361,13 +361,13 @@ var pl;
 				var ins_list = pl.type.is_instantiated_list( list );
 				var ins_reversed = pl.type.is_instantiated_list( reversed );
 				if( pl.type.is_variable( list ) && pl.type.is_variable( reversed ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( list ) && !pl.type.is_fully_list( list ) ) {
-					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 				} else if( !pl.type.is_variable( reversed ) && !pl.type.is_fully_list( reversed ) ) {
-					thread.throwError( pl.error.type( "list", reversed, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", reversed, atom.indicator ) );
 				} else if( !ins_list && !ins_reversed ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else {
 					var pointer = ins_list ? list : reversed;
 					var new_reversed = new pl.type.Term( "[]", [] );
@@ -383,7 +383,7 @@ var pl;
 			"list_to_set/2": function( thread, point, atom ) {
 				var list = atom.args[0], lset = atom.args[1];
 				if( pl.type.is_variable( list ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else {
 					var pointer = list;
 					var elems = [];
@@ -392,9 +392,9 @@ var pl;
 						pointer = pointer.args[1];
 					}
 					if( pl.type.is_variable( pointer ) ) {
-						thread.throwError( pl.error.instantiation( atom.indicator ) );
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
 					} else if( !pl.type.is_term( pointer ) || pointer.indicator !== "[]/0" ) {
-						thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+						thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 					} else {
 						var arr = [], nub = new pl.type.Term( "[]", [] );
 						var match;

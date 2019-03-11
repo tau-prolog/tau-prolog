@@ -19,11 +19,11 @@ var pl;
 			"apply/4": function( thread, point, atom ) {
 				var context = atom.args[0], name = atom.args[1], args = atom.args[2], result = atom.args[3];
 				if( pl.type.is_variable( context ) || pl.type.is_variable( name ) || pl.type.is_variable( args ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) && (!pl.type.is_js_object( name ) || typeof name.value !== "function") ) {
-					thread.throwError( pl.error.type( "atom_or_JSValueFUNCTION", name, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom_or_JSValueFUNCTION", name, atom.indicator ) );
 				} else if( !pl.type.is_list( args ) ) {
-					thread.throwError( pl.error.type( "list", args, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", args, atom.indicator ) );
 				}
 				var ctx = context.toJavaScript();
 				var fn = pl.type.is_atom( name ) ? ctx[name.id] : name.toJavaScript();
@@ -34,24 +34,24 @@ var pl;
 					while( pointer.indicator === "./2" ) {
 						pltojs = pointer.args[0].toJavaScript();
 						if( pltojs === undefined ) {
-							thread.throwError( pl.error.domain( "javascript_object", pointer.args[0], atom.indicator ) );
+							thread.throw_error( pl.error.domain( "javascript_object", pointer.args[0], atom.indicator ) );
 							return undefined;
 						}
 						arr.push( pltojs );
 						pointer = pointer.args[1];
 					}
 					if( pl.type.is_variable( pointer ) ) {
-						thread.throwError( pl.error.instantiation( atom.indicator ) );
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
 						return;
 					} else if( pointer.indicator !== "[]/0" ) {
-						thread.throwError( pl.error.type( "list", args, atom.indicator ) );
+						thread.throw_error( pl.error.type( "list", args, atom.indicator ) );
 						return
 					}
 					var value;
 					try {
 						value = fn.apply( ctx, arr );
 					} catch( e ) {
-						thread.throwError( pl.error.javascript( e.toString(), atom.indicator ) );
+						thread.throw_error( pl.error.javascript( e.toString(), atom.indicator ) );
 						return;
 					}
 					value = pl.fromJavaScript.apply( value );
@@ -68,9 +68,9 @@ var pl;
 			"prop/3": function( thread, point, atom ) {
 				var context = atom.args[0], name = atom.args[1], result = atom.args[2];
 				if( pl.type.is_variable( context ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( name ) && !pl.type.is_atom( name ) ) {
-					thread.throwError( pl.error.type( "atom", name, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", name, atom.indicator ) );
 				} else {
 					if( pl.type.is_atom( name ) ) {
 						var fn = context.toJavaScript()[name.id];

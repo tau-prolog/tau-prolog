@@ -24,7 +24,7 @@ var pl;
 			"random/1": function( thread, point, atom ) {
 				var rand = atom.args[0];
 				if( !pl.type.is_variable( rand ) && !pl.type.is_number( rand ) ) {
-					thread.throwError( pl.error.type( "number", rand, atom.indicator ) );
+					thread.throw_error( pl.error.type( "number", rand, atom.indicator ) );
 				} else {
 					var gen = Math.random();
 					thread.prepend( [new pl.type.State(
@@ -38,13 +38,13 @@ var pl;
 			"random/3": function( thread, point, atom ) {
 				var lower = atom.args[0], upper = atom.args[1], rand = atom.args[2];
 				if( pl.type.is_variable( lower ) || pl.type.is_variable( upper ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_number( lower ) ) {
-					thread.throwError( pl.error.type( "number", lower, atom.indicator ) );
+					thread.throw_error( pl.error.type( "number", lower, atom.indicator ) );
 				} else if( !pl.type.is_number( upper ) ) {
-					thread.throwError( pl.error.type( "number", upper, atom.indicator ) );
+					thread.throw_error( pl.error.type( "number", upper, atom.indicator ) );
 				} else if( !pl.type.is_variable( rand ) && !pl.type.is_number( rand ) ) {
-					thread.throwError( pl.error.type( "number", rand, atom.indicator ) );
+					thread.throw_error( pl.error.type( "number", rand, atom.indicator ) );
 				} else {
 					if( lower.value < upper.value ) {
 						var float = lower.is_float || upper.is_float;
@@ -63,13 +63,13 @@ var pl;
 			"random_between/3": function( thread, point, atom ) {
 				var lower = atom.args[0], upper = atom.args[1], rand = atom.args[2];
 				if( pl.type.is_variable( lower ) || pl.type.is_variable( upper ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_integer( lower ) ) {
-					thread.throwError( pl.error.type( "integer", lower, atom.indicator ) );
+					thread.throw_error( pl.error.type( "integer", lower, atom.indicator ) );
 				} else if( !pl.type.is_integer( upper ) ) {
-					thread.throwError( pl.error.type( "integer", upper, atom.indicator ) );
+					thread.throw_error( pl.error.type( "integer", upper, atom.indicator ) );
 				} else if( !pl.type.is_variable( rand ) && !pl.type.is_integer( rand ) ) {
-					thread.throwError( pl.error.type( "integer", rand, atom.indicator ) );
+					thread.throw_error( pl.error.type( "integer", rand, atom.indicator ) );
 				} else {
 					if( lower.value < upper.value ) {
 						var gen = Math.floor(lower.value + Math.random() * (upper.value - lower.value + 1));
@@ -85,7 +85,7 @@ var pl;
 			"random_member/2": function( thread, point, atom ) {
 				var member = atom.args[0], list = atom.args[1];
 				if( pl.type.is_variable( list ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else {
 					var array = [];
 					var pointer = list;
@@ -110,11 +110,11 @@ var pl;
 				var ins_list = pl.type.is_instantiated_list( list );
 				var ins_permutation = pl.type.is_instantiated_list( permutation );
 				if( pl.type.is_variable( list ) && pl.type.is_variable( permutation ) || !ins_list && !ins_permutation ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( list ) && !pl.type.is_fully_list( list ) ) {
-					thread.throwError( pl.error.type( "list", list, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 				} else if( !pl.type.is_variable( permutation ) && !pl.type.is_fully_list( permutation ) ) {
-					thread.throwError( pl.error.type( "list", permutation, atom.indicator ) );
+					thread.throw_error( pl.error.type( "list", permutation, atom.indicator ) );
 				} else {
 					var pointer = ins_list ? list : permutation;
 					var array = [];

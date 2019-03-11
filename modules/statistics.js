@@ -9,9 +9,9 @@ var pl;
 			"time/1": function( thread, point, atom ) {
 				var goal = atom.args[0];
 				if( pl.type.is_variable( goal ) ) {
-					thread.throwError( pl.error.instantiation( thread.level ) );
+					thread.throw_error( pl.error.instantiation( thread.level ) );
 				} else if( !pl.type.is_callable( goal ) ) {
-					thread.throwError( pl.error.type( "callable", goal, thread.level ) );
+					thread.throw_error( pl.error.type( "callable", goal, thread.level ) );
 				} else {
 					var points = thread.points;
 					thread.points = [new pl.type.State( goal, point.substitution, point )];
@@ -31,7 +31,7 @@ var pl;
 						thread.session.format_success = format_success;
 						thread.session.format_error = format_error;
 						if( pl.type.is_error( answer ) ) {
-							thread.throwError( answer.args[0] );
+							thread.throw_error( answer.args[0] );
 						} else if( answer === null ) {
 							thread.points = points;
 							thread.prepend( [point] );
@@ -67,9 +67,9 @@ var pl;
 			"statistics/2": function( thread, point, atom ) {
 				var key = atom.args[0], value = atom.args[1];
 				if( !pl.type.is_variable( key ) && !pl.type.is_atom( key ) ) {
-					thread.throwError( pl.error.type( "atom", key, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", key, atom.indicator ) );
 				} else if( !pl.type.is_variable( key ) && statistics[key.id] === undefined ) {
-					thread.throwError( pl.error.domain( "statistics_key", key, atom.indicator ) );
+					thread.throw_error( pl.error.domain( "statistics_key", key, atom.indicator ) );
 				} else {
 					if( !pl.type.is_variable( key ) ) {
 						var value_ = statistics[key.id]( thread );

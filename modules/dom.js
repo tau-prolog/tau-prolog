@@ -11,13 +11,13 @@ var pl;
 			"bind/4": function( thread, point, atom ) {
 				var elem = atom.args[0], type = atom.args[1], event = atom.args[2], goal = atom.args[3];
 				if( pl.type.is_variable( elem ) || pl.type.is_variable( type ) && pl.type.is_variable( goal ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( elem ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", elem, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", elem, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
-					thread.throwError( pl.error.type( "atom", type, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", type, atom.indicator ) );
 				} else if( !pl.type.is_variable( event ) && !pl.type.is_dom_event_object( event ) ) {
-					thread.throwError( pl.error.type( "DOMEventObject", type, atom.indicator ) );
+					thread.throw_error( pl.error.type( "DOMEventObject", type, atom.indicator ) );
 				} else if( !pl.type.is_variable( goal ) ) {
 					var thread_ = new pl.type.Thread( thread.session );
 					var eventObject = new pl.type.DOMEvent( type.id );
@@ -51,11 +51,11 @@ var pl;
 			"unbind/2": function( thread, point, atom ) {
 				var elem = atom.args[0], type = atom.args[1];
 				if( pl.type.is_variable( elem ) || pl.type.is_variable( type ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( elem ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", elem, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", elem, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
-					thread.throwError( pl.error.type( "atom", type, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", type, atom.indicator ) );
 				} else if( !pl.type.is_variable( goal ) ) {
 					if( elem.object.tau_events && elem.object.tau_events[type.id] ) {
 						var event = elem.object.tau_events[type.id];
@@ -72,13 +72,13 @@ var pl;
 			"unbind/3": function( thread, point, atom ) {
 				var elem = atom.args[0], type = atom.args[1], goal = atom.args[2];
 				if( pl.type.is_variable( elem ) || pl.type.is_variable( type ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( elem ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", elem, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", elem, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
-					thread.throwError( pl.error.type( "atom", type, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", type, atom.indicator ) );
 				} else if( !pl.type.is_variable( goal ) && !pl.type.is_term( goal ) ) {
-					thread.throwError( pl.error.type( "term", goal, atom.indicator ) );
+					thread.throw_error( pl.error.type( "term", goal, atom.indicator ) );
 				} else if( !pl.type.is_variable( goal ) ) {
 					if( elem.object.tau_events && elem.object.tau_events[type.id] ) {
 						var event = elem.object.tau_events[type.id];
@@ -100,13 +100,13 @@ var pl;
 			"event_property/3": function( thread, point, atom ) {
 				var event = atom.args[0], prop = atom.args[1], val = atom.args[2]
 				if( pl.type.is_variable( event ) || pl.type.is_variable( prop ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_event_object( event ) ) {
-					thread.throwError( pl.error.type( "DOMEventObject", event, atom.indicator ) );
+					thread.throw_error( pl.error.type( "DOMEventObject", event, atom.indicator ) );
 				} else if( !pl.type.is_atom( prop ) ) {
-					thread.throwError( pl.error.type( "atom", prop, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", prop, atom.indicator ) );
 				} else if( !pl.type.is_variable( val ) && !pl.type.is_atomic( val ) ) {
-					thread.throwError( pl.error.type( "atomic", val, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atomic", val, atom.indicator ) );
 				} else {
 					if( event.event !== null && event.event[prop.id] ) {
 						var value = event.event[prop.id];
@@ -120,9 +120,9 @@ var pl;
 			"prevent_default/1": function( thread, point, atom ) {
 				var event = atom.args[0];
 				if( pl.type.is_variable( event ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_event_object( event ) ) {
-					thread.throwError( pl.error.type( "eventObject", event, atom.indicator ) );
+					thread.throw_error( pl.error.type( "eventObject", event, atom.indicator ) );
 				} else {
 					if( event.event !== null ) {
 						event.event.preventDefault();
@@ -137,9 +137,9 @@ var pl;
 			"hide/1": function( thread, point, atom ) {
 				var element = atom.args[0];
 				if( pl.type.is_variable( element ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else {
 					var state = document.defaultView.getComputedStyle( element.object, "" ).display;
 					if( state !== undefined && state !== "none" )
@@ -153,9 +153,9 @@ var pl;
 			"show/1": function( thread, point, atom ) {
 				var element = atom.args[0];
 				if( pl.type.is_variable( element ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else {
 					element.object.style.display = element.object.tau_display !== undefined ? element.object.tau_display : "block";
 					thread.success( point );
@@ -173,11 +173,11 @@ var pl;
 			"get_by_id/2": function( session, point, atom ) {
 				var id = atom.args[0], object = atom.args[1];
 				if( pl.type.is_variable( id ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( id ) ) {
-					session.throwError( pl.error.type( "atom", id, atom.indicator ) );
+					session.throw_error( pl.error.type( "atom", id, atom.indicator ) );
 				} else if( !pl.type.is_variable( object ) && !pl.type.is_dom_object( object ) ) {
-					session.throwError( pl.error.type( "HTMLObject", object, atom.indicator ) );
+					session.throw_error( pl.error.type( "HTMLObject", object, atom.indicator ) );
 				} else {
 					var element = document.getElementById( id.id );
 					if( element ) {
@@ -191,11 +191,11 @@ var pl;
 			"get_by_class/2": function( session, point, atom ) {
 				var name = atom.args[0], object = atom.args[1];
 				if( pl.type.is_variable( name ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) ) {
-					session.throwError( pl.error.type( "atom", name, atom.indicator ) );
+					session.throw_error( pl.error.type( "atom", name, atom.indicator ) );
 				} else if( !pl.type.is_variable( object ) && !pl.type.is_dom_object( object ) ) {
-					session.throwError( pl.error.type( "HTMLObject", object, atom.indicator ) );
+					session.throw_error( pl.error.type( "HTMLObject", object, atom.indicator ) );
 				} else {
 					var elements = document.getElementsByClassName( name.id );
 					if( elements ) {
@@ -213,11 +213,11 @@ var pl;
 			"get_by_tag/2": function( session, point, atom ) {
 				var tag = atom.args[0], object = atom.args[1];
 				if( pl.type.is_variable( tag ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( tag ) ) {
-					session.throwError( pl.error.type( "atom", tag, atom.indicator ) );
+					session.throw_error( pl.error.type( "atom", tag, atom.indicator ) );
 				} else if( !pl.type.is_variable( object ) && !pl.type.is_dom_object( object ) ) {
-					session.throwError( pl.error.type( "HTMLObject", object, atom.indicator ) );
+					session.throw_error( pl.error.type( "HTMLObject", object, atom.indicator ) );
 				} else {
 					var elements = document.getElementsByTagName( tag.id );
 					if( elements ) {
@@ -237,13 +237,13 @@ var pl;
 				var styleValue = styleFromProlog( value );
 				var ground = pl.type.is_ground( value );
 				if( pl.type.is_variable( html ) || pl.type.is_variable( property ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( html ) ) {
-					session.throwError( pl.error.type( "HTMLObject", html, atom.indicator ) );
+					session.throw_error( pl.error.type( "HTMLObject", html, atom.indicator ) );
 				} else if( !pl.type.is_atom( property ) ) {
-					session.throwError( pl.error.type( "atom", property, atom.indicator ) );
+					session.throw_error( pl.error.type( "atom", property, atom.indicator ) );
 				} else if( !pl.type.is_variable( value ) && ground && styleValue === false ) {
-					session.throwError( pl.error.domain( "style_value", value, atom.indicator ) );
+					session.throw_error( pl.error.domain( "style_value", value, atom.indicator ) );
 				} else {
 					if( !ground ) {
 						var style = document.defaultView.getComputedStyle( html.object, "" )[property.id] || "";
@@ -264,13 +264,13 @@ var pl;
 				var styleValue = styleFromProlog( value );
 				var ground = pl.type.is_ground( value );
 				if( pl.type.is_variable( html ) || pl.type.is_variable( attr ) ) {
-					session.throwError( pl.error.instantiation( atom.indicator ) );
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( html ) ) {
-					session.throwError( pl.error.type( "HTMLObject", selector, atom.indicator ) );
+					session.throw_error( pl.error.type( "HTMLObject", selector, atom.indicator ) );
 				} else if( !pl.type.is_atom( attr ) ) {
-					session.throwError( pl.error.type( "atom", attr, atom.indicator ) );
+					session.throw_error( pl.error.type( "atom", attr, atom.indicator ) );
 				} else if( !pl.type.is_variable( value ) && ground && styleValue === false ) {
-					session.throwError( pl.error.domain( "attribute_value", value, atom.indicator ) );
+					session.throw_error( pl.error.domain( "attribute_value", value, atom.indicator ) );
 				} else {
 					if( !ground ) {
 						var html_value = attr.id === "value" ? new pl.type.Term(html.object.value) : styleToProlog(html.object.getAttribute(attr.id));
@@ -294,7 +294,7 @@ var pl;
 			"html/2": function( thread, point, atom ) {
 				var html = atom.args[0], value = atom.args[1];
 				if( pl.type.is_variable( html ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else {
 					if( pl.type.is_variable( value ) ) {
 						var inner = new pl.type.Term( html.object.innerHTML );
@@ -313,11 +313,11 @@ var pl;
 			"create/2": function( thread, point, atom ) {
 				var tag = atom.args[0], element = atom.args[1];
 				if( pl.type.is_variable( tag ) && pl.type.is_variable( element ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( tag ) && !pl.type.is_atom( tag ) ) {
-					thread.throwError( pl.error.type( "atom", tag, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", tag, atom.indicator ) );
 				} else if( !pl.type.is_variable( element ) && !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( pl.type.is_variable( element ) ) {
 					var node = new pl.type.DOM( document.createElement( tag.id ) );
 					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [element, node] ) ), point.substitution, point )] );
@@ -334,11 +334,11 @@ var pl;
 			"parent_of/2": function( thread, point, atom ) {
 				var child = atom.args[0], parent = atom.args[1];
 				if( pl.type.is_variable( parent ) && pl.type.is_variable( child ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( parent ) && !pl.type.is_dom_object( parent ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", parent, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", parent, atom.indicator ) );
 				} else if( !pl.type.is_variable( child ) && !pl.type.is_dom_object( child ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", child, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", child, atom.indicator ) );
 				} else if( pl.type.is_variable( child ) ) {
 					var children = parent.object.children;
 					var states = [];
@@ -357,11 +357,11 @@ var pl;
 			"sibling/2": function( thread, point, atom ) {
 				var left = atom.args[0], right = atom.args[1];
 				if( pl.type.is_variable( left ) && pl.type.is_variable( right ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( left ) && !pl.type.is_dom_object( left ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", left, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", left, atom.indicator ) );
 				} else if( !pl.type.is_variable( right ) && !pl.type.is_dom_object( right ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", right, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", right, atom.indicator ) );
 				} else {
 					if( pl.type.is_variable( left ) && right.object.previousElementSibling ) {
 						var elem = new pl.type.DOM( right.object.previousElementSibling );
@@ -377,9 +377,9 @@ var pl;
 			"remove/1": function( thread, point, atom ) {
 				var element = atom.args[0];
 				if( pl.type.is_variable( element ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else {
 					if( element.object.parentNode ) {
 						element.object.parentNode.removeChild( element.object );
@@ -392,11 +392,11 @@ var pl;
 			"insert_after/2": function( thread, point, atom ) {
 				var element = atom.args[0], reference = atom.args[1];
 				if( pl.type.is_variable( element ) || pl.type.is_variable( reference ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_dom_object( reference ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", reference, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", reference, atom.indicator ) );
 				} else {
 					if( reference.object.parentNode ) {
 						reference.object.parentNode.insertBefore(element.object, reference.object.nextSibling);
@@ -409,11 +409,11 @@ var pl;
 			"insert_before/2": function( thread, point, atom ) {
 				var element = atom.args[0], reference = atom.args[1];
 				if( pl.type.is_variable( element ) || pl.type.is_variable( reference ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_dom_object( reference ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", reference, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", reference, atom.indicator ) );
 				} else {
 					if( reference.object.parentNode ) {
 						reference.object.parentNode.insertBefore(element.object, reference.object);
@@ -426,11 +426,11 @@ var pl;
 			"prepend_child/2": function( thread, point, atom ) {
 				var parent = atom.args[0], child = atom.args[1];
 				if( pl.type.is_variable( parent ) || pl.type.is_variable( child ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( parent ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", parent, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", parent, atom.indicator ) );
 				} else if( !pl.type.is_dom_object( child ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", child, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", child, atom.indicator ) );
 				} else {
 					if( parent.object.firstChild )
 						parent.object.insertBefore( child.object, parent.object.firstChild );
@@ -444,11 +444,11 @@ var pl;
 			"append_child/2": function( thread, point, atom ) {
 				var parent = atom.args[0], child = atom.args[1];
 				if( pl.type.is_variable( parent ) || pl.type.is_variable( child ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( parent ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", parent, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", parent, atom.indicator ) );
 				} else if( !pl.type.is_dom_object( child ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", child, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", child, atom.indicator ) );
 				} else {
 					parent.object.appendChild( child.object );
 					thread.success( point );
@@ -459,11 +459,11 @@ var pl;
 			"add_class/2": function( thread, point, atom ) {
 				var element = atom.args[0], name = atom.args[1];
 				if( pl.type.is_variable( element ) || pl.type.is_variable( name ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) ) {
-					thread.throwError( pl.error.type( "atom", name, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", name, atom.indicator ) );
 				} else {
 					var arr = element.object.className.split(" ");
 					if( arr.indexOf( name.id ) === -1 ) {
@@ -477,11 +477,11 @@ var pl;
 			"remove_class/2": function( thread, point, atom ) {
 				var element = atom.args[0], name = atom.args[1];
 				if( pl.type.is_variable( element ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) && !pl.type.is_variable( name ) ) {
-					thread.throwError( pl.error.type( "atom", name, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", name, atom.indicator ) );
 				} else {
 					var arr = element.object.className.split(" ");
 					if( pl.type.is_variable( name ) ) {
@@ -510,11 +510,11 @@ var pl;
 			"hasClass/2": function( thread, point, atom ) {
 				var element = atom.args[0], name = atom.args[1];
 				if( pl.type.is_variable( element ) ) {
-					thread.throwError( pl.error.instantiation( atom.indicator ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_dom_object( element ) ) {
-					thread.throwError( pl.error.type( "HTMLObject", element, atom.indicator ) );
+					thread.throw_error( pl.error.type( "HTMLObject", element, atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) && !pl.type.is_variable( name ) ) {
-					thread.throwError( pl.error.type( "atom", name, atom.indicator ) );
+					thread.throw_error( pl.error.type( "atom", name, atom.indicator ) );
 				} else {
 					var arr = element.object.className.split(" ");
 					if( pl.type.is_variable( name ) ) {

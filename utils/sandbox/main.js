@@ -202,7 +202,7 @@ function reconsult() {
 		try_answer( 'parsing program: fail!', true );
 	else
 		try_answer( 'parsing program: ok!', true );
-	var warnings = session.getWarnings();
+	var warnings = session.get_warnings();
 	for( var i = warnings.length-1; i >= 0; i-- )
 		try_answer( 'warning parsing program: ' + warnings[i].toString(), true );
 	update_transformation();
