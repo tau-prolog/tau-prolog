@@ -2642,7 +2642,7 @@
 			
 			// Is a character
 			is_character_code: function( obj ) {
-				return obj instanceof Num && !obj.is_float;
+				return obj instanceof Num && !obj.is_float && obj.value >= 0 && obj.value <= 1114111;
 			},
 			
 			// Is an operator
@@ -4902,6 +4902,42 @@
 					thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
 				} else {
 					if( stream2.stream.put_char( char.id, stream2.position ) ) {
+						stream2.position++;
+						thread.success( point );
+					}
+				}
+			},
+
+			// put_code/1
+			"put_code/1": function( thread, point, atom ) {
+				var code = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_code", [new Var("S"),code])]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// put_code/2
+			"put_code/2": function( thread, point, atom ) {
+				var stream = atom.args[0], code = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) || pl.type.is_variable( code ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_integer( code ) ) {
+					thread.throw_error( pl.error.type( "integer", code, atom.indicator ) );
+				} else if( !pl.type.is_character_code( code ) ) {
+					thread.throw_error( pl.error.representation( "character_code", atom.indicator ) );
+				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.input ) {
+					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
+				} else if( stream2.type === "binary" ) {
+					thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
+				} else {
+					if( stream2.stream.put_char( fromCodePoint( code.value ), stream2.position ) ) {
 						stream2.position++;
 						thread.success( point );
 					}
