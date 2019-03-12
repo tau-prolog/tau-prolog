@@ -7,6 +7,7 @@
 
 	// IO FILE SYSTEM
 
+	// Virtual file system for browser
 	tau_file_system = {
 		// Current files
 		files: {},
@@ -35,7 +36,7 @@
 							this.text += char;
 							return true;
 						} else if( position > this.text.length ) {
-							return false;
+							return null;
 						} else {
 							this.text[position] = char;
 							return true;
@@ -63,6 +64,25 @@
 		}
 	};
 
+	// User input for browser
+	tau_user_input = {
+		get_char: function( _ ) {
+			var char = window.prompt();
+			if( !char || char.length === 0 )
+				return null;
+			return char[0];
+		}
+	};
+
+	// User output for browser
+	tau_user_output = {
+		put_char: function( char, _ ) {
+			console.log( char );
+			return true;
+		}
+	};
+
+	// Virtual file system for Node.js
 	nodejs_file_system = {
 		// Open file
 		open: function( path, type, mode ) {
@@ -70,6 +90,20 @@
 		},
 		// Close file
 		close: function( path ) {
+			return null;
+		}
+	};
+
+	// User input for Node.js
+	nodejs_user_input = {
+		get_char: function( _ ) {
+			return null;
+		}
+	};
+
+	// User output for Node.js
+	nodejs_user_output = {
+		put_char: function( char, _ ) {
 			return null;
 		}
 	};
@@ -1090,8 +1124,12 @@
 		this.multifile_predicates = {};
 		this.limit = limit;
 		this.streams = {
-			"user_input": new Stream( function(){ return window.prompt(); }, "read", "user_input", "text", false, "reset" ),
-			"user_output": new Stream( function(x){ window.alert(x); }, "write", "user_output", "text", false, "eof_code" )
+			"user_input": new Stream(
+				typeof module !== 'undefined' && module.exports ? nodejs_user_input : tau_user_input,
+				"read", "user_input", "text", false, "reset" ),
+			"user_output": new Stream(
+				typeof module !== 'undefined' && module.exports ? nodejs_user_output : tau_user_output,
+				"write", "user_output", "text", false, "eof_code" )
 		};
 		this.file_system = typeof module !== 'undefined' && module.exports ? nodejs_file_system : tau_file_system;
 		this.current_input = this.streams["user_input"];
@@ -4771,13 +4809,13 @@
 						stream_char = "end_of_file";
 						stream2.position = "past_end_of_stream";
 					} else {
-						stream_char = stream2.stream();
-						if( stream_char === null || stream_char.length < 1 ) {
+						stream_char = stream2.stream.get_char( stream2.position );
+						if( stream_char === null ) {
 							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 							return;
 						}
-						stream_char = stream_char[0];
 					}
+					stream2.position++;
 					thread.prepend( [new State(
 						point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
 						point.substitution,
@@ -4820,18 +4858,53 @@
 						stream_code = -1;
 						stream2.position = "past_end_of_stream";
 					} else {
-						stream_code = stream2.stream();
-						if( stream_code === null || stream_code.length < 1 ) {
+						stream_code = stream2.stream.get_char( stream2.position );
+						if( stream_code === null ) {
 							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 							return;
 						}
 						stream_code = codePointAt( stream_code, 0 );
 					}
+					stream2.position++;
 					thread.prepend( [new State(
 						point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
 						point.substitution,
 						point
 					)] );
+				}
+			},
+
+			// put_char/1
+			"put_char/1": function( thread, point, atom ) {
+				var char = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"),char])]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// put_char/2
+			"put_char/2": function( thread, point, atom ) {
+				var stream = atom.args[0], char = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) || pl.type.is_variable( char ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_character( char ) ) {
+					thread.throw_error( pl.error.type( "character", char, atom.indicator ) );
+				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.input ) {
+					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
+				} else if( stream2.type === "binary" ) {
+					thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
+				} else {
+					if( stream2.stream.put_char( char.id, stream2.position ) ) {
+						stream2.position++;
+						thread.success( point );
+					}
 				}
 			},
 
