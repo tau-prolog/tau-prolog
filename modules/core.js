@@ -66,11 +66,19 @@
 
 	// User input for browser
 	tau_user_input = {
+		buffer: "",
 		get_char: function( _ ) {
-			var char = window.prompt();
-			if( !char || char.length === 0 )
-				return null;
-			return char[0];
+			if( tau_user_input.buffer.length !== 0 ) {
+				var char = tau_user_input.buffer[0];
+				tau_user_input.buffer = tau_user_input.buffer.substr(1);
+				return char;
+			} else {
+				var char = window.prompt();
+				if( !char || char.length === 0 )
+					return null;
+				tau_user_input.buffer = char.substr(1);
+				return char[0];
+			}
 		}
 	};
 
@@ -2699,6 +2707,11 @@
 					obj.indicator === "eof_action/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "error" || obj.args[0].id === "eof_code" || obj.args[0].id === "reset")
 				);
 			},
+
+			// Is a read option
+			is_read_option: function( obj ) {
+				return pl.type.is_term( obj ) && ["variables/1","variable_names/1","singletons/1"].indexOf( obj.indicator ) !== -1;
+			},
 			
 			// Is a modifiable flag
 			is_modifiable_flag: function( obj ) {
@@ -4963,6 +4976,154 @@
 				)] );
 			},
 
+
+
+			// TERM INPUT/OUTPUT
+
+			// read/1
+			"read/1": function( thread, point, atom ) {
+				var term = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),term,new Term("[]",[])])]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// read/2
+			"read/2": function( thread, point, atom ) {
+				var stream = atom.args[0], term = atom.args[1];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term("read_term", [stream,term,new Term("[]",[])]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// read_term/2
+			"read_term/2": function( thread, point, atom ) {
+				var term = atom.args[0], options = atom.args[1];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),term,options])]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// read_term/3
+			"read_term/3": function( thread, point, atom ) {
+				var stream = atom.args[0], term = atom.args[1], options = atom.args[2];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) || pl.type.is_variable( options ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_list( options ) ) {
+					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.output ) {
+					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+				} else if( stream2.type === "binary" ) {
+					thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+				} else {
+					var obj_options = {};
+					var pointer = options;
+					var property;
+					// Get options
+					while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
+						property = pointer.args[0];
+						if( pl.type.is_variable( property ) ) {
+							thread.throw_error( pl.error.instantiation( atom.indicator ) );
+							return;
+						} else if( !pl.type.is_read_option( property ) ) {
+							thread.throw_error( pl.error.domain( "read_option", property, atom.indicator ) );
+							return;
+						}
+						obj_options[property.id] = property.args[0];
+						pointer = pointer.args[1];
+					}
+					if( pointer.indicator !== "[]/0" ) {
+						if( pl.type.is_variable( pointer ) )
+							thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						else
+							thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+						return;
+					} else {
+						var char, tokenizer, expr;
+						var text = "";
+						var tokens = [];
+						var last_token = null;
+						// Get term
+						while( last_token === null || last_token.name !== "atom" || last_token.value !== "." ||
+							(expr.type === ERROR && pl.flatten_error(new Term("throw",[expr.value])).found === "token_not_found") ) {
+							char = stream2.stream.get_char( stream2.position );
+							if( char === null ) {
+								thread.throw_error( pl.error.representation( "character", atom.indicator ) );
+								return;
+							}
+							stream2.position++;
+							text += char;
+							tokenizer = new Tokenizer( thread );
+							tokenizer.new_text( text );
+							tokens = tokenizer.get_tokens();
+							last_token = tokens !== null && tokens.length > 0 ? tokens[tokens.length-1] : null;
+							if( tokens === null )
+								continue;
+							expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
+						}
+						// Succeed analyzing term
+						if( expr.type === SUCCESS && expr.len === tokens.length-1 ) {
+							expr = expr.value.rename( thread );
+							var eq = new Term( "=", [term, expr] );
+							// Variables
+							if( obj_options.variables ) {
+								var vars = arrayToList( map( nub( expr.variables() ), function(v) { return new Var(v); } ) );
+								eq = new Term( ",", [eq, new Term( "=", [obj_options.variables, vars] )] )
+							}
+							// Variable names
+							if( obj_options.variable_names ) {
+								var vars = arrayToList( map( nub( expr.variables() ), function(v) {
+									var prop;
+									for( prop in thread.session.renamed_variables ) {
+										if( thread.session.renamed_variables.hasOwnProperty( prop ) ) {
+											if( thread.session.renamed_variables[ prop ] === v )
+												break;
+										}
+									}
+									return new Term( "=", [new Term( prop, []), new Var(v)] );
+								} ) );
+								eq = new Term( ",", [eq, new Term( "=", [obj_options.variable_names, vars] )] )
+							}
+							// Singletons
+							if( obj_options.singletons ) {
+								var vars = arrayToList( map( new Rule( expr, null ).singleton_variables(), function(v) {
+									var prop;
+									for( prop in thread.session.renamed_variables ) {
+										if( thread.session.renamed_variables.hasOwnProperty( prop ) ) {
+											if( thread.session.renamed_variables[ prop ] === v )
+												break;
+										}
+									}
+									return new Term( "=", [new Term( prop, []), new Var(v)] );
+								} ) );
+								eq = new Term( ",", [eq, new Term( "=", [obj_options.singletons, vars] )] )
+							}
+							thread.prepend( [new State( point.goal.replace( eq ), point.substitution, point )] );
+						// Failed analyzing term
+						} else {
+							if( expr.type === SUCCESS )
+								thread.throw_error( pl.error.syntax( tokens[expr.len], "unexpected token", false ) );
+							else
+								thread.throw_error( expr.value );
+						}
+					}
+				}
+			},
+
+
 			
 			// IMPLEMENTATION DEFINED HOOKS
 			
@@ -5019,7 +5180,7 @@
 					thread.success( point );
 				}
 			}
-			
+
 		},
 		
 		// Flags
