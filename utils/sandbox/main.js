@@ -40,6 +40,15 @@ window.addEventListener("load", function() {
 	query.on("keyHandled", try_tau_prolog)
 });
 
+function getWriteOptions() {
+	return {
+		session: session,
+		ignore_ops: document.getElementById("ignore_ops").checked,
+		quoted: document.getElementById("quoted").checked,
+		numbervars: document.getElementById("numbervars").checked
+	};
+}
+
 function try_tau_prolog( cm, msg, e ) {
 	// Down
 	if( e.keyCode === 40 ) {
@@ -82,7 +91,7 @@ function try_tau_prolog( cm, msg, e ) {
 			session.answer( try_answer );
 		else if( mode == MODE_DERIVATION ) {
 			var max_answers = parseInt(document.getElementById("max_answers").value);
-			session.draw(max_answers, "tau-canvas", styles);
+			session.draw(max_answers, "tau-canvas", styles, getWriteOptions());
 		}
 	}
 	try_program = raw_program;
@@ -104,7 +113,7 @@ function try_answer( answer, format ) {
 	if( inner !== "" ) {
 		elem.innerHTML = "<div class=\"sep\"></div>" + inner;
 	}
-	elem.innerHTML = "<div class=\"answer\">" + (format ? answer : escapeHtml(pl.format_answer( answer, session )) ) + "</div>" + elem.innerHTML;	
+	elem.innerHTML = "<div class=\"answer\">" + (format ? answer : escapeHtml(pl.format_answer( answer, session, getWriteOptions() )) ) + "</div>" + elem.innerHTML;	
 }
 
 function toggle(id) {
@@ -204,7 +213,7 @@ function reconsult() {
 		try_answer( 'parsing program: ok!', true );
 	var warnings = session.get_warnings();
 	for( var i = warnings.length-1; i >= 0; i-- )
-		try_answer( 'warning parsing program: ' + warnings[i].toString(), true );
+		try_answer( 'warning parsing program: ' + warnings[i].toString( getWriteOptions() ), true );
 	update_transformation();
 }
 
@@ -214,7 +223,7 @@ function update_transformation() {
 	for(var key in session.rules) {
 		html += "<li class=\"transformation-header\"><div></div><span>" + key + "</span></li><ul>";
 		for(var i = 0; i < session.rules[key].length; i++) {
-			html += "<li><input type=\"button\" class=\"transformation-button\" value=\"unfold\" onClick=\"unfold(session.rules['" + key + "'][" + i + "]);\" /> " + session.rules[key][i].toString() + "</li>";
+			html += "<li><input type=\"button\" class=\"transformation-button\" value=\"unfold\" onClick=\"unfold(session.rules['" + key + "'][" + i + "]);\" /> " + session.rules[key][i].toString( getWriteOptions() ) + "</li>";
 		}
 		html += "</ul>";
 	}
@@ -224,6 +233,6 @@ function update_transformation() {
 
 function unfold(rule) {
 	session.unfold(rule);
-	code.setValue(session.toString().trim());
+	code.setValue(session.toString( getWriteOptions() ).trim());
 	update_transformation();
 }

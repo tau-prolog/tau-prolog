@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 62, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 63, status: "beta" };
 
 
 
@@ -5647,9 +5647,11 @@
 		},
 		
 		// Format of computed answers
-		format_answer: function( answer, thread ) {
+		format_answer: function( answer, thread, options ) {
 			if( thread instanceof Session )
 				thread = thread.thread;
+			var options = options ? options : {};
+			options.session = thread ? thread.session : undefined;
 			if( pl.type.is_error( answer ) ) {
 				return "uncaught exception: " + answer.args[0].toString();
 			} else if( answer === false ) {
@@ -5671,7 +5673,7 @@
 					if( str !== "" ) {
 						str += ", ";
 					}
-					str += link.toString() + " = " + answer.links[link].toString();
+					str += link.toString( options ) + " = " + answer.links[link].toString( options );
 				}
 				var delimiter = typeof thread === "undefined" || thread.points.length > 0 ? " ;" : "."; 
 				if( i === 0 ) {

@@ -63,8 +63,10 @@ var pl;
 			obj[name] = value;
 	};
 
-	var init = function( thread, max, canvas, styles ) {
+	var init = function( thread, max, canvas, styles, options ) {
 		styles = styles ? styles : {};
+		options = options ? options : {};
+		options.session = thread.session;
 		set_style( styles, "font-size", 14 );
 		set_style( styles, "font-family", "Monospace, Courier New" );
 		set_style( styles, "font", styles["font-size"] + "px " + styles["font-family"] );
@@ -115,8 +117,8 @@ var pl;
 				var state = answers[i];
 				var child = null;
 				while( state != null ) {
-					state.text_goal = state.goal === null ? "□" : state.goal.toString();
-					state.text_substitution = clear_substitution(state.substitution).toString();
+					state.text_goal = state.goal === null ? "□" : state.goal.toString( options );
+					state.text_substitution = clear_substitution(state.substitution).toString( options );
 					state.width = width;
 					if(state.children == null)
 						state.children = [];
@@ -305,12 +307,12 @@ var pl;
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
 			pl = p;
-			pl.type.Thread.prototype.draw = function( max, canvas, styles ) { return init( this, max, canvas, styles ); };
-			pl.type.Session.prototype.draw = function( max, canvas, styles ) { return this.thread.draw( max, canvas, styles ); };
+			pl.type.Thread.prototype.draw = function( max, canvas, styles, options ) { return init( this, max, canvas, styles, options ); };
+			pl.type.Session.prototype.draw = function( max, canvas, styles, options ) { return this.thread.draw( max, canvas, styles, options ); };
 		};
 	} else {
-		pl.type.Thread.prototype.draw = function( max, canvas, styles ) { return init( this, max, canvas, styles ); };
-		pl.type.Session.prototype.draw = function( max, canvas, styles ) { return this.thread.draw( max, canvas, styles ); };
+		pl.type.Thread.prototype.draw = function( max, canvas, styles, options ) { return init( this, max, canvas, styles, options ); };
+		pl.type.Session.prototype.draw = function( max, canvas, styles, options ) { return this.thread.draw( max, canvas, styles, options ); };
 	}
 
 })( pl );

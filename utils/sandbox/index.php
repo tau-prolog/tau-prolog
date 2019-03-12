@@ -161,6 +161,9 @@ if( isset($_GET["id"]) ) {
 						<div class="header">Query
 							<span id="limit-container" title="Maximum number of inferences">limit: <input id="limit" type="text" value="10000" /></span>
 							<span id="max_answers-container" title="Maximum number of answers">max-answers: <input id="max_answers" type="text" value="10" /></span>
+							<span style="margin-left: 20px;" id="quoted-container" title="Quoted"><input type="checkbox" id="quoted" name="quoted" checked="checked"> <label for="quoted">quoted</label></span>
+							<span style="margin-left: 10px;" id="ignore_ops-container" title="Ignore operators"><input type="checkbox" id="ignore_ops" name="ignore_ops"> <label for="ignore_ops">ignore_ops</label></span>
+							<span style="margin-left: 10px;" id="numbervars-container" title="Numbervars"><input type="checkbox" id="numbervars" name="numbervars"> <label for="numbervars">numbervars</label></span>
 						</div>
 						<div id="query"></div>
 						<div id="output"></div>
