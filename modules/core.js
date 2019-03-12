@@ -4944,6 +4944,24 @@
 				}
 			},
 
+			// nl/0
+			"nl/0": function( thread, point, atom ) {
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"), new Term("\n", [])])]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// nl/1
+			"nl/1": function( thread, point, atom ) {
+				var stream = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term("put_char", [stream, new Term("\n", [])]) ),
+					point.substitution,
+					point
+				)] );
+			},
 
 			
 			// IMPLEMENTATION DEFINED HOOKS
