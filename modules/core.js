@@ -2,6 +2,77 @@
 	
 	// VERSION
 	var version = { major: 0, minor: 2, patch: 62, status: "beta" };
+
+
+
+	// IO FILE SYSTEM
+
+	tau_file_system = {
+		// Current files
+		files: {},
+		// Open file
+		open: function( path, type, mode ) {
+			var file = tau_file_system.files[path];
+			if( !file ) {
+				if( mode === "read" )
+					return null;
+				file = {
+					path: path,
+					inuse: true,
+					text: "",
+					type: type,
+					get_char: function( position ) {
+						if( position === this.text.length ) {
+							return "end_of_file";
+						} else if( position > this.text.length ) {
+							return "past_end_of_file";
+						} else {
+							return this.text[position];
+						}
+					},
+					put_char: function( char, position ) {
+						if( position === this.text.length ) {
+							this.text += char;
+							return true;
+						} else if( position > this.text.length ) {
+							return false;
+						} else {
+							this.text[position] = char;
+							return true;
+						}
+					}
+				};
+				tau_file_system.files[path] = file;
+				return file;
+			} else if( file && !file.inuse ) {
+				return file;
+			}
+			return false;
+		},
+		// Close file
+		close: function( path ) {
+			var file = tau_file_system.files[path];
+			if( !file ) {
+				return null;
+			} else if( !file.inuse ) {
+				return false;
+			} else {
+				file.inuse = false;
+				return true;
+			}
+		}
+	};
+
+	nodejs_file_system = {
+		// Open file
+		open: function( path, type, mode ) {
+			return null;
+		},
+		// Close file
+		close: function( path ) {
+			return null;
+		}
+	};
 	
 	
 	
@@ -970,7 +1041,7 @@
 
 	// Streams
 	var stream_ref = 0;
-	function Stream( stream, mode, alias, type, reposition, eof_action ) {
+	function Stream( stream, mode, alias, type, reposition, eof_action, position ) {
 		this.id = stream_ref++;
 		this.stream = stream;
 		this.mode = mode; // "read" or "write" or "append"
@@ -978,6 +1049,7 @@
 		this.type = type !== undefined ? type : "text"; // "text" or "binary"
 		this.reposition = reposition !== undefined ? reposition : true; // true or false
 		this.eof_action = eof_action !== undefined ? eof_action : "eof_code"; // "error" or "eof_code" or "reset"
+		this.position = position !== undefined ? position : 0;
 		this.output = this.mode === "write" || this.mode === "append";
 		this.input = this.mode === "read";
 	}
@@ -1021,6 +1093,7 @@
 			"user_input": new Stream( function(){ return window.prompt(); }, "read", "user_input", "text", false, "reset" ),
 			"user_output": new Stream( function(x){ window.alert(x); }, "write", "user_output", "text", false, "eof_code" )
 		};
+		this.file_system = typeof module !== 'undefined' && module.exports ? nodejs_file_system : tau_file_system;
 		this.current_input = this.streams["user_input"];
 		this.current_output = this.streams["user_output"];
 		this.format_success = function( state ) { return state.substitution; };
@@ -1547,6 +1620,22 @@
 	};
 	Thread.prototype.get_stream_by_alias = function( alias ) {
 		return this.session.get_stream_by_alias( alias );
+	};
+
+	// Open file
+	Session.prototype.file_system_open = function( path, type, mode ) {
+		return this.file_system.open( path, type, mode );
+	};
+	Thread.prototype.file_system_open = function( path, type, mode ) {
+		return this.session.file_system_open( path, type, mode );
+	};
+
+	// Close file
+	Session.prototype.file_system_close = function( path ) {
+		return this.file_system.close( path );
+	};
+	Thread.prototype.file_system_close = function( path ) {
+		return this.session.file_system_close( path );
 	};
 
 	// Get conversion of the char
@@ -2556,6 +2645,21 @@
 					if( pl.flag[flag.id].allowed[value].equals( obj ) ) return true;
 				}
 				return false;
+			},
+
+			// Is a io mode
+			is_io_mode: function( obj ) {
+				return pl.type.is_atom( obj ) && ["read","write","append"].indexOf( obj.id ) !== -1;
+			},
+
+			// Is a stream option
+			is_stream_option: function( obj ) {
+				return pl.type.is_term( obj ) && (
+					obj.indicator === "alias/1" && pl.type.is_atom(obj.args[0]) ||
+					obj.indicator === "reposition/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "true" || obj.args[0].id === "false") ||
+					obj.indicator === "type/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "text" || obj.args[0].id === "binary") ||
+					obj.indicator === "eof_action/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "error" || obj.args[0].id === "eof_code" || obj.args[0].id === "reset")
+				);
 			},
 			
 			// Is a modifiable flag
@@ -4545,6 +4649,87 @@
 				} else {
 					thread.set_current_output( stream );
 					thread.success( point );
+				}
+			},
+
+			// open/3
+			"open/3": function( thread, point, atom ) {
+				var dest = atom.args[0], mode = atom.args[1], stream = atom.args[2];
+				thread.prepend( [new State(
+					point.goal.replace(new Term("open", [dest, mode, stream, new Term("[]", [])])),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// open/4
+			"open/4": function( thread, point, atom ) {
+				var dest = atom.args[0], mode = atom.args[1], stream = atom.args[2], options = atom.args[3];
+				if( pl.type.is_variable( dest ) || pl.type.is_variable( mode ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( mode ) && !pl.type.is_atom( mode ) ) {
+					thread.throw_error( pl.error.type( "atom", mode, atom.indicator ) );
+				} else if( !pl.type.is_list( options ) ) {
+					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+				} else if( !pl.type.is_variable( stream ) ) {
+					thread.throw_error( pl.error.type( "variable", stream, atom.indicator ) );
+				} else if( !pl.type.is_atom( dest ) ) {
+					thread.throw_error( pl.error.domain( "source_sink", dest, atom.indicator ) );
+				} else if( !pl.type.is_io_mode( mode ) ) {
+					thread.throw_error( pl.error.domain( "io_mode", mode, atom.indicator ) );
+				} else {
+					var obj_options = {};
+					var pointer = options;
+					var property;
+					while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
+						property = pointer.args[0];
+						if( pl.type.is_variable( property ) ) {
+							thread.throw_error( pl.error.instantiation( atom.indicator ) );
+							return;
+						} else if( !pl.type.is_stream_option( property ) ) {
+							thread.throw_error( pl.error.domain( "stream_option", property, atom.indicator ) );
+							return;
+						}
+						obj_options[property.id] = property.args[0].id;
+						pointer = pointer.args[1];
+					}
+					if( pointer.indicator !== "[]/0" ) {
+						if( pl.type.is_variable( pointer ) )
+							thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						else
+							thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+						return;
+					} else {
+						var alias = obj_options["alias"];
+						if( alias && thread.get_stream_by_alias(alias) ) {
+							thread.throw_error( pl.error.permission( "open", "source_sink", new Term("alias", [new Term(alias, [])]), atom.indicator ) );
+							return;
+						}
+						if( !obj_options["type"] )
+							obj_options["type"] = "text";
+						var file = thread.file_system_open( dest.id, obj_options["type"], mode.id );
+						if( file === false ) {
+							thread.throw_error( pl.error.permission( "open", "source_sink", dest, atom.indicator ) );
+							return;
+						} else if( file === null ) {
+							thread.throw_error( pl.error.existence( "source_sink", dest, atom.indicator ) );
+							return;
+						}
+						var newstream = new Stream(
+							file, mode.id,
+							obj_options["alias"],
+							obj_options["type"],
+							obj_options["reposition"],
+							obj_options["eof_action"] );
+						if( alias ) {
+							thread.session.streams[alias] = newstream;
+						}
+						thread.prepend( [new State(
+							point.goal.replace( new Term( "=", [stream, newstream] ) ),
+							point.substitution,
+							point
+						)] );
+					}
 				}
 			},
 
