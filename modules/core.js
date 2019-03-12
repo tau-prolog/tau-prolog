@@ -19,7 +19,6 @@
 					return null;
 				file = {
 					path: path,
-					inuse: true,
 					text: "",
 					type: type,
 					get: function( position ) {
@@ -41,27 +40,20 @@
 							this.text = this.text.substring(position) + text + this.text.substring(position+text.length)
 							return true;
 						}
+					},
+					close: function() {
+						var file = tau_file_system.files[this.path];
+						if( !file ) {
+							return null;
+						} else {
+							return true;
+						}
 					}
 				};
 				tau_file_system.files[path] = file;
-				return file;
-			} else if( file && !file.inuse ) {
-				return file;
 			}
-			return false;
+			return file;
 		},
-		// Close file
-		close: function( path ) {
-			var file = tau_file_system.files[path];
-			if( !file ) {
-				return null;
-			} else if( !file.inuse ) {
-				return false;
-			} else {
-				file.inuse = false;
-				return true;
-			}
-		}
 	};
 
 	// User input for browser
@@ -1139,6 +1131,8 @@
 				"write", "user_output", "text", false, "eof_code" )
 		};
 		this.file_system = typeof module !== 'undefined' && module.exports ? nodejs_file_system : tau_file_system;
+		this.standard_input = this.streams["user_input"];
+		this.standard_output = this.streams["user_output"];
 		this.current_input = this.streams["user_input"];
 		this.current_output = this.streams["user_output"];
 		this.format_success = function( state ) { return state.substitution; };
@@ -1708,14 +1702,6 @@
 	};
 	Thread.prototype.file_system_open = function( path, type, mode ) {
 		return this.session.file_system_open( path, type, mode );
-	};
-
-	// Close file
-	Session.prototype.file_system_close = function( path ) {
-		return this.file_system.close( path );
-	};
-	Thread.prototype.file_system_close = function( path ) {
-		return this.session.file_system_close( path );
 	};
 
 	// Get conversion of the char
@@ -2767,6 +2753,14 @@
 					obj.indicator === "ignore_ops/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "true" || obj.args[0].id === "false") ||
 					obj.indicator === "numbervars/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "true" || obj.args[0].id === "false")
 				);
+			},
+
+			// Is a close option
+			is_close_option: function( obj ) {
+				return pl.type.is_term( obj ) &&
+					obj.indicator === "force/1" &&
+					pl.type.is_atom(obj.args[0]) &&
+					(obj.args[0].id === "true" || obj.args[0].id === "false");
 			},
 			
 			// Is a modifiable flag
@@ -4840,6 +4834,71 @@
 				}
 			},
 
+			// close/1
+			"close/1": function( thread, point, atom ) {
+				var stream = atom.args[0];
+				thread.prepend( [new State(
+					point.goal.replace(new Term("close", [stream, new Term("[]", [])])),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// close/2
+			"close/2": function( thread, point, atom ) {
+				var stream = atom.args[0], options = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) || pl.type.is_variable( options ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_list( options ) ) {
+					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else {
+					// Get options
+					var obj_options = {};
+					var pointer = options;
+					var property;
+					while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
+						property = pointer.args[0];
+						if( pl.type.is_variable( property ) ) {
+							thread.throw_error( pl.error.instantiation( atom.indicator ) );
+							return;
+						} else if( !pl.type.is_close_option( property ) ) {
+							thread.throw_error( pl.error.domain( "close_option", property, atom.indicator ) );
+							return;
+						}
+						obj_options[property.id] = property.args[0].id === "true";
+						pointer = pointer.args[1];
+					}
+					if( pointer.indicator !== "[]/0" ) {
+						if( pl.type.is_variable( pointer ) )
+							thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						else
+							thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+						return;
+					} else {
+						if( stream2 === thread.session.standard_input || stream2 === thread.session.standard_output ) {
+							thread.success( point );
+							return;
+						} else if( stream2 === thread.session.current_input ) {
+							thread.session.current_input = thread.session.standard_input;
+						} else if( stream2 === thread.session.current_output ) {
+							thread.session.current_output = thread.session.current_output;
+						}
+						if( stream2.alias !== null )
+							delete thread.session.streams[stream2.alias];
+						var closed = stream2.stream.close();
+						stream2.stream = null;
+						if( obj_options.force === true || closed === true ) {
+							thread.success( point );
+						}
+					}
+				}
+			},
+
 
 
 			//  CHARACTER INPUT OUTPUT
@@ -4862,9 +4921,9 @@
 					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
 					thread.throw_error( pl.error.type( "in_character", char, atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) ) {
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
 					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
 				} else if( stream2.output ) {
 					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
@@ -4913,7 +4972,7 @@
 					thread.throw_error( pl.error.type( "integer", char, atom.indicator ) );
 				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) ) {
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
 					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
 				} else if( stream2.output ) {
 					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
@@ -4963,7 +5022,7 @@
 					thread.throw_error( pl.error.type( "character", char, atom.indicator ) );
 				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) ) {
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
 					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
 				} else if( stream2.input ) {
 					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
@@ -4999,7 +5058,7 @@
 					thread.throw_error( pl.error.representation( "character_code", atom.indicator ) );
 				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) ) {
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
 					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
 				} else if( stream2.input ) {
 					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
@@ -5076,7 +5135,7 @@
 					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
 				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) ) {
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
 					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
 				} else if( stream2.output ) {
 					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
@@ -5268,7 +5327,7 @@
 					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
 				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) ) {
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
 					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
 				} else if( stream2.input ) {
 					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
