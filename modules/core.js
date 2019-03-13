@@ -21,23 +21,23 @@
 					path: path,
 					text: "",
 					type: type,
-					get: function( position ) {
+					get: function( n, position ) {
 						if( position === this.text.length ) {
 							return "end_of_file";
 						} else if( position > this.text.length ) {
 							return "past_end_of_file";
 						} else {
-							return this.text[position];
+							return this.text.substring( position, position+n );
 						}
 					},
 					put: function( text, position ) {
-						if( position === this.text.length ) {
+						if( position === "end_of_file" ) {
 							this.text += text;
 							return true;
-						} else if( position > this.text.length ) {
+						} else if( position === "past_end_of_file" ) {
 							return null;
 						} else {
-							this.text = this.text.substring(position) + text + this.text.substring(position+text.length)
+							this.text = this.text.substring(0, position) + text + this.text.substring(position+text.length);
 							return true;
 						}
 					},
@@ -1070,7 +1070,7 @@
 
 	// Streams
 	var stream_ref = 0;
-	function Stream( stream, mode, alias, type, reposition, eof_action, position ) {
+	function Stream( stream, mode, alias, type, reposition, eof_action ) {
 		this.id = stream_ref++;
 		this.stream = stream;
 		this.mode = mode; // "read" or "write" or "append"
@@ -1078,7 +1078,7 @@
 		this.type = type !== undefined ? type : "text"; // "text" or "binary"
 		this.reposition = reposition !== undefined ? reposition : true; // true or false
 		this.eof_action = eof_action !== undefined ? eof_action : "eof_code"; // "error" or "eof_code" or "reset"
-		this.position = position !== undefined ? position : 0;
+		this.position = this.mode === "append" ? "end_of_file" : 0;
 		this.output = this.mode === "write" || this.mode === "append";
 		this.input = this.mode === "read";
 	}
@@ -4938,8 +4938,9 @@
 							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 							return;
 						}
+						stream2.position++;
+						console.log(stream2.position);
 					}
-					stream2.position++;
 					thread.prepend( [new State(
 						point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
 						point.substitution,
@@ -4988,8 +4989,8 @@
 							return;
 						}
 						stream_code = codePointAt( stream_code, 0 );
+						stream2.position++;
 					}
-					stream2.position++;
 					thread.prepend( [new State(
 						point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
 						point.substitution,
@@ -5026,7 +5027,8 @@
 					thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
 				} else {
 					if( stream2.stream.put( char.id, stream2.position ) ) {
-						stream2.position++;
+						if(typeof stream2.position === "number")
+							stream2.position++;
 						thread.success( point );
 					}
 				}
@@ -5062,7 +5064,8 @@
 					thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
 				} else {
 					if( stream2.stream.put_char( fromCodePoint( code.value ), stream2.position ) ) {
-						stream2.position++;
+						if(typeof stream2.position === "number")
+							stream2.position++;
 						thread.success( point );
 					}
 				}
@@ -5175,6 +5178,13 @@
 								thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 								return;
 							}
+							if( char === "end_of_file" || char === "past_end_of_file" ) {
+								if( expr )
+									thread.throw_error( pl.error.syntax( tokens[expr.len-1], ". or expression expected", false ) );
+								else
+									thread.throw_error( pl.error.syntax( null, "token not found", true ) );
+								return;
+							}
 							stream2.position++;
 							text += char;
 							tokenizer = new Tokenizer( thread );
@@ -5186,7 +5196,7 @@
 							expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
 						}
 						// Succeed analyzing term
-						if( expr.type === SUCCESS && expr.len === tokens.length-1 ) {
+						if( expr.type === SUCCESS && expr.len === tokens.length-1 && last_token.value === "." ) {
 							expr = expr.value.rename( thread );
 							var eq = new Term( "=", [term, expr] );
 							// Variables
@@ -5357,8 +5367,9 @@
 					} else {
 						obj_options.session = thread.session;
 						var text = term.toString( obj_options );
-						stream2.stream.put( text );
-						stream2.position += text.length;
+						stream2.stream.put( text, stream2.position );
+						if( typeof stream2.position === "number" )
+							stream2.position += text.length;
 						thread.success( point );
 					}
 				}
