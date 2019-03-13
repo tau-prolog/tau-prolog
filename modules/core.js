@@ -5198,22 +5198,99 @@
 
 			// peek_char/1
 			"peek_char/1": function( thread, point, atom ) {
-				
+				var char = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_char", [new Var("S"),char])]) ),
+					point.substitution,
+					point
+				)] );
 			},
 
 			// peek_char/2
 			"peek_char/2": function( thread, point, atom ) {
-				
+				var stream = atom.args[0], char = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
+					thread.throw_error( pl.error.type( "in_character", char, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.output ) {
+					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+				} else if( stream2.type === "binary" ) {
+					thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+				} else {
+					var stream_char;
+					if( stream2.position === "end_of_stream" ) {
+						stream_char = "end_of_file";
+						stream2.position = "past_end_of_stream";
+					} else {
+						stream_char = stream2.stream.get( 1, stream2.position );
+						if( stream_char === null ) {
+							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
+							return;
+						}
+					}
+					thread.prepend( [new State(
+						point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
+						point.substitution,
+						point
+					)] );
+				}
 			},
 
 			// peek_code/1
 			"peek_code/1": function( thread, point, atom ) {
-				
+				var code = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_code", [new Var("S"),code])]) ),
+					point.substitution,
+					point
+				)] );
 			},
 
 			// peek_code/2
 			"peek_code/2": function( thread, point, atom ) {
-				
+				var stream = atom.args[0], code = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
+					thread.throw_error( pl.error.type( "integer", char, atom.indicator ) );
+				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.output ) {
+					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+				} else if( stream2.type === "binary" ) {
+					thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+				} else {
+					var stream_code;
+					if( stream2.position === "end_of_stream" ) {
+						stream_code = -1;
+						stream2.position = "past_end_of_stream";
+					} else {
+						stream_code = stream2.stream.get( 1, stream2.position );
+						if( stream_code === null ) {
+							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
+							return;
+						}
+						stream_code = codePointAt( stream_code, 0 );
+					}
+					thread.prepend( [new State(
+						point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
+						point.substitution,
+						point
+					)] );
+				}
 			},
 
 			// put_char/1
