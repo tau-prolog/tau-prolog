@@ -545,27 +545,23 @@
 			var token = tokens[start++];
 			var classes = thread.__lookup_operator_classes(priority, token.value);
 			
-			// Signed number
-			if(token.value === "-") {
-				var number = tokens[start];
-				if(number && number.name === "number") {
-					return {
-						value: new pl.type.Num( token.value==="-" ? -number.value : number.value, number.float ),
-						len: ++start,
-						type: SUCCESS
-					};
-				}
-			}
-			
 			// Associative prefix operator
 			if(classes && classes.indexOf("fy") > -1) {
 				var expr = parseExpr(thread, tokens, start, priority, toplevel);
 				if(expr.type !== ERROR) {
-					return {
-						value: new pl.type.Term(token.value, [expr.value]),
-						len: expr.len,
-						type: SUCCESS
-					};
+					if( token.value === "-" && !token.space && pl.type.is_number( expr.value ) ) {
+						return {
+							value: new pl.type.Num(-expr.value.value, expr.value.is_float),
+							len: expr.len,
+							type: SUCCESS
+						};
+					} else {
+						return {
+							value: new pl.type.Term(token.value, [expr.value]),
+							len: expr.len,
+							type: SUCCESS
+						};
+					}
 				} else {
 					error = expr;
 				}
