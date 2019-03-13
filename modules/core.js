@@ -1120,7 +1120,7 @@
 		this.type = type !== undefined ? type : "text"; // "text" or "binary"
 		this.reposition = reposition !== undefined ? reposition : true; // true or false
 		this.eof_action = eof_action !== undefined ? eof_action : "eof_code"; // "error" or "eof_code" or "reset"
-		this.position = this.mode === "append" ? "end_of_file" : 0;
+		this.position = this.mode === "append" ? "end_of_stream" : 0;
 		this.output = this.mode === "write" || this.mode === "append";
 		this.input = this.mode === "read";
 	}
@@ -2781,7 +2781,23 @@
 
 			// Is a stream position
 			is_stream_position: function( obj ) {
-				return pl.type.is_integer( obj ) && obj.value >= 0 || pl.type.is_atom( obj ) && (obj.id === "end_of_file" || obj.id === "past_end_of_file");
+				return pl.type.is_integer( obj ) && obj.value >= 0 || pl.type.is_atom( obj ) && (obj.id === "end_of_stream" || obj.id === "past_end_of_stream");
+			},
+
+			// Is a stream property
+			is_stream_property: function( obj ) {
+				return pl.type.is_term( obj ) && (
+					obj.indicator === "input/0" || 
+					obj.indicator === "output/0" || 
+					obj.indicator === "alias/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom( obj.args[0] )) ||
+					obj.indicator === "file_name/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom( obj.args[0] )) ||
+					obj.indicator === "position/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_stream_position( obj.args[0] )) ||
+					obj.indicator === "reposition/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "true" || obj.args[0].id === "false")) ||
+					obj.indicator === "type/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "text" || obj.args[0].id === "binary")) ||
+					obj.indicator === "mode/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "read" || obj.args[0].id === "write" || obj.args[0].id === "append")) ||
+					obj.indicator === "eof_action/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "error" || obj.args[0].id === "eof_code" || obj.args[0].id === "reset")) ||
+					obj.indicator === "end_of_stream/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "at" || obj.args[0].id === "past" || obj.args[0].id === "not"))
+				);
 			},
 
 			// Is a read option
@@ -4865,9 +4881,10 @@
 							obj_options["type"],
 							obj_options["reposition"] === "true",
 							obj_options["eof_action"] );
-						if( alias ) {
+						if( alias )
 							thread.session.streams[alias] = newstream;
-						}
+						else
+							thread.session.streams[newstream.id] = newstream;
 						thread.prepend( [new State(
 							point.goal.replace( new Term( "=", [stream, newstream] ) ),
 							point.substitution,
@@ -4933,6 +4950,8 @@
 						}
 						if( stream2.alias !== null )
 							delete thread.session.streams[stream2.alias];
+						else
+							delete thread.session.streams[stream2.id];
 						if( stream2.output )
 							stream2.stream.flush();
 						var closed = stream2.stream.close();
@@ -4973,17 +4992,82 @@
 
 			// stream_property/2
 			"stream_property/2": function( thread, point, atom ) {
-
+				var stream = atom.args[0], property = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_variable( stream ) && (!pl.type.is_stream( stream2 ) || stream2.stream === null) ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( !pl.type.is_variable( property ) && !pl.type.is_stream_property( property ) ) {
+					thread.throw_error( pl.error.domain( "stream_property", property, atom.indicator ) );
+				} else {
+					var streams = [];
+					var states = [];
+					if( !pl.type.is_variable( stream ) )
+						streams.push( stream2 );
+					else
+						for( var key in thread.session.streams )
+							streams.push( thread.session.streams[key] );
+					for( var i = 0; i < streams.length; i++ ) {
+						var properties = [];
+						if( streams[i].filename )
+							properties.push( new Term( "file_name", [new Term(streams[i].file_name, [])] ) );
+						properties.push( new Term( "mode", [new Term(streams[i].mode, [])] ) );
+						properties.push( new Term( streams[i].input ? "input" : "output", [] ) );
+						if( streams[i].alias )
+							properties.push( new Term( "alias", [new Term(streams[i].alias, [])] ) );
+						properties.push( new Term( "position", [
+							typeof streams[i].position === "number" ?
+								new Num( streams[i].position, false ) :
+								new Term( streams[i].position, [] )
+						] ) );
+						properties.push( new Term( "end_of_stream", [new Term(
+							streams[i].position === "end_of_stream" ? "at" :
+							streams[i].position === "past_end_of_stream" ? "past" :
+							"not", [])] ) );
+						properties.push( new Term( "eof_action", [new Term(streams[i].eof_action, [])] ) );
+						properties.push( new Term( "reposition", [new Term(streams[i].reposition ? "true" : "false", [])] ) );
+						properties.push( new Term( "type", [new Term(streams[i].type, [])] ) );
+						for( var j = 0; j < properties.length; j++ ) {
+							states.push( new State(
+								point.goal.replace( new Term( ",", [
+									new Term("=", [pl.type.is_variable( stream ) ? stream : stream2, streams[i]]),
+									new Term("=", [property, properties[j]])]) ),
+								point.substitution,
+								point
+							) );
+						}
+					}
+					thread.prepend( states );
+				}
 			},
 
 			// at_end_of_stream/0
 			"at_end_of_stream/0": function( thread, point, atom ) {
-
+				thread.prepend( [new State(
+					point.goal.replace(
+						new Term(",", [new Term("current_input", [new Var("S")]),new Term(",", [
+							new Term("stream_property", [new Var("S"),new Term("end_of_stream", [new Var("E")])]),
+							new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),
+							new Term("at", [])]),new Term("=", [new Var("E"),new Term("past", [])])])])])])
+					),
+					point.substitution,
+					point
+				)] );
 			},
 
 			// at_end_of_stream/1
 			"at_end_of_stream/1": function( thread, point, atom ) {
-
+				var stream = atom.args[0];
+				thread.prepend( [new State(
+					point.goal.replace(
+						new Term(",", [new Term("stream_property", [stream,new Term("end_of_stream", [new Var("E")])]),
+						new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),new Term("at", [])]),
+						new Term("=", [new Var("E"),new Term("past", [])])])])])
+					),
+					point.substitution,
+					point
+				)] );
 			},
 
 			// set_stream_position/2
