@@ -113,6 +113,9 @@
 						fs.writeSync( fd, buffer, 0, buffer.length, position );
 					return true;
 				},
+				flush: function() {
+					return true;
+				},
 				close: function() {
 					fs.closeSync( fd );
 					return true;
@@ -2776,6 +2779,11 @@
 				);
 			},
 
+			// Is a stream position
+			is_stream_position: function( obj ) {
+				return pl.type.is_integer( obj ) && obj.value >= 0 || pl.type.is_atom( obj ) && (obj.id === "end_of_file" || obj.id === "past_end_of_file");
+			},
+
 			// Is a read option
 			is_read_option: function( obj ) {
 				return pl.type.is_term( obj ) && ["variables/1","variable_names/1","singletons/1"].indexOf( obj.indicator ) !== -1;
@@ -4855,7 +4863,7 @@
 							file, mode.id,
 							obj_options["alias"],
 							obj_options["type"],
-							obj_options["reposition"],
+							obj_options["reposition"] === "true",
 							obj_options["eof_action"] );
 						if( alias ) {
 							thread.session.streams[alias] = newstream;
@@ -4978,6 +4986,29 @@
 
 			},
 
+			// set_stream_position/2
+			"set_stream_position/2": function( thread, point, atom ) {
+				var stream = atom.args[0], position = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) || pl.type.is_variable( position ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream_position( position ) ) {
+					thread.throw_error( pl.error.domain( "stream_position", position, atom.indicator ) );
+				} else if( stream2.reposition === false ) {
+					thread.throw_error( pl.error.permission( "reposition", "stream", stream, atom.indicator ) );
+				} else {
+					if( pl.type.is_integer( position ) )
+						stream2.position = position.value;
+					else
+						stream2.position = position.id;
+					thread.success( point );
+				}
+			},
+
 
 
 			//  CHARACTER INPUT OUTPUT
@@ -5081,6 +5112,26 @@
 				}
 			},
 
+			// peek_char/1
+			"peek_char/1": function( thread, point, atom ) {
+				
+			},
+
+			// peek_char/2
+			"peek_char/2": function( thread, point, atom ) {
+				
+			},
+
+			// peek_code/1
+			"peek_code/1": function( thread, point, atom ) {
+				
+			},
+
+			// peek_code/2
+			"peek_code/2": function( thread, point, atom ) {
+				
+			},
+
 			// put_char/1
 			"put_char/1": function( thread, point, atom ) {
 				var char = atom.args[0];
@@ -5170,6 +5221,40 @@
 					point.substitution,
 					point
 				)] );
+			},
+
+
+
+			// BYTE INPUT/OUTPUT
+
+			// get_byte/1
+			"get_byte/1": function( thread, point, atom ) {
+				
+			},
+
+			// get_byte/2
+			"get_byte/2": function( thread, point, atom ) {
+				
+			},
+			
+			// peek_byte/1
+			"peek_byte/1": function( thread, point, atom ) {
+				
+			},
+
+			// peek_byte/2
+			"peek_byte/2": function( thread, point, atom ) {
+				
+			},
+
+			// put_byte/1
+			"put_byte/1": function( thread, point, atom ) {
+				
+			},
+
+			// put_byte/2
+			"put_byte/2": function( thread, point, atom ) {
+				
 			},
 
 
