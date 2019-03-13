@@ -41,6 +41,9 @@
 							return true;
 						}
 					},
+					flush: function() {
+						return true;
+					},
 					close: function() {
 						var file = tau_file_system.files[this.path];
 						if( !file ) {
@@ -78,7 +81,10 @@
 		put: function( text, _ ) {
 			console.log( text );
 			return true;
-		}
+		},
+		flush: function() {
+			return true;
+		} 
 	};
 
 	// Virtual file system for Node.js
@@ -4886,12 +4892,41 @@
 						}
 						if( stream2.alias !== null )
 							delete thread.session.streams[stream2.alias];
+						if( stream2.output )
+							stream2.stream.flush();
 						var closed = stream2.stream.close();
 						stream2.stream = null;
 						if( obj_options.force === true || closed === true ) {
 							thread.success( point );
 						}
 					}
+				}
+			},
+
+			// flush_output/0
+			"flush_output/0": function( thread, point, atom ) {
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("flush_output", [new Var("S")])]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// flush_output/1
+			"flush_output/1": function( thread, point, atom ) {
+				var stream = atom.args[0];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream.input === true ) {
+					thread.throw_error( pl.error.permission( "output", "stream", output, atom.indicator ) );
+				} else {
+					stream2.stream.flush();
+					thread.success( point );
 				}
 			},
 
