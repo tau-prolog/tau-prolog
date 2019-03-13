@@ -21,13 +21,13 @@
 					path: path,
 					text: "",
 					type: type,
-					get: function( n, position ) {
+					get: function( length, position ) {
 						if( position === this.text.length ) {
 							return "end_of_file";
 						} else if( position > this.text.length ) {
 							return "past_end_of_file";
 						} else {
-							return this.text.substring( position, position+n );
+							return this.text.substring( position, position+length );
 						}
 					},
 					put: function( text, position ) {
@@ -55,6 +55,8 @@
 				};
 				tau_file_system.files[path] = file;
 			}
+			if( mode === "write" )
+				file.text = "";
 			return file;
 		},
 	};
@@ -62,16 +64,16 @@
 	// User input for browser
 	tau_user_input = {
 		buffer: "",
-		get: function( n, _ ) {
+		get: function( length, _ ) {
 			var text;
-			while( tau_user_input.buffer.length < n ) {
+			while( tau_user_input.buffer.length < length ) {
 				text = window.prompt();
 				if( text ) {
 					tau_user_input.buffer += text;
 				}
 			}
-			text = tau_user_input.buffer.substr( 0, n );
-			tau_user_input.buffer = tau_user_input.buffer.substr( n );
+			text = tau_user_input.buffer.substr( 0, length );
+			tau_user_input.buffer = tau_user_input.buffer.substr( length );
 			return text;
 		}
 	};
@@ -91,25 +93,56 @@
 	nodejs_file_system = {
 		// Open file
 		open: function( path, type, mode ) {
-			return null;
-		},
-		// Close file
-		close: function( path ) {
-			return null;
+			var fs = require('fs');
+			var fd = fs.openSync( path, mode[0] );
+			if( mode === "read" && !fs.existsSync( path ) )
+				return null;
+			return {
+				get: function( length, position ) {
+					var buffer = new Buffer( length );
+					fs.readSync( fd, buffer, 0, length, position )
+					return buffer.toString();
+				},
+				put: function( text, position ) {
+					var buffer = Buffer.from( text );
+					if( position === "end_of_file" )
+						fs.writeSync( fd, buffer );
+					else if( position === "past_end_of_file" )
+						return null;
+					else
+						fs.writeSync( fd, buffer, 0, buffer.length, position );
+					return true;
+				},
+				close: function() {
+					fs.closeSync( fd );
+					return true;
+				}
+			};
 		}
 	};
 
 	// User input for Node.js
 	nodejs_user_input = {
-		get_char: function( _ ) {
-			return null;
+		buffer: "",
+		get: function( length, _ ) {
+			var text;
+			var readlineSync = require('readline-sync');
+			while( nodejs_user_input.buffer.length < length )
+				nodejs_user_input.buffer += readlineSync.question();
+			text = nodejs_user_input.buffer.substr( 0, length );
+			nodejs_user_input.buffer = nodejs_user_input.buffer.substr( length );
+			return text;
 		}
 	};
 
 	// User output for Node.js
 	nodejs_user_output = {
-		put_char: function( char, _ ) {
-			return null;
+		put: function( text, _ ) {
+			process.stdout.write( text );
+			return true;
+		},
+		flush: function() {
+			return true;
 		}
 	};
 	
@@ -4930,6 +4963,21 @@
 				}
 			},
 
+			// stream_property/2
+			"stream_property/2": function( thread, point, atom ) {
+
+			},
+
+			// at_end_of_stream/0
+			"at_end_of_stream/0": function( thread, point, atom ) {
+
+			},
+
+			// at_end_of_stream/1
+			"at_end_of_stream/1": function( thread, point, atom ) {
+
+			},
+
 
 
 			//  CHARACTER INPUT OUTPUT
@@ -4974,7 +5022,6 @@
 							return;
 						}
 						stream2.position++;
-						console.log(stream2.position);
 					}
 					thread.prepend( [new State(
 						point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
