@@ -41,6 +41,34 @@
 							return true;
 						}
 					},
+					get_byte: function( position ) {
+						var index = Math.floor(position/2);
+						if( this.text.length < index )
+							return null;
+						var code = codePointAt( this.text[Math.floor(position/2)], 0 );
+						if( position % 2 === 0 )
+							return code & 0xff;
+						else
+							return code / 256 >>> 0;
+					},
+					put_byte: function( byte, position ) {
+						var index = Math.floor(position/2);
+						if( this.text.length < index )
+							return null;
+						var code = this.text.length === index ? 0 : codePointAt( this.text[Math.floor(position/2)], 0 );
+						if( position % 2 === 0 ) {
+							code = code / 256 >>> 0;
+							code = ((code & 0xff) << 8) | (byte & 0xff);
+						} else {
+							code = code & 0xff;
+							code = ((byte & 0xff) << 8) | (code & 0xff);
+						}
+						if( this.text.length === index )
+							this.text += fromCodePoint( code );
+						else 
+							this.text = this.text.substring( 0, index ) + fromCodePoint( code ) + this.text.substring( index );
+						return true;
+					},
 					flush: function() {
 						return true;
 					},
@@ -112,6 +140,12 @@
 					else
 						fs.writeSync( fd, buffer, 0, buffer.length, position );
 					return true;
+				},
+				get_byte: function( position ) {
+					return null;
+				},
+				put_byte: function( byte, position ) {
+					return null;
 				},
 				flush: function() {
 					return true;
@@ -2722,6 +2756,11 @@
 			// Is a character
 			is_character_code: function( obj ) {
 				return obj instanceof Num && !obj.is_float && obj.value >= 0 && obj.value <= 1114111;
+			},
+
+			// Is a byte
+			is_byte: function( obj ) {
+				return obj instanceof Num && !obj.is_float && obj.value >= 0 && obj.value <= 255;
 			},
 			
 			// Is an operator
@@ -5390,32 +5429,134 @@
 
 			// get_byte/1
 			"get_byte/1": function( thread, point, atom ) {
-				
+				var byte = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_byte", [new Var("S"),byte])]) ),
+					point.substitution,
+					point
+				)] );
 			},
 
 			// get_byte/2
 			"get_byte/2": function( thread, point, atom ) {
-				
+				var stream = atom.args[0], byte = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( byte ) && !pl.type.is_byte( byte ) ) {
+					thread.throw_error( pl.error.type( "in_byte", char, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.output ) {
+					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+				} else if( stream2.type === "text" ) {
+					thread.throw_error( pl.error.permission( "input", "text_stream", stream, atom.indicator ) );
+				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+				} else {
+					var stream_byte;
+					if( stream2.position === "end_of_stream" ) {
+						stream_byte = "end_of_file";
+						stream2.position = "past_end_of_stream";
+					} else {
+						stream_byte = stream2.stream.get_byte( stream2.position );
+						if( stream_byte === null ) {
+							thread.throw_error( pl.error.representation( "byte", atom.indicator ) );
+							return;
+						}
+						stream2.position++;
+					}
+					thread.prepend( [new State(
+						point.goal.replace( new Term( "=", [new Num(stream_byte,false), byte] ) ),
+						point.substitution,
+						point
+					)] );
+				}
 			},
 			
 			// peek_byte/1
 			"peek_byte/1": function( thread, point, atom ) {
-				
+				var byte = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_byte", [new Var("S"),byte])]) ),
+					point.substitution,
+					point
+				)] );
 			},
 
 			// peek_byte/2
 			"peek_byte/2": function( thread, point, atom ) {
-				
+				var stream = atom.args[0], byte = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable( byte ) && !pl.type.is_byte( byte ) ) {
+					thread.throw_error( pl.error.type( "in_byte", char, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.output ) {
+					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+				} else if( stream2.type === "text" ) {
+					thread.throw_error( pl.error.permission( "input", "text_stream", stream, atom.indicator ) );
+				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+				} else {
+					var stream_byte;
+					if( stream2.position === "end_of_stream" ) {
+						stream_byte = "end_of_file";
+						stream2.position = "past_end_of_stream";
+					} else {
+						stream_byte = stream2.stream.get_byte( stream2.position );
+						if( stream_byte === null ) {
+							thread.throw_error( pl.error.representation( "byte", atom.indicator ) );
+							return;
+						}
+					}
+					thread.prepend( [new State(
+						point.goal.replace( new Term( "=", [new Num(stream_byte,false), byte] ) ),
+						point.substitution,
+						point
+					)] );
+				}
 			},
 
 			// put_byte/1
 			"put_byte/1": function( thread, point, atom ) {
-				
+				var byte = atom.args[0];
+				thread.prepend( [new State( 
+					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_byte", [new Var("S"),byte])]) ),
+					point.substitution,
+					point
+				)] );
 			},
 
 			// put_byte/2
 			"put_byte/2": function( thread, point, atom ) {
-				
+				var stream = atom.args[0], byte = atom.args[1];
+				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+				if( pl.type.is_variable( stream ) || pl.type.is_variable( byte ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_byte( byte ) ) {
+					thread.throw_error( pl.error.type( "byte", byte, atom.indicator ) );
+				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+				} else if( stream2.input ) {
+					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
+				} else if( stream2.type === "text" ) {
+					thread.throw_error( pl.error.permission( "output", "text_stream", stream, atom.indicator ) );
+				} else {
+					if( stream2.stream.put_byte( byte.value, stream2.position ) ) {
+						if(typeof stream2.position === "number")
+							stream2.position++;
+						thread.success( point );
+					}
+				}
 			},
 
 
