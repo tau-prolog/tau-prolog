@@ -25,7 +25,7 @@
 						if( position === this.text.length ) {
 							return "end_of_file";
 						} else if( position > this.text.length ) {
-							return "past_end_of_file";
+							return "end_of_file";
 						} else {
 							return this.text.substring( position, position+length );
 						}
@@ -42,9 +42,11 @@
 						}
 					},
 					get_byte: function( position ) {
+						if( position === "end_of_stream" )
+							return -1;
 						var index = Math.floor(position/2);
-						if( this.text.length < index )
-							return null;
+						if( this.text.length <= index )
+							return -1;
 						var code = codePointAt( this.text[Math.floor(position/2)], 0 );
 						if( position % 2 === 0 )
 							return code & 0xff;
@@ -52,10 +54,10 @@
 							return code / 256 >>> 0;
 					},
 					put_byte: function( byte, position ) {
-						var index = Math.floor(position/2);
+						var index = position === "end_of_stream" ? this.text.length : Math.floor(position/2);
 						if( this.text.length < index )
 							return null;
-						var code = this.text.length === index ? 0 : codePointAt( this.text[Math.floor(position/2)], 0 );
+						var code = this.text.length === index ? -1 : codePointAt( this.text[Math.floor(position/2)], 0 );
 						if( position % 2 === 0 ) {
 							code = code / 256 >>> 0;
 							code = ((code & 0xff) << 8) | (byte & 0xff);
@@ -66,7 +68,7 @@
 						if( this.text.length === index )
 							this.text += fromCodePoint( code );
 						else 
-							this.text = this.text.substring( 0, index ) + fromCodePoint( code ) + this.text.substring( index );
+							this.text = this.text.substring( 0, index ) + fromCodePoint( code ) + this.text.substring( index+1 );
 						return true;
 					},
 					flush: function() {
@@ -128,7 +130,7 @@
 			return {
 				get: function( length, position ) {
 					var buffer = new Buffer( length );
-					fs.readSync( fd, buffer, 0, length, position )
+					fs.readSync( fd, buffer, 0, length, position );
 					return buffer.toString();
 				},
 				put: function( text, position ) {
