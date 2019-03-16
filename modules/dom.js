@@ -589,7 +589,7 @@ var pl;
 
 	// toString
 	pl.type.DOM.prototype.toString = function() {
-		return "HTMLObject" + this.object.nodeName;
+		return "<html>(" + (this.object.id !== "" ? this.object.id : this.object.nodeName.toLowerCase()) + ")";
 	};
 
 	// clone
@@ -684,7 +684,7 @@ var pl;
 
 	// toString
 	pl.type.DOMEvent.prototype.toString = function() {
-		return "eventObject" + this.type.toUpperCase();
+		return "<event>(" + this.type.toLowerCase() + ")";
 	};
 
 	// clone

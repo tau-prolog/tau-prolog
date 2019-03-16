@@ -119,7 +119,7 @@ var pl;
 
 	// toString
 	pl.type.JSValue.prototype.toString = function() {
-		return "JSValue" + (typeof this.value).toUpperCase();
+		return "<javascript>(" + (typeof this.value).toLowerCase() + ")";
 	};
 
 	// clone
