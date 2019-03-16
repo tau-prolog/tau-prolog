@@ -16,14 +16,14 @@
 session.consult(":- use_module(library(dom)).");
 
 session.query("get_by_tag(div, B), html(B, X).");
-session.answer(); // {B/&lt;domHtmlObject>(block-a), X/'content a'}
-session.answer(); // {B/&lt;domHtmlObject>(block-b), X/'content b'}
-session.answer(); // {B/&lt;domHtmlObject>(block-c), X/'content c'}
+session.answer(); // {B/&lt;html>(block-a), X/'content a'}
+session.answer(); // {B/&lt;html>(block-b), X/'content b'}
+session.answer(); // {B/&lt;html>(block-c), X/'content c'}
 session.answer(); // false
 
 session.query("get_by_class(circle, B), html(B, X).");
-session.answer(); // {B/&lt;domHtmlObject>(block-a), X/'content a'}
-session.answer(); // {B/&lt;domHtmlObject>(block-b), X/'content b'}
+session.answer(); // {B/&lt;html>(block-a), X/'content a'}
+session.answer(); // {B/&lt;html>(block-b), X/'content b'}
 session.answer(); // false</code></pre>
 	<p>Si no existe un elemento con el identificador, la clase o la etiqueta especificada, los predicados simplemente fallan silenciosamente. Además, este módulo incluye predicados para navegar por el DOM a partir de otros objetos HTML:</p>
 	<ul>
@@ -61,7 +61,7 @@ session.query("get_by_id(output, Output), get_by_tag(body, B), bind(B, keypress,
 	event_property(Event, key, Key),
 	html(Output, Key)
 )).");
-session.answer(); // {Output/&lt;domHtmlObject>(output), Body/&lt;domHtmlObject>(body), Event/&lt;domEventObject>(keypress)}
+session.answer(); // {Output/&lt;html>(output), Body/&lt;html>(body), Event/&lt;event>(keypress)}
 </code></pre>
 
 	<p>En el ejemplo anterior, se ha añadido al cuerpo de la página un evento <span class="inline-code">keypress</span> para que cuando se pulse una tecla, se indique en el objeto HTML con identificador <span class="inline-code">output</span> la tecla que se ha pulsado. Nótese que el predicado <a href="http://www.tau-prolog.org/documentation/prolog/dom/event_property/3">event_property/3</a> y el término que contiene el evento (<span class="inline-code">Event</span> en el ejemplo), sólo tienen sentido dentro del objetivo de un evento, ya que no contendrán ninguna información útil hasta que un evento sea capturado. Cada vez que un evento es capturado, Tau Prolog crea automáticamente un nuevo hilo de la sesión que asignó el evento y ejecuta el objetivo (sólo para la primera respuesta).</p>
