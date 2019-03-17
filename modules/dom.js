@@ -662,6 +662,95 @@ var pl;
 		var arr = Array.prototype.slice.call( obj, 0 );
 		return pl.fromJavaScript.apply( arr );
 	};
+
+	// Streamable
+	pl.type.DOM.prototype.stream = function( options, mode ) {
+		if( mode === "write" )
+			if( this.object instanceof HTMLInputElement )
+				this.object.value = "";
+			else
+				this.object.innerHTML = "";
+		return {
+			object: this.object,
+			get: function( length, position ) {
+				var text;
+				if( this.object instanceof HTMLInputElement )
+					text = this.object.value.substring( position, position+length );
+				else
+					text = this.object.innerHTML;
+				if( position >= text.length )
+					return "end_of_html";
+				return text.substring( position, position+length );
+			},
+			put: function( text, position ) {
+				if( position === "end_of_file" ) {
+					if( this.object instanceof HTMLInputElement )
+						this.object.value += text;
+					else
+						this.object.innerHTML += text;
+					return true;
+				} else if( position === "past_end_of_file" ) {
+					return null;
+				} else {
+					if( this.object instanceof HTMLInputElement )
+						this.object.value = this.object.value.substring(0, position) + text + this.object.value.substring(position+text.length);
+					else
+						this.object.innerHTML = this.object.innerHTML.substring(0, position) + text + this.object.innerHTML.substring(position+text.length);
+					return true;
+				}
+			},
+			get_byte: function( position ) {
+				if( position === "end_of_stream" )
+					return -1;
+				var index = Math.floor(position/2);
+				var text;
+				if( this.object instanceof HTMLInputElement )
+					text = this.object.value.substring( position, position+length );
+				else
+					text = this.object.innerHTML;
+				if( text.length <= index )
+					return -1;
+				var code = pl.utils.codePointAt( text[Math.floor(position/2)], 0 );
+				if( position % 2 === 0 )
+					return code & 0xff;
+				else
+					return code / 256 >>> 0;
+			},
+			put_byte: function( byte, position ) {
+				var text;
+				if( this.object instanceof HTMLInputElement )
+					text = this.object.value;
+				else
+					text = this.object.innerHTML;
+				var index = position === "end_of_stream" ? text.length : Math.floor(position/2);
+				if( text.length < index )
+					return null;
+				var code = text.length === index ? -1 : pl.utils.codePointAt( text[Math.floor(position/2)], 0 );
+				if( position % 2 === 0 ) {
+					code = code / 256 >>> 0;
+					code = ((code & 0xff) << 8) | (byte & 0xff);
+				} else {
+					code = code & 0xff;
+					code = ((byte & 0xff) << 8) | (code & 0xff);
+				}
+				if( text.length === index )
+					text += pl.utils.fromCodePoint( code );
+				else 
+					text = text.substring( 0, index ) + pl.utils.fromCodePoint( code ) + text.substring( index+1 );
+				if( this.object instanceof HTMLInputElement )
+					this.object.value = text;
+				else
+					this.object.innerHTML = text;
+				return true;
+			},
+			flush: function() {
+				return true;
+			},
+			close: function() {
+				return true;
+			}
+		};
+	};
 	
 	
 	

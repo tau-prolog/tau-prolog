@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 63, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 64, status: "beta" };
 
 
 
@@ -2492,7 +2492,11 @@
 		utils: {
 			
 			// String to indicator
-			str_indicator: str_indicator
+			str_indicator: str_indicator,
+			// Code point at
+			codePointAt: codePointAt,
+			// From code point
+			fromCodePoint: fromCodePoint
 			
 		},
 		
@@ -2752,7 +2756,7 @@
 			
 			// Is a character
 			is_character: function( obj ) {
-				return obj instanceof Term && obj.id.length === 1 || obj.id.length > 0 && obj.id.length <= 2 && codePointAt( obj.id, 0 ) >= 65536;
+				return obj instanceof Term && (obj.id.length === 1 || obj.id.length > 0 && obj.id.length <= 2 && codePointAt( obj.id, 0 ) >= 65536);
 			},
 			
 			// Is a character
@@ -2839,6 +2843,11 @@
 					obj.indicator === "eof_action/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "error" || obj.args[0].id === "eof_code" || obj.args[0].id === "reset")) ||
 					obj.indicator === "end_of_stream/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "at" || obj.args[0].id === "past" || obj.args[0].id === "not"))
 				);
+			},
+
+			// Is a streamable term
+			is_streamable: function( obj ) {
+				return obj.__proto__.stream !== undefined;
 			},
 
 			// Is a read option
@@ -4874,7 +4883,7 @@
 					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
 				} else if( !pl.type.is_variable( stream ) ) {
 					thread.throw_error( pl.error.type( "variable", stream, atom.indicator ) );
-				} else if( !pl.type.is_atom( dest ) ) {
+				} else if( !pl.type.is_atom( dest ) && !pl.type.is_streamable( dest ) ) {
 					thread.throw_error( pl.error.domain( "source_sink", dest, atom.indicator ) );
 				} else if( !pl.type.is_io_mode( mode ) ) {
 					thread.throw_error( pl.error.domain( "io_mode", mode, atom.indicator ) );
@@ -4908,7 +4917,11 @@
 						}
 						if( !obj_options["type"] )
 							obj_options["type"] = "text";
-						var file = thread.file_system_open( dest.id, obj_options["type"], mode.id );
+						var file;
+						if( pl.type.is_atom( dest ) )
+							file = thread.file_system_open( dest.id, obj_options["type"], mode.id );
+						else
+							file = dest.stream( obj_options["type"], mode.id );
 						if( file === false ) {
 							thread.throw_error( pl.error.permission( "open", "source_sink", dest, atom.indicator ) );
 							return;
