@@ -4790,6 +4790,15 @@
 				}
 			},
 
+			// is_list/1
+			"is_list/1": function( thread, point, atom ) {
+				var list = atom.args[0];
+				while( pl.type.is_term( list ) && list.indicator === "./2" )
+					list = list.args[1];
+				if( pl.type.is_term( list ) && list.indicator === "[]/0" )
+					thread.success( point );
+			},
+
 
 
 			// STREAM SELECTION AND CONTROL
