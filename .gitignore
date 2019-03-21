@@ -10,3 +10,4 @@ utils/sandbox/codemirror/theme/*
 utils/sandbox/codemirror/mode/*
 !utils/sandbox/codemirror/mode/prolog
 node_modules/
+.history/

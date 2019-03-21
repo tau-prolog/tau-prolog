@@ -1,6 +1,6 @@
 {
   "name": "tau-prolog",
-  "version": "0.2.49",
+  "version": "0.2.65",
   "description": "An open source Prolog interpreter in JavaScript",
   "main": "./modules/core.js",
   "scripts": {
@@ -19,7 +19,9 @@
     "prolog"
   ],
   "files": [
-    "modules"
+    "modules",
+    "examples",
+    "test"
   ],
   "author": "jariazavalverde",
   "license": "BSD-3-Clause",
@@ -28,6 +30,8 @@
   },
   "homepage": "http://tau-prolog.org/",
   "dependencies": {
-    "qunit": "^2.8.0"
+    "qunit": "^2.8.0",
+    "readline-sync": "1.4.9",
+    "fs": "0.0.1-security"
   }
 }
