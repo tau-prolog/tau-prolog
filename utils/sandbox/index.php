@@ -62,7 +62,7 @@ if( isset($_GET["id"]) ) {
 
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" onClick="hide_dialogs();">
 	<head>
 		<title><?php if( $title != "") echo $title . " - "; ?>Tau Prolog Sandbox</title>
 		<meta name="description" content="<?php echo $description; ?>" />
@@ -94,7 +94,7 @@ if( isset($_GET["id"]) ) {
 		<script type="text/javascript" src="main.js"></script>
 	</head>
 	<body>
-		<div id="save" style="display:none;">
+		<div id="save" onClick="event.stopPropagation();" style="display:none;">
 			<form action="./" method="post">
 				<input id="save-title" name="title" type="input" placeholder="Title (optional)" />
 				<textarea id="save-program" style="display:none!important;" name="program"><?php echo $program; ?></textarea>
@@ -103,7 +103,7 @@ if( isset($_GET["id"]) ) {
 				<input id="save-submit" name="submit" type="submit" value="Save" />
 			</form>
 		</div>
-		<div id="help" style="display:none;">
+		<div id="help" onClick="event.stopPropagation();" style="display:none;">
 			Look at <a href="http://tau-prolog.org/documentation" title="Tau Prolog: Documentation" target="_blank">built-in predicates and modules</a> supported by Tau Prolog.
 			<ul>
 				<li><a href="http://tau-prolog.org/documentation#lists"  title="Tau Prolog: Documentation # lists module" target="_blank">lists</a> <span title="Add to your program" onClick="add(':-use_module(library(lists)).');">:-use_module(library(lists)).</span></li>

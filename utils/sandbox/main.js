@@ -117,6 +117,7 @@ function try_answer( answer, format ) {
 }
 
 function toggle(id) {
+	event.stopPropagation();
 	if( id == "save")
 		document.getElementById("help").style.display = 'none';
 	else
@@ -127,6 +128,11 @@ function toggle(id) {
 	} else {
 		elem.style.display = 'none';
 	}
+}
+
+function hide_dialogs() {
+	document.getElementById("help").style.display = 'none';
+	document.getElementById("save").style.display = 'none';
 }
 
 function add(text) {
