@@ -103,100 +103,102 @@ var pl;
 
 
 	// JS OBJECTS
-	
-	// Is a JS object
-	pl.type.is_js_object = function( obj ) {
-		return obj instanceof pl.type.JSValue;
-	};
+	function define_properties() {
+		// Is a JS object
+		pl.type.is_js_object = function( obj ) {
+			return obj instanceof pl.type.JSValue;
+		};
 
-	// Ordering relation
-	pl.type.order.push( pl.type.JSValue );
+		// Ordering relation
+		pl.type.order.push( pl.type.JSValue );
 
-	// JSValue Prolog object
-	pl.type.JSValue = function( value ) {
-		this.value = value;
+		// JSValue Prolog object
+		pl.type.JSValue = function( value ) {
+			this.value = value;
+		}
+
+		// toString
+		pl.type.JSValue.prototype.toString = function() {
+			return "<javascript>(" + (typeof this.value).toLowerCase() + ")";
+		};
+
+		// clone
+		pl.type.JSValue.prototype.clone = function() {
+			return new pl.type.JSValue( this.value );
+		};
+
+		// equals
+		pl.type.JSValue.prototype.equals = function( obj ) {
+			return pl.type.is_js_object( obj ) && this.value === obj.value;
+		};
+
+		// rename
+		pl.type.JSValue.prototype.rename = function( _ ) {
+			return this;
+		};
+
+		// get variables
+		pl.type.JSValue.prototype.variables = function() {
+			return [];
+		};
+
+		// apply substitutions
+		pl.type.JSValue.prototype.apply = function( _ ) {
+			return this;
+		};
+
+		// unify
+		pl.type.JSValue.prototype.unify = function( obj, _ ) {
+			if( pl.type.is_js_object( obj ) && this.value === obj.value ) {
+				return new pl.type.State( obj, new pl.type.Substitution() );
+			}
+			return null;
+		};
+
+		// interpret
+		pl.type.JSValue.prototype.interpret = function( indicator ) {
+			return pl.error.instantiation( indicator );
+		};
+
+		// compare
+		pl.type.JSValue.prototype.compare = function( obj ) {
+			if( this.value === obj.value ) {
+				return 0;
+			} else if( this.value < obj.value ) {
+				return -1;
+			} else if( this.value > obj.value ) {
+				return 1;
+			}
+		};
+
+		// to javascript
+		pl.type.JSValue.prototype.toJavaScript = function() {
+			return this.value;
+		};
+
+		// from javascript
+		pl.fromJavaScript.conversion.any = function( obj ) {
+			return new pl.type.JSValue( obj );
+		};
+
+
+
+		// JavaScript error
+		pl.error.javascript = function( error, indicator ) {
+			return new pl.type.Term( "error", [new pl.type.Term( "javascript_error", [new pl.type.Term( error )] ), pl.utils.str_indicator( indicator )] );
+		};
 	}
-
-	// toString
-	pl.type.JSValue.prototype.toString = function() {
-		return "<javascript>(" + (typeof this.value).toLowerCase() + ")";
-	};
-
-	// clone
-	pl.type.JSValue.prototype.clone = function() {
-		return new pl.type.JSValue( this.value );
-	};
-
-	// equals
-	pl.type.JSValue.prototype.equals = function( obj ) {
-		return pl.type.is_js_object( obj ) && this.value === obj.value;
-	};
-
-	// rename
-	pl.type.JSValue.prototype.rename = function( _ ) {
-		return this;
-	};
-
-	// get variables
-	pl.type.JSValue.prototype.variables = function() {
-		return [];
-	};
-
-	// apply substitutions
-	pl.type.JSValue.prototype.apply = function( _ ) {
-		return this;
-	};
-
-	// unify
-	pl.type.JSValue.prototype.unify = function( obj, _ ) {
-		if( pl.type.is_js_object( obj ) && this.value === obj.value ) {
-			return new pl.type.State( obj, new pl.type.Substitution() );
-		}
-		return null;
-	};
-
-	// interpret
-	pl.type.JSValue.prototype.interpret = function( indicator ) {
-		return pl.error.instantiation( indicator );
-	};
-
-	// compare
-	pl.type.JSValue.prototype.compare = function( obj ) {
-		if( this.value === obj.value ) {
-			return 0;
-		} else if( this.value < obj.value ) {
-			return -1;
-		} else if( this.value > obj.value ) {
-			return 1;
-		}
-	};
-	
-	// to javascript
-	pl.type.JSValue.prototype.toJavaScript = function() {
-		return this.value;
-	};
-	
-	// from javascrip
-	pl.fromJavaScript.conversion.any = function( obj ) {
-		return new pl.type.JSValue( obj );
-	};
-	
-	
-	
-	// JavaScript error
-	pl.error.javascript = function( error, indicator ) {
-		return new pl.type.Term( "error", [new pl.type.Term( "javascript_error", [new pl.type.Term( error )] ), pl.utils.str_indicator( indicator )] );
-	};
-	
 	
 
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
 			pl = p;
+			define_properties();
 			new pl.type.Module( "js", predicates(), exports );
 		};
 	} else {
+		define_properties();
 		new pl.type.Module( "js", predicates(), exports );
 	}
 
