@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 66, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 67, status: "beta" };
 
 
 
@@ -4234,7 +4234,8 @@
 				} else {
 					if( !pl.type.is_variable( atom1 ) ) {
 						var list1 = new Term( "[]" );
-						for( var i = atom1.id.length-1; i >= 0; i-- ) {
+						var unilen = [...atom1.id].length;
+						for( var i = unilen-1; i >= 0; i-- ) {
 							list1 = new Term( ".", [new Term( atom1.id.charAt( i ) ), list1] );
 						}
 						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
@@ -4277,7 +4278,8 @@
 				} else {
 					if( !pl.type.is_variable( atom1 ) ) {
 						var list1 = new Term( "[]" );
-						for( var i = atom1.id.length-1; i >= 0; i-- ) {
+						var unilen = [...atom1.id].length;
+						for( var i = unilen-1; i >= 0; i-- ) {
 							list1 = new Term( ".", [new Num( codePointAt(atom1.id,i), false ), list1] );
 						}
 						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
