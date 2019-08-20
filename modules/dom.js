@@ -168,6 +168,39 @@ var pl;
 			],
 			
 			// DOM MANIPULATION
+
+			// document/1
+			"document/1": function( session, point, atom) {
+				var doc = atom.args[0];
+				var newdoc = new pl.type.DOM( document );
+				session.prepend( [new pl.type.State(
+					point.goal.replace(new pl.type.Term("=", [doc, newdoc])),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// head/1
+			"head/1": function( session, point, atom) {
+				var head = atom.args[0];
+				var newhead = new pl.type.DOM( document.head );
+				session.prepend( [new pl.type.State(
+					point.goal.replace(new pl.type.Term("=", [head, newhead])),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// body/1
+			"body/1": function( session, point, atom) {
+				var body = atom.args[0];
+				var newbody = new pl.type.DOM( document.body );
+				session.prepend( [new pl.type.State(
+					point.goal.replace(new pl.type.Term("=", [body, newbody])),
+					point.substitution,
+					point
+				)] );
+			},
 			
 			// get_by_id/2
 			"get_by_id/2": function( session, point, atom ) {
@@ -186,18 +219,27 @@ var pl;
 					}
 				}
 			},
-			
+
 			// get_by_class/2
-			"get_by_class/2": function( session, point, atom ) {
-				var name = atom.args[0], object = atom.args[1];
-				if( pl.type.is_variable( name ) ) {
+			"get_by_class/2": [
+				new pl.type.Rule(new pl.type.Term("get_by_class", [new pl.type.Var("Class"),new pl.type.Var("Html")]), new pl.type.Term(",", [new pl.type.Term("document", [new pl.type.Var("D")]),new pl.type.Term("get_by_class", [new pl.type.Var("D"),new pl.type.Var("Class"),new pl.type.Var("Html")])]))
+			],
+			
+			// get_by_class/3
+			"get_by_class/3": function( session, point, atom ) {
+				var parent = atom.args[0], name = atom.args[1], object = atom.args[2];
+				if( pl.type.is_variable( parent ) ) {
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( parent ) ) {
+					session.throw_error( pl.error.type( "HTMLObject", parent, atom.indicator ) );
+				} else if( pl.type.is_variable( name ) ) {
 					session.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( name ) ) {
 					session.throw_error( pl.error.type( "atom", name, atom.indicator ) );
 				} else if( !pl.type.is_variable( object ) && !pl.type.is_dom_object( object ) ) {
 					session.throw_error( pl.error.type( "HTMLObject", object, atom.indicator ) );
 				} else {
-					var elements = document.getElementsByClassName( name.id );
+					var elements = parent.object.getElementsByClassName( name.id );
 					if( elements ) {
 						var states = [];
 						for( var i = 0; i < elements.length; i++ ) {
@@ -208,18 +250,27 @@ var pl;
 					}
 				}
 			},
-			
+
 			// get_by_tag/2
-			"get_by_tag/2": function( session, point, atom ) {
-				var tag = atom.args[0], object = atom.args[1];
-				if( pl.type.is_variable( tag ) ) {
+			"get_by_tag/2": [
+				new pl.type.Rule(new pl.type.Term("get_by_tag", [new pl.type.Var("Tag"),new pl.type.Var("Html")]), new pl.type.Term(",", [new pl.type.Term("document", [new pl.type.Var("D")]),new pl.type.Term("get_by_tag", [new pl.type.Var("D"),new pl.type.Var("Tag"),new pl.type.Var("Html")])]))
+			],
+			
+			// get_by_tag/3
+			"get_by_tag/3": function( session, point, atom ) {
+				var parent = atom.args[0], tag = atom.args[1], object = atom.args[2];
+				if( pl.type.is_variable( parent ) ) {
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( parent ) ) {
+					session.throw_error( pl.error.type( "HTMLObject", parent, atom.indicator ) );
+				} else if( pl.type.is_variable( tag ) ) {
 					session.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( tag ) ) {
 					session.throw_error( pl.error.type( "atom", tag, atom.indicator ) );
 				} else if( !pl.type.is_variable( object ) && !pl.type.is_dom_object( object ) ) {
 					session.throw_error( pl.error.type( "HTMLObject", object, atom.indicator ) );
 				} else {
-					var elements = document.getElementsByTagName( tag.id );
+					var elements = parent.object.getElementsByTagName( tag.id );
 					if( elements ) {
 						var states = [];
 						for( var i = 0; i < elements.length; i++ ) {
@@ -228,6 +279,67 @@ var pl;
 						}
 						session.prepend( states );
 					}
+				}
+			},
+
+			// get_by_name/2
+			"get_by_name/2": function( session, point, atom ) {
+				var name = atom.args[0], object = atom.args[1];
+				if( pl.type.is_variable( name ) ) {
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_atom( name ) ) {
+					session.throw_error( pl.error.type( "atom", name, atom.indicator ) );
+				} else if( !pl.type.is_variable( object ) && !pl.type.is_dom_object( object ) ) {
+					session.throw_error( pl.error.type( "HTMLObject", object, atom.indicator ) );
+				} else {
+					var elements = document.getElementsByName( name.id );
+					if( elements ) {
+						var states = [];
+						for( var i = 0; i < elements.length; i++ ) {
+							var html = new pl.type.DOM( elements[i] );
+							states.push( new pl.type.State( point.goal.replace( new pl.type.Term( "=", [html, object] ) ), point.substitution, point ) );
+						}
+						session.prepend( states );
+					}
+				}
+			},
+
+			// get_style/3
+			"get_style/3": function( session, point, atom ) {
+				var html = atom.args[0], property = atom.args[1], value = atom.args[2];
+				if( pl.type.is_variable( html ) || pl.type.is_variable( property ) ) {
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( html ) ) {
+					session.throw_error( pl.error.type( "HTMLObject", selector, atom.indicator ) );
+				} else if( !pl.type.is_atom( property ) ) {
+					session.throw_error( pl.error.type( "atom", property, atom.indicator ) );
+				} else {
+					if( html.object === document ) return;
+					var style = document.defaultView.getComputedStyle( html.object, "" )[property.id] || "";
+					if( style === '' && html.object.style[property.id] )
+						style = html.object.style[property.id];
+					var html_value = styleToProlog( style );
+					session.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [value, html_value] ) ), point.substitution, point )] );
+				}
+			},
+
+			// set_style/3
+			"set_style/3": function( session, point, atom ) {
+				var html = atom.args[0], property = atom.args[1], value = atom.args[2];
+				var styleValue = styleFromProlog( value );
+				var ground = pl.type.is_ground( value );
+				if( pl.type.is_variable( html ) || pl.type.is_variable( property ) || !ground ) {
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( html ) ) {
+					session.throw_error( pl.error.type( "HTMLObject", selector, atom.indicator ) );
+				} else if( !pl.type.is_atom( property ) ) {
+					session.throw_error( pl.error.type( "atom", property, atom.indicator ) );
+				} else if( styleValue === false ) {
+					session.throw_error( pl.error.domain( "style_value", value, atom.indicator ) );
+				} else {
+					if( html.object === document ) return;
+					html.object.style[property.id] = styleValue;
+					session.success( point );
 				}
 			},
 			
@@ -245,6 +357,7 @@ var pl;
 				} else if( !pl.type.is_variable( value ) && ground && styleValue === false ) {
 					session.throw_error( pl.error.domain( "style_value", value, atom.indicator ) );
 				} else {
+					if( html.object === document ) return;
 					if( !ground ) {
 						var style = document.defaultView.getComputedStyle( html.object, "" )[property.id] || "";
 						if( style === '' && html.object.style[property.id] )
@@ -255,6 +368,50 @@ var pl;
 						html.object.style[property.id] = styleValue;
 						session.success( point );
 					}
+				}
+			},
+
+			// get_attr/3
+			"get_attr/3": function( session, point, atom ) {
+				var html = atom.args[0], attr = atom.args[1], value = atom.args[2];
+				if( pl.type.is_variable( html ) || pl.type.is_variable( attr ) ) {
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( html ) ) {
+					session.throw_error( pl.error.type( "HTMLObject", selector, atom.indicator ) );
+				} else if( !pl.type.is_atom( attr ) ) {
+					session.throw_error( pl.error.type( "atom", attr, atom.indicator ) );
+				} else {
+					if( html.object === document ) return;
+					var html_value = attr.id === "value" ? new pl.type.Term(html.object.value) : styleToProlog(html.object.getAttribute(attr.id));
+					if( html_value !== null && html_value !== undefined )
+						session.prepend( [new pl.type.State(
+							point.goal.replace( new pl.type.Term( "=", [value, html_value] ) ),
+							point.substitution, point
+						)] );
+				}
+			},
+
+			// set_attr/3
+			"set_attr/3": function( session, point, atom ) {
+				var html = atom.args[0], attr = atom.args[1], value = atom.args[2];
+				var styleValue = styleFromProlog( value );
+				var ground = pl.type.is_ground( value );
+				if( pl.type.is_variable( html ) || pl.type.is_variable( attr ) || !ground ) {
+					session.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( html ) ) {
+					session.throw_error( pl.error.type( "HTMLObject", selector, atom.indicator ) );
+				} else if( !pl.type.is_atom( attr ) ) {
+					session.throw_error( pl.error.type( "atom", attr, atom.indicator ) );
+				} else if( styleValue === false ) {
+					session.throw_error( pl.error.domain( "attribute_value", value, atom.indicator ) );
+				} else {
+					if( html.object === document ) return;
+					if( attr.id === "value" ) {
+						html.object.value = styleValue;
+					} else {
+						html.object.setAttribute( attr.id, styleValue );
+					}
+					session.success( point );
 				}
 			},
 			
@@ -272,6 +429,7 @@ var pl;
 				} else if( !pl.type.is_variable( value ) && ground && styleValue === false ) {
 					session.throw_error( pl.error.domain( "attribute_value", value, atom.indicator ) );
 				} else {
+					if( html.object === document ) return;
 					if( !ground ) {
 						var html_value = attr.id === "value" ? new pl.type.Term(html.object.value) : styleToProlog(html.object.getAttribute(attr.id));
 						if( html_value !== null && html_value !== undefined )
@@ -289,6 +447,37 @@ var pl;
 					}
 				}
 			},
+
+			// get_html/2
+			"get_html/2": function( thread, point, atom ) {
+				var html = atom.args[0], value = atom.args[1];
+				if( pl.type.is_variable( html ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( html ) ) {
+					session.throw_error( pl.error.type( "HTMLObject", html, atom.indicator ) );
+				} else {
+					if( html.object === document ) return;
+					var inner = new pl.type.Term( html.object.innerHTML );
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [inner, value] ) ), point.substitution, point )] );
+				}
+			},
+
+			// set_html/2
+			"set_html/2": function( thread, point, atom ) {
+				var html = atom.args[0], value = atom.args[1];
+				if( pl.type.is_variable( html ) || pl.type.is_variable( value ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_dom_object( html ) ) {
+					session.throw_error( pl.error.type( "HTMLObject", html, atom.indicator ) );
+				} else {
+					if( html.object === document ) return;
+					if( pl.type.is_atom( value ) )
+						html.object.innerHTML = value.id;
+					else
+						html.object.innerHTML = value.toString();
+					thread.success( point );
+				}
+			},
 			
 			// html/2
 			"html/2": function( thread, point, atom ) {
@@ -296,6 +485,7 @@ var pl;
 				if( pl.type.is_variable( html ) ) {
 					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else {
+					if( html.object === document ) return;
 					if( pl.type.is_variable( value ) ) {
 						var inner = new pl.type.Term( html.object.innerHTML );
 						thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [inner, value] ) ), point.substitution, point )] );
@@ -532,7 +722,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["show/1", "hide/1", "toggle/1", "create/2", "get_by_id/2", "get_by_tag/2", "get_by_class/2", "attr/3", "style/3", "html/2", "parent_of/2", "insert_after/2", "insert_before/2", "append_child/2", "prepend_child/2", "sibling/2", "remove/1", "add_class/2", "remove_class/2", "has_class/2", "bind/4", "unbind/2", "unbind/3", "event_property/3", "prevent_default/1"];
+	var exports = ["document/1", "head/1", "body/1", "show/1", "hide/1", "toggle/1", "create/2", "get_by_id/2", "get_by_tag/2", "get_by_tag/3", "get_by_class/2", "get_by_class/3", "get_by_name/2", "attr/3", "set_attr/3", "get_attr/3", "style/3", "set_style/3", "get_style/3", "html/2", "set_html/2", "get_html/2", "parent_of/2", "insert_after/2", "insert_before/2", "append_child/2", "prepend_child/2", "sibling/2", "remove/1", "add_class/2", "remove_class/2", "has_class/2", "bind/4", "unbind/2", "unbind/3", "event_property/3", "prevent_default/1"];
 	
 	
 	
@@ -589,7 +779,7 @@ var pl;
 
 	// toString
 	pl.type.DOM.prototype.toString = function() {
-		return "<html>(" + (this.object.id !== "" ? this.object.id : this.object.nodeName.toLowerCase()) + ")";
+		return "<html>(" + (this.object.id !== "" && this.object.id !== undefined ? "#" + this.object.id : this.object.nodeName.toLowerCase().replace("#", "")) + ")";
 	};
 
 	// clone
