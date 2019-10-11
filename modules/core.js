@@ -269,6 +269,17 @@
 		};
 	}
 
+	var stringLength;
+	var regexAstralSymbols = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
+	if(Array.from)
+		stringLength = function(str) {
+			return Array.from(str).length;
+		};
+	else
+		stringLength = function(str) {
+			return str.replace(regexAstralSymbols, '_').length;
+		};
+
 
 
 	var ERROR = 0;
@@ -4109,7 +4120,7 @@
 				} else if( pl.type.is_integer( atom.args[1] ) && atom.args[1].value < 0 ) {
 					thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[1], atom.indicator ) );
 				} else {
-					var length = new Num( atom.args[0].id.length, false );
+					var length = new Num( stringLength(atom.args[0].id), false );
 					thread.prepend( [new State( point.goal.replace( new Term( "=", [length, atom.args[1]] ) ), point.substitution, point )] );
 				}
 			},
@@ -4234,7 +4245,7 @@
 				} else {
 					if( !pl.type.is_variable( atom1 ) ) {
 						var list1 = new Term( "[]" );
-						var unilen = [...atom1.id].length;
+						var unilen = stringLength(atom1.id);
 						for( var i = unilen-1; i >= 0; i-- ) {
 							list1 = new Term( ".", [new Term( atom1.id.charAt( i ) ), list1] );
 						}
@@ -4278,7 +4289,7 @@
 				} else {
 					if( !pl.type.is_variable( atom1 ) ) {
 						var list1 = new Term( "[]" );
-						var unilen = [...atom1.id].length;
+						var unilen = stringLength(atom1.id);
 						for( var i = unilen-1; i >= 0; i-- ) {
 							list1 = new Term( ".", [new Num( codePointAt(atom1.id,i), false ), list1] );
 						}
