@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 67, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 68, status: "beta" };
 
 
 
@@ -3312,33 +3312,19 @@
 		
 			// ;/2 (disjunction)
 			";/2": function( thread, point, atom ) {
-				if( pl.type.is_term( atom.args[0] ) && atom.args[0].indicator === "->/2" ) {
-					var points = thread.points;
-					var format_success = thread.session.format_success;
-					var format_error = thread.session.format_error;
-					thread.session.format_success = function(x) { return x.substitution; };
-					thread.session.format_error = function(x) { return x.goal; };
-					thread.points = [new State( atom.args[0].args[0], point.substitution, point )];
-					var callback = function( answer ) {
-						thread.points = points;
-						thread.session.format_success = format_success;
-						thread.session.format_error = format_error;
-						if( answer === false ) {
-							thread.prepend( [new State( point.goal.replace( atom.args[1] ), point.substitution, point )] );
-						} else if( pl.type.is_error( answer ) )
-							thread.throw_error( answer.args[0] );
-						else if( answer === null ) {
-							thread.prepend( [point] );
-							thread.__calls.shift()( null );
-						} else {
-							thread.prepend( [new State( point.goal.replace( atom.args[0].args[1] ).apply( answer ), point.substitution.apply( answer ), point )] );
-						}
-					};
-					thread.__calls.unshift( callback );
+				var left = atom.args[0], right = atom.args[1];
+				if( pl.type.is_term( left ) && left.indicator === "->/2" ) {
+					var cond = left.args[0], then = left.args[1], otherwise = right;
+					var goal_fst = point.goal.replace( new Term( ",", [cond, new Term( ",", [new Term( "!" ), then] )] ) );
+					var goal_snd = point.goal.replace( new Term( ",", [new Term( "!" ), otherwise] ) );
+					thread.prepend( [
+						new State( point.goal.replace( goal_fst ), point.substitution, point ),
+						new State( point.goal.replace( goal_snd ), point.substitution, point )
+					] );
 				} else {
-					var left = new State( point.goal.replace( atom.args[0] ), point.substitution, point );
-					var right = new State( point.goal.replace( atom.args[1] ), point.substitution, point );
-					thread.prepend( [left, right] );
+					var state_left = new State( point.goal.replace( left ), point.substitution, point );
+					var sate_right = new State( point.goal.replace( right ), point.substitution, point );
+					thread.prepend( [state_left, sate_right] );
 				}
 			},
 			
@@ -3412,7 +3398,8 @@
 			
 			// ->/2 (implication)
 			"->/2": function( thread, point, atom ) {
-				var goal = point.goal.replace( new Term( ",", [atom.args[0], new Term( ",", [new Term( "!" ), atom.args[1]] )] ) );
+				var cond = atom.args[0], then = atom.args[1];
+				var goal = point.goal.replace( new Term( ",", [cond, new Term( ",", [new Term( "!" ), then] )] ) );
 				thread.prepend( [new State( goal, point.substitution, point )] );
 			},
 			
