@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 68, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 69, status: "beta" };
 
 
 
@@ -3754,6 +3754,10 @@
 								var states = [];
 								for( var i = 0; i < answers.length; i++ ) {
 									answer = answers[i].answers.sort( pl.compare );
+									for( var i = answer.length-1; i > 0; i-- ) {
+										if( answer[i].equals(answer[i-1]) )
+										answer.splice(i,1);
+									}
 									var list = new Term( "[]" );
 									for( var j = answer.length - 1; j >= 0; j-- ) {
 										list = new Term( ".", [answer[j], list] );
