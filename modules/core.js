@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 69, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 70, status: "beta" };
 
 
 
@@ -858,6 +858,15 @@
 						};
 					} else if(expr.value.indicator === "-->/2") {
 						rule = rule_to_dcg(new pl.type.Rule(expr.value.args[0], expr.value.args[1]), thread);
+						console.log(rule);
+						if(!pl.type.is_rule(rule)) {
+							console.log(rule + "");
+							return {
+								value: rule,
+								len: start,
+								type: ERROR
+							};
+						}
 						rule.body = body_conversion( rule.body );
 						obj = {
 							value: rule,
@@ -975,10 +984,36 @@
 		rule = rule.rename( thread );
 		var begin = thread.next_free_variable();
 		var dcg = body_to_dcg( rule.body, begin, thread );
-		if( dcg.error ) return dcg.value;
+		if( dcg.error )
+			return dcg.value;
 		rule.body = dcg.value;
-		rule.head.args = rule.head.args.concat([begin,dcg.variable]);
-		rule.head = new Term(rule.head.id, rule.head.args);
+		if(rule.head.indicator === ",/2") {
+			var terminals = rule.head.args[1];
+			rule.head = rule.head.args[0];
+			var last = thread.next_free_variable();
+			var pointer = terminals;
+			if(!pl.type.is_list(pointer)) {
+				return pl.error.type("list", pointer, "DCG/0");
+			}
+			if(pointer.indicator === "[]/0") {
+				terminals = dcg.variable;
+			} else {
+				while(pointer.indicator === "./2" && pl.type.is_list(pointer) && pointer.args[1].indicator !== "[]/0") {
+					pointer = pointer.args[1];
+				}
+				if(pl.type.is_variable(pointer))
+					return pl.error.instantiation("DCG/0");
+				else if(!pl.type.is_list(pointer))
+					return pl.error.type("list", terminals, "DCG/0");
+				pointer.args[1] = dcg.variable;
+			}
+			rule.body = new Term(",", [rule.body, new Term("=", [last, terminals])]);
+			rule.head.args = rule.head.args.concat([begin, last]);
+			rule.head = new Term(rule.head.id, rule.head.args);
+		} else {
+			rule.head.args = rule.head.args.concat([begin, dcg.variable]);
+			rule.head = new Term(rule.head.id, rule.head.args);
+		}
 		return rule;
 	}
 
@@ -1023,13 +1058,13 @@
 			}
 			if( pl.type.is_variable( pointer ) ) {
 				return {
-					value: pl.error.instantiation("DCG"),
+					value: pl.error.instantiation("DCG/0"),
 					variable: last,
 					error: true
 				};
 			} else if( !pl.type.is_empty_list( pointer ) ) {
 				return {
-					value: pl.error.type("list", expr, "DCG"),
+					value: pl.error.type("list", expr, "DCG/0"),
 					variable: last,
 					error: true
 				};
@@ -1052,7 +1087,7 @@
 			};
 		} else {
 			return {
-				value: pl.error.type( "callable", expr, "DCG" ),
+				value: pl.error.type( "callable", expr, "DCG/0" ),
 				variable: last,
 				error: true
 			};
