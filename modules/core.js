@@ -858,15 +858,12 @@
 						};
 					} else if(expr.value.indicator === "-->/2") {
 						rule = rule_to_dcg(new pl.type.Rule(expr.value.args[0], expr.value.args[1]), thread);
-						console.log(rule);
-						if(!pl.type.is_rule(rule)) {
-							console.log(rule + "");
+						if(!pl.type.is_rule(rule))
 							return {
 								value: rule,
 								len: start,
 								type: ERROR
 							};
-						}
 						rule.body = body_conversion( rule.body );
 						obj = {
 							value: rule,
@@ -1011,8 +1008,10 @@
 			rule.head.args = rule.head.args.concat([begin, last]);
 			rule.head = new Term(rule.head.id, rule.head.args);
 		} else {
-			rule.head.args = rule.head.args.concat([begin, dcg.variable]);
+			var last = thread.next_free_variable();
+			rule.head.args = rule.head.args.concat([begin, last]);
 			rule.head = new Term(rule.head.id, rule.head.args);
+			rule.body = new Term(",", [rule.body, new Term("=", [dcg.variable, last])]);
 		}
 		return rule;
 	}
