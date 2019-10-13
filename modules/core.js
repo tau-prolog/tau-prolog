@@ -5962,6 +5962,36 @@
 					thread.session.flag[flag.id] = value;
 					thread.success( point );
 				}
+			},
+
+
+
+			// GRAMMARS
+
+			// phrase/3
+			"phrase/3": function( thread, point, atom ) {
+				var grbody = atom.args[0], s0 = atom.args[1], s = atom.args[2];
+				if( pl.type.is_variable( grbody ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_callable( grbody ) ) {
+					thread.throw_error( pl.error.type( "callable", grbody, atom.indicator ) );
+				} else {
+					thread.prepend( [new State(
+						point.goal.replace( new Term( grbody.id, [s0, s] ) ), 
+						point.substitution,
+						point
+					)] );
+				}
+			},
+
+			// phrase/2
+			"phrase/2": function( thread, point, atom ) {
+				var grbody = atom.args[0], s0 = atom.args[1];
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "phrase", [grbody, s0, new Term("[]", [])] ) ), 
+					point.substitution,
+					point
+				)] );
 			}
 
 		},
