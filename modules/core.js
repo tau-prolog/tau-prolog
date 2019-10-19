@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 70, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 71, status: "beta" };
 
 
 
@@ -323,6 +323,7 @@
 	// Escape atoms
 	function escapeAtom(str, quote) {
 		var atom = '';
+		if( str === "\\" ) return null;
 		if( str.length < 2 ) return str;
 		try {
 			str = str.replace(/\\([0-7]+)\\/g, function(match, g1) {
@@ -406,7 +407,7 @@
 	var rules = {
 		whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?\*\/)|(?:\s+))\s*/,
 		variable: /^(?:[A-Z_][a-zA-Z0-9_]*)/,
-		atom: /^(\!|,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+|'(?:[^']*?(?:\\(?:x?\d+)?\\)*(?:'')*(?:\\')*)*')/,
+		atom: /^(\!|,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+|'(?:(?:'')|(?:\\')|[^'])*')/,
 		number: /^(?:0o[0-7]+|0x[0-9a-fA-F]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|[^\\])|\d+(?:\.\d+(?:[eE][+-]?\d+)?)?)/,
 		string: /^(?:"([^"]|""|\\")*"|`([^`]|``|\\`)*`)/,
 		l_brace: /^(?:\[)/,
