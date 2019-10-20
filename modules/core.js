@@ -1392,7 +1392,7 @@
 		options.quoted = options.quoted === undefined ? true: options.quoted;
 		options.ignore_ops = options.ignore_ops === undefined ? false : options.ignore_ops;
 		options.numbervars = options.numbervars === undefined ? false : options.numbervars;
-		priority = priority === undefined ? 1200 : priority;
+		priority = priority === undefined ? {priority: 1200, class: "", indicator: ""} : priority;
 		from = from === undefined ? "" : from;
 		if( options.numbervars && this.indicator === "$VAR/1" && pl.type.is_integer( this.args[0] ) && this.args[0].value >= 0 ) {
 			var i = this.args[0].value;
@@ -1431,12 +1431,14 @@
 						function(x) { return x.toString( options); }
 					).join(", ") + ")" : "");
 				} else {
-					var cond = operator.priority > priority.priority || operator.priority === priority.priority && (
+					var priority_op = parseInt(operator.priority);
+					var priority_arg = parseInt(priority.priority);
+					var cond = priority_op > priority_arg || priority_op === priority_arg && (
+						operator.class === "xfx" ||
 						operator.class === "xfy" && this.indicator !== priority.indicator ||
 						operator.class === "yfx" && this.indicator !== priority.indicator ||
 						this.indicator === priority.indicator && operator.class === "yfx" && from === "right" ||
-						this.indicator === priority.indicator && operator.class === "xfy" && from === "left") ||
-						this.indicator === ",/2" && priority > 1000;
+						this.indicator === priority.indicator && operator.class === "xfy" && from === "left");
 					operator.indicator = this.indicator;
 					var lpar = cond ? "(" : "";
 					var rpar = cond ? ")" : "";
@@ -6302,7 +6304,8 @@
 					if( str !== "" ) {
 						str += ", ";
 					}
-					str += link.toString( options ) + " = " + answer.links[link].toString( options );
+					str += link.toString( options ) + " = " +
+						answer.links[link].toString( options, {priority: "700", class: "xfx", indicator: "=/2"}, "right" );
 				}
 				var delimiter = typeof thread === "undefined" || thread.points.length > 0 ? " ;" : "."; 
 				if( i === 0 ) {
