@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 71, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 72, status: "beta" };
 
 
 
@@ -1408,24 +1408,24 @@
 			case "{}/1":
 				return "{" + this.args[0].toString( options ) + "}";
 			case "./2":
-				var list = "[" + this.args[0].toString( options );
-				var pointer = this.args[1];
-				while( pointer.indicator === "./2" ) {
-					list += ", " + pointer.args[0].toString( options );
-					pointer = pointer.args[1];
+				if( options.ignore_ops === false ) {
+					var list = "[" + this.args[0].toString( options );
+					var pointer = this.args[1];
+					while( pointer.indicator === "./2" ) {
+						list += ", " + pointer.args[0].toString( options );
+						pointer = pointer.args[1];
+					}
+					if( pointer.indicator !== "[]/0" ) {
+						list += "|" + pointer.toString( options );
+					}
+					list += "]";
+					return list;
 				}
-				if( pointer.indicator !== "[]/0" ) {
-					list += "|" + pointer.toString( options );
-				}
-				list += "]";
-				return list;
-			case ",/2":
-				return "(" + this.args[0].toString( options ) + ", " + this.args[1].toString( options ) + ")";
 			default:
 				var id = this.id;
 				var operator = options.session ? options.session.lookup_operator( this.id, this.args.length ) : null;
 				if( options.session === undefined || options.ignore_ops || operator === null ) {
-					if( options.quoted && ! /^(!|,|;|[a-z][0-9a-zA-Z_]*)$/.test( id ) && id !== "{}" && id !== "[]" )
+					if( options.quoted && ! /^(!|[a-z][0-9a-zA-Z_]*)$/.test( id ) && id !== "{}" && id !== "[]" )
 						id = "'" + redoEscape(id) + "'";
 					return id + (this.args.length ? "(" + map( this.args,
 						function(x) { return x.toString( options); }
@@ -1435,7 +1435,8 @@
 						operator.class === "xfy" && this.indicator !== priority.indicator ||
 						operator.class === "yfx" && this.indicator !== priority.indicator ||
 						this.indicator === priority.indicator && operator.class === "yfx" && from === "right" ||
-						this.indicator === priority.indicator && operator.class === "xfy" && from === "left");
+						this.indicator === priority.indicator && operator.class === "xfy" && from === "left") ||
+						this.indicator === ",/2" && priority > 1000;
 					operator.indicator = this.indicator;
 					var lpar = cond ? "(" : "";
 					var rpar = cond ? ")" : "";
