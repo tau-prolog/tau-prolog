@@ -254,6 +254,10 @@ a:hover {
 	float: left;
 }
 
+#taupl-version-container {
+	float: right !important;
+}
+
 #sections {
 	background-color: #efefef;
 }

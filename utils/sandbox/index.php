@@ -130,6 +130,7 @@ if( isset($_GET["id"]) ) {
 					<li><a href="http://tau-prolog.org/sandbox" title="New sandbox" />New</a></li>
 					<li><input type="button" value="Save" onClick="toggle('save');" title="Permanent link" /></li>
 					<li><input type="button" value="Help" onClick="toggle('help');" title="Help" /></li>
+					<li id="taupl-version-container"><span id="taupl-version"></span></li>
 			</ul>
 		</div>
 <?php } ?>

@@ -37,7 +37,12 @@ window.addEventListener("load", function() {
 		change.update(change.from, change.to, [newtext]);
 		return true;
 	});
-	query.on("keyHandled", try_tau_prolog)
+	query.on("keyHandled", try_tau_prolog);
+	document.getElementById("taupl-version").innerHTML = "Tau Prolog "
+		+ pl.version.major + "."
+		+ pl.version.minor + "."
+		+ pl.version.patch + " ("
+		+ pl.version.status + ")";
 });
 
 function getWriteOptions() {
