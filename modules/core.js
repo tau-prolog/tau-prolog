@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 72, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 73, status: "beta" };
 
 
 
@@ -5980,11 +5980,14 @@
 				} else if( !pl.type.is_callable( grbody ) ) {
 					thread.throw_error( pl.error.type( "callable", grbody, atom.indicator ) );
 				} else {
-					thread.prepend( [new State(
-						point.goal.replace( new Term( grbody.id, [s0, s] ) ), 
-						point.substitution,
-						point
-					)] );
+					var goal = body_to_dcg( grbody, s0, thread );
+					if(goal !== null) {
+						thread.prepend( [new State(
+							point.goal.replace( new Term( ",", [goal.value, new Term("=", [goal.variable, s])] ) ), 
+							point.substitution,
+							point
+						)] );
+					}
 				}
 			},
 
