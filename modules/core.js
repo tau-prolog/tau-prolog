@@ -5980,7 +5980,7 @@
 				} else if( !pl.type.is_callable( grbody ) ) {
 					thread.throw_error( pl.error.type( "callable", grbody, atom.indicator ) );
 				} else {
-					var goal = body_to_dcg( grbody, s0, thread );
+					var goal = body_to_dcg( grbody.clone(), s0, thread );
 					if(goal !== null) {
 						thread.prepend( [new State(
 							point.goal.replace( new Term( ",", [goal.value, new Term("=", [goal.variable, s])] ) ), 
