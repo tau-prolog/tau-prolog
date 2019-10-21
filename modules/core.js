@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 73, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 74, status: "beta" };
 
 
 
@@ -1623,6 +1623,8 @@
 	
 	// Variables
 	Var.prototype.rename = function( thread ) {
+		if( this.id === "_" )
+			return this;
 		return thread.get_free_variable( this );
 	};
 	
@@ -2125,7 +2127,6 @@
 		}
 		var asyn = false;
 		var point = this.points.pop();
-		
 		if( this.debugger )
 			this.debugger_states.push( point );
 		
