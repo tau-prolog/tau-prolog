@@ -1105,9 +1105,9 @@
 	
 	// List to Prolog list
 	function arrayToList( array, cons ) {
-		var list = cons ? cons : new pl.type.Term( "[]", [] );
+		var list = cons ? cons : new Term( "[]", [] );
 		for(var i = array.length-1; i >= 0; i-- )
-			list = new pl.type.Term( ".", [array[i], list] );
+			list = new Term( ".", [array[i], list] );
 		return list;
 	}
 	
@@ -1270,7 +1270,8 @@
 			occurs_check: pl.flag.occurs_check.value,
 			dialect: pl.flag.dialect.value,
 			version_data: pl.flag.version_data.value,
-			nodejs: pl.flag.nodejs.value
+			nodejs: pl.flag.nodejs.value,
+			argv: pl.flag.argv.value
 		};
 		this.__loaded_modules = [];
 		this.__char_conversion = {};
@@ -2516,6 +2517,14 @@
 				singleton.push( key );
 		return singleton;
 	};
+
+
+
+	// NODEJS
+
+	var nodejs_arguments = typeof module !== 'undefined' && module.exports ?
+		arrayToList( map(process.argv.slice(1), function(arg) { return new Term( arg ); })) :
+		new Term("[]", []);
 	
 	
 	
@@ -6036,7 +6045,7 @@
 			},
 			
 			// Character conversion
-			char_conversion : {
+			char_conversion: {
 				allowed: [new Term( "on" ), new Term( "off" )],
 				value: new Term( "on" ),
 				changeable: true
@@ -6096,6 +6105,13 @@
 				allowed: [new Term( "yes" ), new Term( "no" )],
 				value: new Term( typeof module !== 'undefined' && module.exports ? "yes" : "no" ),
 				changeable: false
+			},
+
+			// Arguments
+			argv: {
+				allowed: [nodejs_arguments],
+				value: nodejs_arguments,
+				changeble: false
 			}
 			
 		},
