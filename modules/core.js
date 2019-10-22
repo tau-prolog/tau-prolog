@@ -1244,13 +1244,13 @@
 		this.limit = limit;
 		this.streams = {
 			"user_input": new Stream(
-				typeof module !== 'undefined' && module.exports ? nodejs_user_input : tau_user_input,
+				nodejs_flag ? nodejs_user_input : tau_user_input,
 				"read", "user_input", "text", false, "reset" ),
 			"user_output": new Stream(
-				typeof module !== 'undefined' && module.exports ? nodejs_user_output : tau_user_output,
+				nodejs_flag ? nodejs_user_output : tau_user_output,
 				"write", "user_output", "text", false, "eof_code" )
 		};
-		this.file_system = typeof module !== 'undefined' && module.exports ? nodejs_file_system : tau_file_system;
+		this.file_system = nodejs_flag ? nodejs_file_system : tau_file_system;
 		this.standard_input = this.streams["user_input"];
 		this.standard_output = this.streams["user_output"];
 		this.current_input = this.streams["user_input"];
@@ -2522,7 +2522,9 @@
 
 	// NODEJS
 
-	var nodejs_arguments = typeof module !== 'undefined' && module.exports ?
+	var nodejs_flag = typeof module !== 'undefined' && module.exports;
+
+	var nodejs_arguments = nodejs_flag ?
 		arrayToList( map(process.argv.slice(1), function(arg) { return new Term( arg ); })) :
 		new Term("[]", []);
 	
@@ -2533,7 +2535,7 @@
 	var pl = {
 		
 		// Environment
-		__env: typeof module !== 'undefined' && module.exports ? global : window,
+		__env: nodejs_flag ? global : window,
 		
 		// Modules
 		module: {},
@@ -5978,6 +5980,56 @@
 				}
 			},
 
+			// shell/1
+			"shell/1": function( thread, point, atom ) {
+				var command = atom.args[0];
+				thread.prepend( [new State(
+					point.goal.replace( new Term("shell", [command, new Num(0, false)]) ),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// shell/2
+			"shell/2": function( thread, point, atom ) {
+				var command = atom.args[0], status = atom.args[1];
+				if( pl.type.is_variable(command) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_atom(command) ) {
+					thread.throw_error( pl.error.type( "atom", command, atom.indicator ) );
+				} else if( !pl.type.is_variable(status) && !pl.type.is_integer(status) ) {
+					thread.throw_error( pl.error.type( "integer", status, atom.indicator ) );
+				} else {
+					if(nodejs_flag) {
+						const { exec } = require('child_process');
+						exec( command.id, function() {} ).on( 'exit', function(code) {
+							thread.prepend( [new State(
+								point.goal.replace( new Term("=", [status, new Num(code, false)]) ),
+								point.substitution,
+								point
+							)] );
+							thread.again();
+						} );
+						return true;
+					} else {
+						try {
+							eval( command.id );
+							thread.prepend( [new State(
+								point.goal.replace( new Term("=", [status, new Num(0, false)]) ),
+								point.substitution,
+								point
+							)] );
+						} catch( error ) {
+							thread.prepend( [new State(
+								point.goal.replace( new Term("=", [status, new Num(1, false)]) ),
+								point.substitution,
+								point
+							)] );
+						}
+					}
+				}
+			},
+
 
 
 			// GRAMMARS
@@ -6103,7 +6155,7 @@
 			// NodeJS
 			nodejs: {
 				allowed: [new Term( "yes" ), new Term( "no" )],
-				value: new Term( typeof module !== 'undefined' && module.exports ? "yes" : "no" ),
+				value: new Term( nodejs_flag ? "yes" : "no" ),
 				changeable: false
 			},
 
