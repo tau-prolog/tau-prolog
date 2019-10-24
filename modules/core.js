@@ -919,16 +919,12 @@
 					term = term.rename( thread.session );
 					n_thread.query("term_expansion(" + term.toString() + ", X).");
 					n_thread.answer(function(answer) {
-						if(answer === false) {
-							parseProgramExpansion(thread, options, reconsulted, expr);
-						} else if(pl.type.is_error(answer)) {
-
-						} else if(pl.type.is_term(answer.links['X'])) {
+						if(answer && !pl.type.is_error(answer) && pl.type.is_term(answer.links['X'])) {
 							var term = answer.links['X'];
 							var rule = term.indicator === ":-/2" ? new Rule(term.args[0], term.args[1]) : new Rule( term, null ) ;
 							parseProgramExpansion(thread, options, reconsulted, {value: rule, len: expr.len, type: expr.type});
 						} else {
-
+							parseProgramExpansion(thread, options, reconsulted, expr);
 						}
 					});
 				} else {
