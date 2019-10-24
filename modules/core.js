@@ -950,11 +950,11 @@
 		n_thread.__goal_expansion = true;
 		var varterm = thread.next_free_variable();
 		var varhead = thread.next_free_variable();
-		var goal = varhead + " = " + head + ", goal_expansion(" + term.toString() + ", " + varterm + ").";
+		var goal = varhead + " = " + head + ", goal_expansion(" + term + ", " + varterm + ").";
 		n_thread.query(goal);
 		n_thread.answer(function(answer) {
 			if(answer && !pl.type.is_error(answer) && answer.links[varterm]) {
-				set(answer.links[varhead], answer.links[varterm]);
+				set(answer.links[varhead], body_conversion(answer.links[varterm]));
 				parseGoalExpansion(thread, origin.head(), origin.term(), origin.set, origin);
 			}
 		});
@@ -964,7 +964,7 @@
 		var n_thread = new Thread( thread.session );
 		n_thread.__goal_expansion = true;
 		var varterm = thread.next_free_variable();
-		var goal = "goal_expansion(" + term.toString() + ", " + varterm + ").";
+		var goal = "goal_expansion(" + term + ", " + varterm + ").";
 		n_thread.query(goal);
 		var variables = n_thread.head_point().substitution.domain();
 		n_thread.answer(function(answer) {
@@ -976,7 +976,7 @@
 						answer.links[varterm] = answer.links[varterm].apply( subs );
 					}
 				}
-				parseQueryExpansion(thread, answer.links[varterm]);
+				parseQueryExpansion(thread, body_conversion(answer.links[varterm]));
 			} else {
 				thread.add_goal(term);
 			}
@@ -1013,7 +1013,7 @@
 						expr.value.body = p;
 					}
 				};
-				parseGoalExpansion(thread, expr.value.head, expr.value.body, origin.set, origin);
+				parseGoalExpansion(thread, expr.value.head, body_conversion(expr.value.body), origin.set, origin);
 			}
 			thread.add_rule(expr.value, options);
 		}
