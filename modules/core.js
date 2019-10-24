@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 74, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 75, status: "beta" };
 
 
 
@@ -906,44 +906,117 @@
 		tokenizer.new_text( string );
 		var n = 0;
 		var tokens = tokenizer.get_tokens( n );
-		do {
-			if( tokens === null || !tokens[n] ) break;
+		while( tokens !== null && tokens[n] ) {
 			var expr = parseRule(thread, tokens, n);
 			if( expr.type === ERROR ) {
 				return new Term("throw", [expr.value]);
-			} else if(expr.value.body === null && expr.value.head.indicator === "?-/1") {
-				var n_thread = new Thread( thread.session );
-				n_thread.add_goal( expr.value.head.args[0] );
-				n_thread.answer( function( answer ) {
-					if( pl.type.is_error( answer ) ) {
-						thread.throw_warning( answer.args[0] );
-					} else if( answer === false || answer === null ) {
-						thread.throw_warning( pl.warning.failed_goal( expr.value.head.args[0], expr.len ) );
-					}
-				} );
+			} else {
+				// Term expansion
+				var term_expansion = thread.session.rules["term_expansion/2"];
+				if(term_expansion && term_expansion.length > 0) {
+					var n_thread = new Thread( thread.session );
+					var term = expr.value.body ? new Term(":-", [expr.value.head, expr.value.body]) : expr.value.head;
+					term = term.rename( thread.session );
+					n_thread.query("term_expansion(" + term.toString() + ", X).");
+					n_thread.answer(function(answer) {
+						if(answer === false) {
+							parseProgramExpansion(thread, options, reconsulted, expr);
+						} else if(pl.type.is_error(answer)) {
+
+						} else if(pl.type.is_term(answer.links['X'])) {
+							var term = answer.links['X'];
+							var rule = term.indicator === ":-/2" ? new Rule(term.args[0], term.args[1]) : new Rule( term, null ) ;
+							parseProgramExpansion(thread, options, reconsulted, {value: rule, len: expr.len, type: expr.type});
+						} else {
+
+						}
+					});
+				} else {
+					parseProgramExpansion(thread, options, reconsulted, expr);
+				}
 				n = expr.len;
-				var result = true;
-			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
-				var result = thread.run_directive(expr.value.head.args[0]);
-				n = expr.len;
-				if(expr.value.head.args[0].indicator === "char_conversion/2") {
+				if(expr.value.body === null && expr.value.head.indicator === ":-/1" && 
+				   expr.value.head.args[0].indicator === "char_conversion/2") {
 					tokens = tokenizer.get_tokens( n );
 					n = 0;
 				}
-			} else {
-				indicator = expr.value.head.indicator;
-				if( options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
-					thread.session.rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
-					reconsulted[indicator] = true;
-				}
-				var result = thread.add_rule(expr.value, options);
-				n = expr.len;
 			}
-			if(!result) {
-				return result;
-			}
-		} while( true );
+		}
 		return true;
+	}
+
+	function parseGoalExpansion(thread, head, term, set, origin) {
+		var n_thread = new Thread( thread.session );
+		n_thread.__goal_expansion = true;
+		var varterm = thread.next_free_variable();
+		var varhead = thread.next_free_variable();
+		var goal = varhead + " = " + head + ", goal_expansion(" + term.toString() + ", " + varterm + ").";
+		n_thread.query(goal);
+		n_thread.answer(function(answer) {
+			if(answer && !pl.type.is_error(answer) && answer.links[varterm]) {
+				set(answer.links[varhead], answer.links[varterm]);
+				parseGoalExpansion(thread, origin.head(), origin.term(), origin.set, origin);
+			}
+		});
+	}
+
+	function parseQueryExpansion(thread, term) {
+		var n_thread = new Thread( thread.session );
+		n_thread.__goal_expansion = true;
+		var varterm = thread.next_free_variable();
+		var goal = "goal_expansion(" + term.toString() + ", " + varterm + ").";
+		n_thread.query(goal);
+		var variables = n_thread.head_point().substitution.domain();
+		n_thread.answer(function(answer) {
+			if(answer && !pl.type.is_error(answer) && answer.links[varterm]) {
+				for(var i = 0; i < variables.length; i++) {
+					if(variables[i] !== varterm.id && answer.links[variables[i]]) {
+						var subs = new Substitution();
+						subs.links[answer.links[variables[i]]] = variables[i];
+						answer.links[varterm] = answer.links[varterm].apply( subs );
+					}
+				}
+				parseQueryExpansion(thread, answer.links[varterm]);
+			} else {
+				thread.add_goal(term);
+			}
+		});
+	}
+
+	function parseProgramExpansion(thread, options, reconsulted, expr) {
+		if(expr.value.body === null && expr.value.head.indicator === "?-/1") {
+			var n_thread = new Thread( thread.session );
+			n_thread.add_goal( expr.value.head.args[0] );
+			n_thread.answer( function( answer ) {
+				if( pl.type.is_error( answer ) ) {
+					thread.throw_warning( answer.args[0] );
+				} else if( answer === false || answer === null ) {
+					thread.throw_warning( pl.warning.failed_goal( expr.value.head.args[0], expr.len ) );
+				}
+			} );
+		} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
+			thread.run_directive(expr.value.head.args[0]);
+		} else {
+			indicator = expr.value.head.indicator;
+			if( options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
+				thread.session.rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
+				reconsulted[indicator] = true;
+			}
+			var goal_expansion = thread.session.rules["goal_expansion/2"];
+			if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
+				thread.renamed_variables = {};
+				var origin = {
+					head: function() { return expr.value.head; },
+					term: function() { return expr.value.body; },
+					set: function(h, p){
+						expr.value.head = h;
+						expr.value.body = p;
+					}
+				};
+				parseGoalExpansion(thread, expr.value.head, expr.value.body, origin.set, origin);
+			}
+			thread.add_rule(expr.value, options);
+		}
 	}
 	
 	// Parse a query
@@ -959,7 +1032,14 @@
 				var expr_position = expr.len;
 				var tokens_pos = expr_position;
 				if(tokens[expr_position] && tokens[expr_position].name === "atom" && tokens[expr_position].raw === ".") {
-					thread.add_goal( body_conversion(expr.value) );
+					expr.value = body_conversion(expr.value);
+					// Goal expansion
+					var goal_expansion = thread.session.rules["goal_expansion/2"];
+					if(!thread.__goal_expansion && goal_expansion && goal_expansion.length > 0) {
+						parseQueryExpansion(thread, expr.value);
+					} else {
+						thread.add_goal( expr.value );
+					}
 				} else {
 					var token = tokens[expr_position];
 					return new Term("throw", [pl.error.syntax(token ? token : tokens[expr_position-1], ". or operator expected", !token)] );
@@ -1312,6 +1392,7 @@
 		this.__calls = [];
 		this.current_limit = this.session.limit;
 		this.warnings = [];
+		this.__goal_expansion = false;
 	}
 	
 	// Modules
@@ -2028,8 +2109,8 @@
 		var variables = [];
 		if( variable.id === "_" || this.session.renamed_variables[variable.id] === undefined ) {
 			this.session.rename++;
-			if( this.points.length > 0 )
-				variables = this.head_point().substitution.domain();
+			if( this.current_point )
+				variables = this.current_point.substitution.domain();
 			while( indexOf( variables, pl.format_variable( this.session.rename ) ) !== -1 ) {
 				this.session.rename++;
 			}
@@ -2049,8 +2130,8 @@
 	Thread.prototype.next_free_variable = function() {
 		this.session.rename++;
 		var variables = [];
-		if( this.points.length > 0 )
-			variables = this.head_point().substitution.domain();
+		if( this.current_point )
+			variables = this.current_point.substitution.domain();
 		while( indexOf( variables, pl.format_variable( this.session.rename ) ) !== -1 ) {
 			this.session.rename++;
 		}
@@ -2128,6 +2209,7 @@
 		}
 		var asyn = false;
 		var point = this.points.pop();
+		this.current_point = point;
 		if( this.debugger )
 			this.debugger_states.push( point );
 		
@@ -2165,6 +2247,9 @@
 					} else if( srule instanceof Function ) {
 						asyn = srule( this, point, atom );
 					} else {
+						// Goal expansion
+						if( this.__goal_expansion && atom.indicator === "goal_expansion/2" )
+							srule = srule.concat(pl.predicate["goal_expansion/2"]);
 						for( var _rule in srule ) {
 							if(!srule.hasOwnProperty(_rule)) continue;
 							var rule = srule[_rule];
@@ -2842,7 +2927,7 @@
 			
 			// Is a built-in predicate
 			is_builtin: function( obj ) {
-				return obj instanceof Term && pl.predicate[obj.indicator] !== undefined;
+				return obj instanceof Term && pl.predicate[obj.indicator] !== undefined && obj.indicator !== "goal_expansion/2";
 			},
 			
 			// Is an error
@@ -3326,6 +3411,27 @@
 		
 		// Built-in predicates
 		predicate: {
+
+			// GOAL EXPANSION
+
+			"goal_expansion/2": [
+				new Rule(new Term("goal_expansion", [new Term(",", [new Var("X"),new Var("Y")]),new Term(",", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
+				new Rule(new Term("goal_expansion", [new Term(";", [new Var("X"),new Var("Y")]),new Term(";", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
+				new Rule(new Term("goal_expansion", [new Term("->", [new Var("X"),new Var("Y")]),new Term("->", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
+				new Rule(new Term("goal_expansion", [new Term("catch", [new Var("X"),new Var("Y"),new Var("Z")]),new Term("catch", [new Var("X_"),new Var("Y"),new Var("Z_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Z"),new Var("Z_")]),new Term("=", [new Var("Z_"),new Var("Z")])])]),new Term(",", [new Term("=", [new Var("X_"),new Var("X")]),new Term("goal_expansion", [new Var("Z"),new Var("Z_")])])])),
+				new Rule(new Term("goal_expansion", [new Term("\\+", [new Var("X")]),new Term("\\+", [new Var("X_")])]), new Term(",", [new Term("nonvar", [new Var("X")]),new Term("goal_expansion", [new Var("X"),new Var("X_")])])),
+				new Rule(new Term("goal_expansion", [new Term("once", [new Var("X")]),new Term("once", [new Var("X_")])]), new Term(",", [new Term("nonvar", [new Var("X")]),new Term("goal_expansion", [new Var("X"),new Var("X_")])])),
+				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X")]),new Term("call", [new Var("X_")])]), new Term(",", [new Term("nonvar", [new Var("X")]),new Term("goal_expansion", [new Var("X"),new Var("X_")])])),
+				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term("[]", [])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term("[]", [])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term("[]", [])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term("[]", [])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term("[]", [])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5"),new Var("A6")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term(".", [new Var("A6"),new Term("[]", [])])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5"),new Var("A6"),new Var("A7")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term(".", [new Var("A6"),new Term(".", [new Var("A7"),new Term("[]", [])])])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])]))
+			],
+
+
 			
 			// INPUT AND OUTPUT
 			
@@ -5979,6 +6085,10 @@
 					thread.success( point );
 				}
 			},
+
+
+
+			// OPERATING SYSTEM INTERACTION
 
 			// shell/1
 			"shell/1": function( thread, point, atom ) {
