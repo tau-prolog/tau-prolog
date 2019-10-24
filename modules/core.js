@@ -1470,7 +1470,7 @@
 		options.quoted = options.quoted === undefined ? true: options.quoted;
 		options.ignore_ops = options.ignore_ops === undefined ? false : options.ignore_ops;
 		options.numbervars = options.numbervars === undefined ? false : options.numbervars;
-		priority = priority === undefined ? {priority: 1200, class: "", indicator: ""} : priority;
+		priority = priority === undefined ? {priority: 999, class: "", indicator: ""} : priority;
 		from = from === undefined ? "" : from;
 		if( options.numbervars && this.indicator === "$VAR/1" && pl.type.is_integer( this.args[0] ) && this.args[0].value >= 0 ) {
 			var i = this.args[0].value;
