@@ -1730,36 +1730,39 @@
 	
 	
 	
-	// GET VARIABLES FROM PROLOG OBJECTS
+	// GET ID OF VARIABLES FROM PROLOG OBJECTS
 	
 	// Variables
-	Var.prototype.variables = function() {
-		return [this.id];
+	Var.prototype.variables = function( ids ) {
+		ids = ids === undefined ? true : ids;
+		return [ids ? this.id : this];
 	};
 	
 	// Numbers
-	Num.prototype.variables = function() {
+	Num.prototype.variables = function( _ ) {
 		return [];
 	};
 	
 	// Terms
-	Term.prototype.variables = function() {
+	Term.prototype.variables = function( ids ) {
+		ids = ids === undefined ? true : ids;
 		return [].concat.apply( [], map( this.args, function( arg ) {
-			return arg.variables();
+			return arg.variables( ids );
 		} ) );
 	};
 
 	// Streams
-	Stream.prototype.variables = function() {
+	Stream.prototype.variables = function( _ ) {
 		return [];
 	};
 	
 	// Rules
-	Rule.prototype.variables = function() {
+	Rule.prototype.variables = function( ids ) {
+		ids = ids === undefined ? true : ids;
 		if( this.body === null ) {
-			return this.head.variables();
+			return this.head.variables( ids );
 		} else {
-			return this.head.variables().concat( this.body.variables() );
+			return this.head.variables( ids ).concat( this.body.variables( ids ) );
 		}
 	};
 	
@@ -2039,10 +2042,10 @@
 		parent = parent ? parent : null;
 		if( unique === true )
 			this.points = [];
-		var vars = goal.variables();
+		var vars = goal.variables( false );
 		var links = {};
 		for( var i = 0; i < vars.length; i++ )
-			links[vars[i]] = new Var(vars[i]);
+			links[vars[i].id] = vars[i];
 		this.points.push( new State( goal, new Substitution(links), parent ) );
 	};
 
@@ -3408,7 +3411,7 @@
 		// Built-in predicates
 		predicate: {
 
-			// GOAL EXPANSION
+			// TERM AND GOAL EXPANSION
 
 			"goal_expansion/2": [
 				new Rule(new Term("goal_expansion", [new Term(",", [new Var("X"),new Var("Y")]),new Term(",", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
@@ -3429,6 +3432,43 @@
 				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5"),new Var("A6")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term(".", [new Var("A6"),new Term("[]", [])])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
 				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5"),new Var("A6"),new Var("A7")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term(".", [new Var("A6"),new Term(".", [new Var("A7"),new Term("[]", [])])])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])]))
 			],
+
+
+
+			// ATTRIBUTED VARIABLES
+			
+			//put_attr/3
+			"put_attr/3": function( thread, point, atom ) {
+				var variable = atom.args[0], module = atom.args[1], value = atom.args[2];
+				if( !pl.type.is_variable(variable) ) {
+					thread.throw_error( pl.error.type( "variable", variable, atom.indicator ) );
+				} else if( !pl.type.is_atom(module) ) {
+					thread.throw_error( pl.error.type( "atom", module, atom.indicator ) );
+				} else {
+					if( !variable.attrs )
+						variable.attrs = {};
+					variable.attrs[module.id] = value;
+					thread.success( point );
+				}
+			},
+
+			// get_attr/3
+			"get_attr/3": function( thread, point, atom ) {
+				var variable = atom.args[0], module = atom.args[1], value = atom.args[2];
+				if( !pl.type.is_variable(variable) ) {
+					thread.throw_error( pl.error.type( "variable", variable, atom.indicator ) );
+				} else if( !pl.type.is_atom(module) ) {
+					thread.throw_error( pl.error.type( "atom", module, atom.indicator ) );
+				} else {
+					if( variable.attrs && variable.attrs[module.id] ) {
+						thread.prepend( [new State(
+							point.goal.replace( new Term("=", [value, variable.attrs[module.id]]) ),
+							point.substitution,
+							point
+						)] );
+					}
+				}
+			},
 
 
 			
@@ -6476,17 +6516,31 @@
 				if( pl.type.is_substitution( answer ) ) {
 					var dom = answer.domain( true );
 					answer = answer.filter( function( id, value ) {
-						return !pl.type.is_variable( value ) || dom.indexOf( value.id ) !== -1 && id !== value.id;
+						return !pl.type.is_variable( value ) ||
+							pl.type.is_variable( value ) && value.attrs && value.attrs !== {} ||
+							indexOf( dom, value.id ) !== -1 && id !== value.id;
 					} );
 				}
 				for( var link in answer.links ) {
-					if(!answer.links.hasOwnProperty(link)) continue;
-					i++;
-					if( str !== "" ) {
-						str += ", ";
+					if(!answer.links.hasOwnProperty(link))
+						continue;
+					if( pl.type.is_variable( answer.links[link] ) && link === answer.links[link].id ) {
+						var attrs = answer.links[link].attrs;
+						for( var module in attrs ) {
+							if(!attrs.hasOwnProperty(module))
+								continue;
+							i++;
+							if( str !== "" )
+								str += ", ";
+							str += "put_attr(" + link + ", " + module + ", " + attrs[module].toString(options) + ")";
+						}
+					} else {
+						i++;
+						if( str !== "" )
+							str += ", ";
+						str += link.toString( options ) + " = " +
+							answer.links[link].toString( options, {priority: "700", class: "xfx", indicator: "=/2"}, "right" );
 					}
-					str += link.toString( options ) + " = " +
-						answer.links[link].toString( options, {priority: "700", class: "xfx", indicator: "=/2"}, "right" );
 				}
 				var delimiter = typeof thread === "undefined" || thread.points.length > 0 ? " ;" : "."; 
 				if( i === 0 ) {
