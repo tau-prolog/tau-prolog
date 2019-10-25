@@ -1284,9 +1284,11 @@
 	}
 	
 	// Substitutions
-	function Substitution( links ) {
+	function Substitution( links, attrs ) {
 		links = links || {};
+		attrs = attrs || {};
 		this.links = links;
+		this.attrs = attrs;
 	}
 	
 	// States
@@ -1615,11 +1617,20 @@
 	// Substitutions
 	Substitution.prototype.clone = function() {
 		var links = {};
+		var attrs = {};
 		for( var link in this.links ) {
 			if(!this.links.hasOwnProperty(link)) continue;
 			links[link] = this.links[link].clone();
 		}
-		return new Substitution( links );
+		for( var attr in this.attrs ) {
+			if(!this.attrs.hasOwnProperty(attrs)) continue;
+			attrs[attr] = {};
+			for( var m in this.attrs[attr] ) {
+				if(!this.attrs[attr].hasOwnProperty(m)) continue;
+				attrs[attr][m] = this.attrs[attr][m].clone();
+			}
+		}
+		return new Substitution( links, attrs );
 	};
 	
 	// States
@@ -1733,36 +1744,33 @@
 	// GET ID OF VARIABLES FROM PROLOG OBJECTS
 	
 	// Variables
-	Var.prototype.variables = function( ids ) {
-		ids = ids === undefined ? true : ids;
-		return [ids ? this.id : this];
+	Var.prototype.variables = function() {
+		return [this.id];
 	};
 	
 	// Numbers
-	Num.prototype.variables = function( _ ) {
+	Num.prototype.variables = function() {
 		return [];
 	};
 	
 	// Terms
-	Term.prototype.variables = function( ids ) {
-		ids = ids === undefined ? true : ids;
+	Term.prototype.variables = function() {
 		return [].concat.apply( [], map( this.args, function( arg ) {
-			return arg.variables( ids );
+			return arg.variables();
 		} ) );
 	};
 
 	// Streams
-	Stream.prototype.variables = function( _ ) {
+	Stream.prototype.variables = function() {
 		return [];
 	};
 	
 	// Rules
-	Rule.prototype.variables = function( ids ) {
-		ids = ids === undefined ? true : ids;
+	Rule.prototype.variables = function() {
 		if( this.body === null ) {
-			return this.head.variables( ids );
+			return this.head.variables();
 		} else {
-			return this.head.variables( ids ).concat( this.body.variables( ids ) );
+			return this.head.variables().concat( this.body.variables() );
 		}
 	};
 	
@@ -1815,12 +1823,20 @@
 	
 	// Substitutions
 	Substitution.prototype.apply = function( subs ) {
-		var link, links = {};
+		var link, links = {}, attr, attrs = {}, m;
 		for( link in this.links ) {
 			if(!this.links.hasOwnProperty(link)) continue;
 			links[link] = this.links[link].apply(subs);
 		}
-		return new Substitution( links );
+		for( attr in this.attrs ) {
+			if(!this.attrs.hasOwnProperty(attr)) continue;
+			attrs[attr] = {};
+			for( m in this.attrs[attr] ) {
+				if(!this.attrs[attr].hasOwnProperty(m)) continue;
+				attrs[attr][m] = this.attrs[attr][m].apply(subs);
+			}
+		}
+		return new Substitution( links, attrs );
 	};
 	
 	
@@ -2042,10 +2058,10 @@
 		parent = parent ? parent : null;
 		if( unique === true )
 			this.points = [];
-		var vars = goal.variables( false );
+		var vars = goal.variables();
 		var links = {};
 		for( var i = 0; i < vars.length; i++ )
-			links[vars[i].id] = vars[i];
+			links[vars[i]] = new Var(vars[i]);
 		this.points.push( new State( goal, new Substitution(links), parent ) );
 	};
 
@@ -2474,7 +2490,7 @@
 				links[id] = value;
 			}
 		}
-		return new Substitution( links );
+		return new Substitution( links, this.attrs );
 	};
 	
 	// Exclude variables
@@ -2486,7 +2502,7 @@
 				links[variable] = this.links[variable];
 			}
 		}
-		return new Substitution( links );
+		return new Substitution( links, this.attrs );
 	};
 	
 	// Add link
@@ -2502,6 +2518,37 @@
 			vars.push( f(x) );
 		return vars;
 	};
+
+	// Get an attribute
+	Substitution.prototype.get_attribute = function( variable, module ) {
+		if( this.attrs[variable] )
+			return this.attrs[variable][module];
+	}
+
+	// Set an attribute (in a new substitution)
+	Substitution.prototype.set_attribute = function( variable, module, value ) {
+		var subs = new Substitution( this.links );
+		for( var v in this.attrs ) {
+			if( v === variable ) {
+				subs.attrs[v] = {};
+				for( var m in this.attrs[v] ) {
+					subs.attrs[v][m] = this.attrs[v][m];
+				}
+			} else {
+				subs.attrs[v] = this.attrs[v];
+			}
+		}
+		if( !subs.attrs[variable] ) {
+			subs.attrs[variable] = {};
+		}
+		subs.attrs[variable][module] = value;
+		return subs;
+	}
+
+	// Check if a variables has attributes
+	Substitution.prototype.has_attributes = function( variable ) {
+		return this.attrs[variable] && this.attrs[variable] !== {};
+	}
 	
 	
 	
@@ -3445,10 +3492,8 @@
 				} else if( !pl.type.is_atom(module) ) {
 					thread.throw_error( pl.error.type( "atom", module, atom.indicator ) );
 				} else {
-					if( !variable.attrs )
-						variable.attrs = {};
-					variable.attrs[module.id] = value;
-					thread.success( point );
+					var subs = point.substitution.set_attribute( variable.id, module, value );
+					thread.prepend( [new State( point.goal.replace(null), subs, point )] );
 				}
 			},
 
@@ -3460,9 +3505,10 @@
 				} else if( !pl.type.is_atom(module) ) {
 					thread.throw_error( pl.error.type( "atom", module, atom.indicator ) );
 				} else {
-					if( variable.attrs && variable.attrs[module.id] ) {
+					var attr = point.substitution.get_attribute( variable.id, module );
+					if( attr ) {
 						thread.prepend( [new State(
-							point.goal.replace( new Term("=", [value, variable.attrs[module.id]]) ),
+							point.goal.replace( new Term("=", [value, attr]) ),
 							point.substitution,
 							point
 						)] );
@@ -6517,7 +6563,7 @@
 					var dom = answer.domain( true );
 					answer = answer.filter( function( id, value ) {
 						return !pl.type.is_variable( value ) ||
-							pl.type.is_variable( value ) && value.attrs && value.attrs !== {} ||
+							pl.type.is_variable( value ) && answer.has_attributes( id ) ||
 							indexOf( dom, value.id ) !== -1 && id !== value.id;
 					} );
 				}
@@ -6525,7 +6571,7 @@
 					if(!answer.links.hasOwnProperty(link))
 						continue;
 					if( pl.type.is_variable( answer.links[link] ) && link === answer.links[link].id ) {
-						var attrs = answer.links[link].attrs;
+						var attrs = answer.attrs[link];
 						for( var module in attrs ) {
 							if(!attrs.hasOwnProperty(module))
 								continue;
