@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 75, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 76, status: "beta" };
 
 
 
@@ -6384,7 +6384,7 @@
 					if( pl.type.is_variable(t) && s.id === t.id )
 						continue;
 					// Occurs check
-					if( occurs_check === true && t.variables().indexOf( s.id ) !== -1 )
+					if( occurs_check === true && indexOf( t.variables(), s.id ) !== -1 )
 						return null;
 					if( s.id !== "_" ) {
 						var subs = new Substitution();
@@ -6408,7 +6408,6 @@
 			}
 			return new Substitution( links );
 		},
-		
 		
 		// Compare
 		compare: function( obj1, obj2 ) {
