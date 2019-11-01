@@ -9,7 +9,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/jariazavalverde/tau-prolog.git"
+		"url": "git+https://github.com/tau-prolog/tau-prolog.git"
 	},
 	"keywords": [
 		"tau-prolog",
@@ -26,7 +26,7 @@
 	"author": "jariazavalverde",
 	"license": "BSD-3-Clause",
 	"bugs": {
-		"url": "https://github.com/jariazavalverde/tau-prolog/issues"
+		"url": "https://github.com/tau-prolog/tau-prolog/issues"
 	},
 	"homepage": "http://tau-prolog.org/",
 	"dependencies": {
