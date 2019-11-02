@@ -2653,7 +2653,7 @@
 
 	// NODEJS
 
-	var nodejs_flag = typeof module !== 'undefined' && module.exports;
+	var nodejs_flag = typeof module !== 'undefined' && module.exports !== undefined;
 
 	var nodejs_arguments = nodejs_flag ?
 		arrayToList( map(process.argv.slice(1), function(arg) { return new Term( arg ); })) :
@@ -6119,6 +6119,8 @@
 			
 			// halt/0
 			"halt/0": function( thread, point, _ ) {
+				if( nodejs_flag )
+					process.exit();
 				thread.points = [];
 			},
 			
@@ -6130,6 +6132,8 @@
 				} else if( !pl.type.is_integer( int ) ) {
 					thread.throw_error( pl.error.type( "integer", int, atom.indicator ) );
 				} else {
+					if( nodejs_flag )
+						process.exit(int.value);
 					thread.points = [];
 				}
 			},
