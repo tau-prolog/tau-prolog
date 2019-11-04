@@ -56,11 +56,14 @@ var pl;
 			
 			// statistics/0
 			"statistics/0": function( thread, point, atom ) {
-				console.log( "% Tau Prolog statistics" );
-				for( var x in statistics ) {
-					console.log( "%%% " + x + ": " + statistics[x]( thread ).toString() );
-				}
-				thread.success( point );
+				var stats = "% Tau Prolog statistics";
+				for(var x in statistics)
+					stats += "\n%%% " + x + ": " + statistics[x](thread).toString();
+				thread.prepend([new pl.type.State(
+					point.goal.replace(new pl.type.Term("write", [new pl.type.Term(stats)])),
+					point.substitution,
+					point
+				)]);
 			},
 			
 			// statistics/2
