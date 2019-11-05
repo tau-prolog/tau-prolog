@@ -1904,7 +1904,7 @@
 
 	// Set current output
 	Session.prototype.set_current_output = function( output ) {
-		this.current_input = output;
+		this.current_output = output;
 	};
 	Thread.prototype.set_current_output = function( output ) {
 		return this.session.set_current_output( output);
