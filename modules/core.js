@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 76, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 77, status: "beta" };
 
 
 
@@ -1061,6 +1061,7 @@
 		if( dcg.error )
 			return dcg.value;
 		rule.body = dcg.value;
+		// push-back lists
 		if(rule.head.indicator === ",/2") {
 			var terminals = rule.head.args[1];
 			rule.head = rule.head.args[0];
@@ -1086,9 +1087,22 @@
 			rule.head = new Term(rule.head.id, rule.head.args);
 		} else {
 			var last = thread.next_free_variable();
+			// replace first assignment
+			var first_assign = rule.body;
+			if(pl.type.is_term(first_assign) && first_assign.indicator === ",/2")
+				first_assign = first_assign.args[0];
+			if(pl.type.is_term(first_assign) && first_assign.indicator === "=/2" &&
+			   pl.type.is_variable(first_assign.args[0]) && first_assign.args[0] === begin) {
+				begin = first_assign.args[1];
+				rule.body = rule.body.replace(null);
+			}
+			// add last variable
 			rule.head.args = rule.head.args.concat([begin, last]);
 			rule.head = new Term(rule.head.id, rule.head.args);
-			rule.body = new Term(",", [rule.body, new Term("=", [dcg.variable, last])]);
+			if(rule.body === null)
+				rule.head.args[rule.head.args.length-1] = dcg.variable;
+			else
+				rule.body = new Term(",", [rule.body, new Term("=", [dcg.variable, last])]);
 		}
 		return rule;
 	}
@@ -1102,13 +1116,23 @@
 				variable: last,
 				error: false
 			};
-		} else if( pl.type.is_term( expr ) && expr.indicator === ",/2" ) {
+		} else if( pl.type.is_term( expr ) && (expr.indicator === ",/2" || expr.indicator === "->/2") ) {
 			var left = body_to_dcg(expr.args[0], last, thread);
 			if( left.error ) return left;
 			var right = body_to_dcg(expr.args[1], left.variable, thread);
 			if( right.error ) return right;
 			return {
-				value: new Term(',', [left.value, right.value]),
+				value: new Term(expr.id, [left.value, right.value]),
+				variable: right.variable,
+				error: false
+			};
+		} else if( pl.type.is_term( expr ) && expr.indicator === ";/2" ) {
+			var left = body_to_dcg(expr.args[0], last, thread);
+			if( left.error ) return left;
+			var right = body_to_dcg(expr.args[1], last, thread);
+			if( right.error ) return right;
+			return {
+				value: new Term(",", [new Term(";", [left.value, right.value]), new Term("=", [left.variable, right.variable])]),
 				variable: right.variable,
 				error: false
 			};
