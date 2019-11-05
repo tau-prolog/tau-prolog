@@ -1086,7 +1086,6 @@
 			rule.head.args = rule.head.args.concat([begin, last]);
 			rule.head = new Term(rule.head.id, rule.head.args);
 		} else {
-			var last = thread.next_free_variable();
 			// replace first assignment
 			var first_assign = rule.body;
 			if(pl.type.is_term(first_assign) && first_assign.indicator === ",/2")
@@ -1097,12 +1096,8 @@
 				rule.body = rule.body.replace(null);
 			}
 			// add last variable
-			rule.head.args = rule.head.args.concat([begin, last]);
+			rule.head.args = rule.head.args.concat([begin, dcg.variable]);
 			rule.head = new Term(rule.head.id, rule.head.args);
-			if(rule.body === null)
-				rule.head.args[rule.head.args.length-1] = dcg.variable;
-			else
-				rule.body = new Term(",", [rule.body, new Term("=", [dcg.variable, last])]);
 		}
 		return rule;
 	}
@@ -1111,9 +1106,10 @@
 	function body_to_dcg(expr, last, thread) {
 		var free;
 		if( pl.type.is_term( expr ) && expr.indicator === "!/0" ) {
+			free = thread.next_free_variable();
 			return {
-				value: expr,
-				variable: last,
+				value: new Term(",", [expr, new Term("=", [last, free])]),
+				variable: free,
 				error: false
 			};
 		} else if( pl.type.is_term( expr ) && (expr.indicator === ",/2" || expr.indicator === "->/2") ) {
@@ -1137,9 +1133,10 @@
 				error: false
 			};
 		} else if( pl.type.is_term( expr ) && expr.indicator === "{}/1" ) {
+			free = thread.next_free_variable();
 			return {
-				value: expr.args[0],
-				variable: last,
+				value: new Term(",", [expr.args[0], new Term("=", [last, free])]),
+				variable: free,
 				error: false
 			};
 		} else if( pl.type.is_empty_list( expr ) ) {
