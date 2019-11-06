@@ -1749,11 +1749,16 @@
 		if( this.indicator === "./2" ) {
 			var arr = [];
 			var pointer = this;
+			var eq = true;
 			while( pointer.indicator === "./2" ) {
-				arr.push( pointer.args[0].rename( thread ) );
+				var app = pointer.args[0].rename(thread);
+				eq = eq && app == pointer.args[0];
+				arr.push(app);
 				pointer = pointer.args[1];
 			}
 			var list = pointer.rename( thread );
+			if(eq && list == pointer)
+				return this;
 			for(var i = arr.length-1; i >= 0; i--) {
 				list = new Term( ".", [arr[i], list] );
 			}
@@ -1833,11 +1838,16 @@
 		if( this.indicator === "./2" ) {
 			var arr = [];
 			var pointer = this;
+			var eq = true;
 			while( pointer.indicator === "./2" ) {
-				arr.push( pointer.args[0].apply( subs ) );
+				var app = pointer.args[0].apply(subs);
+				eq = eq && app == pointer.args[0];
+				arr.push(app);
 				pointer = pointer.args[1];
 			}
-			var list = pointer.apply( subs );
+			var list = pointer.apply(subs);
+			if(eq && list == pointer)
+				return this;
 			for(var i = arr.length-1; i >= 0; i--) {
 				list = new Term( ".", [arr[i], list] );
 			}
