@@ -1283,7 +1283,8 @@
 	// Terms
 	var term_ref = 0;
 	function Term( id, args, ref ) {
-		this.ref = ref || ++term_ref;
+		term_ref++;
+		this.ref = ref || term_ref;
 		this.id = id;
 		this.args = args || [];
 		this.indicator = id + "/" + this.args.length;
@@ -1733,8 +1734,6 @@
 	
 	// Variables
 	Var.prototype.rename = function( thread ) {
-		if( this.id === "_" )
-			return this;
 		return thread.get_free_variable( this );
 	};
 	
@@ -1745,6 +1744,21 @@
 	
 	// Terms
 	Term.prototype.rename = function( thread ) {
+		if(this.args.length === 0)
+			return this;
+		if( this.indicator === "./2" ) {
+			var arr = [];
+			var pointer = this;
+			while( pointer.indicator === "./2" ) {
+				arr.push( pointer.args[0].rename( thread ) );
+				pointer = pointer.args[1];
+			}
+			var list = pointer.rename( thread );
+			for(var i = arr.length-1; i >= 0; i--) {
+				list = new Term( ".", [arr[i], list] );
+			}
+			return list;
+		}
 		return new Term( this.id, map( this.args, function( arg ) {
 			return arg.rename( thread );
 		} ) );
@@ -1814,6 +1828,8 @@
 	
 	// Terms
 	Term.prototype.apply = function( subs ) {
+		if(this.args.length === 0)
+			return this;
 		if( this.indicator === "./2" ) {
 			var arr = [];
 			var pointer = this;
