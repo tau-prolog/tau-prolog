@@ -1083,8 +1083,7 @@
 				pointer.args[1] = dcg.variable;
 			}
 			rule.body = new Term(",", [rule.body, new Term("=", [last, terminals])]);
-			rule.head.args = rule.head.args.concat([begin, last]);
-			rule.head = new Term(rule.head.id, rule.head.args);
+			rule.head = new Term(rule.head.id, rule.head.args.concat([begin, last]));
 		} else {
 			// replace first assignment
 			var first_assign = rule.body;
@@ -1096,8 +1095,7 @@
 				rule.body = rule.body.replace(null);
 			}
 			// add last variable
-			rule.head.args = rule.head.args.concat([begin, dcg.variable]);
-			rule.head = new Term(rule.head.id, rule.head.args);
+			rule.head = new Term(rule.head.id, rule.head.args.concat([begin, dcg.variable]));
 		}
 		return rule;
 	}
@@ -1175,8 +1173,7 @@
 			}
 		} else if( pl.type.is_callable( expr ) ) {
 			free = thread.next_free_variable();
-			expr.args = expr.args.concat([last,free]);
-			expr = new Term( expr.id, expr.args );
+			expr = new Term( expr.id, expr.args.concat([last,free]) );
 			return {
 				value: expr,
 				variable: free,
@@ -1744,8 +1741,10 @@
 	
 	// Terms
 	Term.prototype.rename = function( thread ) {
+		// atom
 		if(this.args.length === 0)
 			return this;
+		// list
 		if( this.indicator === "./2" ) {
 			var arr = [];
 			var pointer = this;
@@ -1764,9 +1763,17 @@
 			}
 			return list;
 		}
-		return new Term( this.id, map( this.args, function( arg ) {
-			return arg.rename( thread );
-		} ) );
+		// compound term
+		var eq = true;
+		var args = [];
+		for(var i = 0; i < this.args.length; i++) {
+			var app = this.args[i].rename(thread);
+			eq = eq && this.args[i] == app;
+			args.push(app);
+		}
+		if(eq)
+			return this;
+		return new Term(this.id, args);
 	};
 
 	// Streams
@@ -1833,8 +1840,10 @@
 	
 	// Terms
 	Term.prototype.apply = function( subs ) {
+		// atom
 		if(this.args.length === 0)
 			return this;
+		// list
 		if( this.indicator === "./2" ) {
 			var arr = [];
 			var pointer = this;
@@ -1853,9 +1862,17 @@
 			}
 			return list;
 		}
-		return new Term( this.id, map( this.args, function( arg ) {
-			return arg.apply( subs );
-		} ), this.ref );
+		// compound term
+		var eq = true;
+		var args = [];
+		for(var i = 0; i < this.args.length; i++) {
+			var app = this.args[i].apply(subs);
+			eq = eq && this.args[i] == app;
+			args.push(app);
+		}
+		if(eq)
+			return this;
+		return new Term(this.id, args, this.ref);
 	};
 
 	// Streams
@@ -1913,7 +1930,7 @@
 
 	// Search term
 	Term.prototype.search = function( expr ) {
-		if( pl.type.is_term( expr ) && expr.ref !== undefined && this.ref === expr.ref )
+		if(this.ref === expr.ref)
 			return true;
 		for( var i = 0; i < this.args.length; i++ )
 			if( pl.type.is_term( this.args[i] ) && this.args[i].search( expr ) )
