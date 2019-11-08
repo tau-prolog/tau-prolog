@@ -1742,8 +1742,8 @@
 	// Terms
 	Term.prototype.rename = function( thread ) {
 		// atom
-		if(this.args.length === 0)
-			return this;
+		/*if(this.args.length === 0)
+			return this;*/
 		// list
 		if( this.indicator === "./2" ) {
 			var arr = [], pointer = this;
@@ -1778,8 +1778,8 @@
 			eq = eq && this.args[i] == app;
 			args.push(app);
 		}
-		if(eq)
-			return this;
+		/*if(eq)
+			return this;*/
 		return new Term(this.id, args);
 	};
 
@@ -1944,7 +1944,7 @@
 
 	// Search term
 	Term.prototype.search = function( expr ) {
-		if(this.ref === expr.ref)
+		if(this == expr || this.ref === expr.ref)
 			return true;
 		for( var i = 0; i < this.args.length; i++ )
 			if( pl.type.is_term( this.args[i] ) && this.args[i].search( expr ) )
