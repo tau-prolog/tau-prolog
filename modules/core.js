@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 77, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 78, status: "beta" };
 
 
 
@@ -1746,19 +1746,26 @@
 			return this;
 		// list
 		if( this.indicator === "./2" ) {
-			var arr = [];
-			var pointer = this;
-			var eq = true;
+			var arr = [], pointer = this;
+			var last_neq = -1, pointer_neq = null, i = 0;
 			while( pointer.indicator === "./2" ) {
 				var app = pointer.args[0].rename(thread);
-				eq = eq && app == pointer.args[0];
+				var cmp = app == pointer.args[0];
 				arr.push(app);
 				pointer = pointer.args[1];
+				if(!cmp) {
+					last_neq = i;
+					pointer_neq = pointer;
+				}
+				i++;
 			}
-			var list = pointer.rename( thread );
-			if(eq && list == pointer)
+			var list = pointer.rename(thread);
+			var cmp = list == pointer;
+			if(last_neq === -1 && cmp)
 				return this;
-			for(var i = arr.length-1; i >= 0; i--) {
+			var start = cmp ? last_neq : arr.length-1;
+			var list = cmp ? pointer_neq : list;
+			for(var i = start; i >= 0; i--) {
 				list = new Term( ".", [arr[i], list] );
 			}
 			return list;
@@ -1845,19 +1852,26 @@
 			return this;
 		// list
 		if( this.indicator === "./2" ) {
-			var arr = [];
-			var pointer = this;
-			var eq = true;
+			var arr = [], pointer = this;
+			var last_neq = -1, pointer_neq = null, i = 0;
 			while( pointer.indicator === "./2" ) {
 				var app = pointer.args[0].apply(subs);
-				eq = eq && app == pointer.args[0];
+				var cmp = app == pointer.args[0];
 				arr.push(app);
 				pointer = pointer.args[1];
+				if(!cmp) {
+					last_neq = i;
+					pointer_neq = pointer;
+				}
+				i++;
 			}
 			var list = pointer.apply(subs);
-			if(eq && list == pointer)
+			var cmp = list == pointer;
+			if(last_neq === -1 && cmp)
 				return this;
-			for(var i = arr.length-1; i >= 0; i--) {
+			var start = cmp ? last_neq : arr.length-1;
+			var list = cmp ? pointer_neq : list;
+			for(var i = start; i >= 0; i--) {
 				list = new Term( ".", [arr[i], list] );
 			}
 			return list;
@@ -6442,8 +6456,20 @@
 				if( pl.type.is_term(s) && pl.type.is_term(t) ) {
 					if( s.indicator !== t.indicator )
 						return null;
-					for( var i = 0; i < s.args.length; i++ )
-						G.push( {left: s.args[i], right: t.args[i]} );
+					// list
+					if(s.indicator === "./2") {
+						var pointer_s = s, pointer_t = t;
+						while(pointer_s.indicator === "./2" && pointer_t.indicator === "./2") {
+							G.push( {left: pointer_s.args[0], right: pointer_t.args[0]} );
+							pointer_s = pointer_s.args[1];
+							pointer_t = pointer_t.args[1];
+						}
+						G.push( {left: pointer_s, right: pointer_t} );
+					// compound term
+					} else {
+						for( var i = 0; i < s.args.length; i++ )
+							G.push( {left: s.args[i], right: t.args[i]} );
+					}
 				} else if( pl.type.is_number(s) && pl.type.is_number(t) ) {
 					if( s.value !== t.value || s.is_float !== t.is_float )
 						return null;
