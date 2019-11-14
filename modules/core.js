@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 78, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 79, status: "beta" };
 
 
 
@@ -2810,6 +2810,11 @@
 				variable: function( obj ) {
 					return obj === undefined;
 				},
+
+				// Object
+				object: function( obj ) {
+					return !(obj instanceof Array) && typeof obj === "object";
+				},
 				
 				// Any
 				any: function( _ ) {
@@ -2852,6 +2857,20 @@
 				// Variable
 				variable: function( obj ) {
 					return new Var( "_" );
+				},
+
+				// Object
+				object: function( obj ) {
+					var list = new Term("[]", []);
+					var arr = [];
+					for(var prop in obj) {
+						if(!obj.hasOwnProperty(prop)) continue;
+						arr.push(new Term("-", [
+							pl.fromJavaScript.apply(prop),
+							pl.fromJavaScript.apply(obj[prop])
+						]));
+					}
+					return arrayToList(arr);
 				},
 				
 				// Any
@@ -6453,6 +6472,8 @@
 				var eq = G.pop();
 				s = eq.left;
 				t = eq.right;
+				if(s == t)
+					continue;
 				if( pl.type.is_term(s) && pl.type.is_term(t) ) {
 					if( s.indicator !== t.indicator )
 						return null;
