@@ -95,6 +95,11 @@ var pl;
 				}
 			},
 
+			// ajax/3
+			"ajax/3": [
+				new pl.type.Rule(new pl.type.Term("ajax", [new pl.type.Var("Method"),new pl.type.Var("URL"),new pl.type.Var("Response")]), new pl.type.Term("ajax", [new pl.type.Var("Method"),new pl.type.Var("URL"),new pl.type.Var("Response"),new pl.type.Term("[]", [])]))
+			],
+
 			// ajax/4
 			"ajax/4": function( thread, point, atom ) {
 				var method = atom.args[0], url = atom.args[1], value = atom.args[2], options = atom.args[3];
@@ -252,7 +257,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "ajax/4"];
+	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "ajax/3", "ajax/4"];
 
 
 
