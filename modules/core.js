@@ -2885,6 +2885,7 @@
 				for( var i in pl.fromJavaScript.test )
 					if( i !== "any" && pl.fromJavaScript.test[i]( obj ) )
 						return pl.fromJavaScript.conversion[i]( obj );
+				console.log(obj);
 				return pl.fromJavaScript.conversion.any( obj );
 			}
 		},

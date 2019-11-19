@@ -93,12 +93,166 @@ var pl;
 						thread.prepend( states );
 					}
 				}
+			},
+
+			// ajax/4
+			"ajax/4": function( thread, point, atom ) {
+				var method = atom.args[0], url = atom.args[1], value = atom.args[2], options = atom.args[3];
+				if(pl.type.is_variable(url) || pl.type.is_variable(method) || pl.type.is_variable(options)) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if(!pl.type.is_atom(url)) {
+					thread.throw_error( pl.error.type( "atom", url, atom.indicator ) );
+				} else if(!pl.type.is_atom(method)) {
+					thread.throw_error( pl.error.type( "atom", method, atom.indicator ) );
+				} else if(!pl.type.is_list(options)) {
+					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+				} else if(method.id !== "get" && method.id !== "post" && method.id !== "put" && method.id !== "delete") {
+					thread.throw_error( pl.error.domain( "http_method", method, atom.indicator ) );
+				} else {
+					var pointer = options;
+					var opt_type = null;
+					var opt_timeout = 0;
+					var opt_credentials = "false";
+					var opt_async = "true";
+					var opt_mime = null;
+					var opt_headers = [];
+					// Options
+					while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+						var option = pointer.args[0];
+						if(!pl.type.is_term(option) || option.args.length !== 1) {
+							thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+							return;
+						}
+						var prop = option.args[0];
+						// type/1
+						if(option.indicator === "type/1") {
+							if(!pl.type.is_atom(prop) || prop.id !== "text" && prop.id !== "json" && prop.id !== "document") {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+							opt_type = prop.id;
+						// timeout/1
+						} else if(option.indicator === "timeout/1") {
+							if(!pl.type.is_integer(prop) || prop.value < 0) {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+							opt_timeout = prop.value;
+						// async/1
+						} else if(option.indicator === "async/1") {
+							if(!pl.type.is_atom(prop) || prop.id !== "true" && prop.id !== "false") {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+							opt_async = prop.id;
+						// credentials/1
+						} else if(option.indicator === "credentials/1") {
+							if(!pl.type.is_atom(prop) || prop.id !== "true" && prop.id !== "false") {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+							opt_credentials = prop.id;
+						// mime/1
+						} else if(option.indicator === "mime/1") {
+							if(!pl.type.is_atom(prop)) {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+							opt_mime = prop.id;
+						// headers/1
+						} else if(option.indicator === "headers/1") {
+							if(!pl.type.is_list(prop)) {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+							var hpointer = prop;
+							while(pl.type.is_term(hpointer) && hpointer.indicator === "./2") {
+								var header = hpointer.args[0];
+								if(!pl.type.is_term(header) || header.indicator !== "-/2" || !pl.type.is_atom(header.args[0]) || !pl.type.is_atom(header.args[1])) {
+									thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+									return;
+								}
+								opt_headers.push({header: header.args[0].id, value: header.args[1].id});
+								hpointer = hpointer.args[1];
+							}
+							if(pl.type.is_variable(hpointer)) {
+								thread.throw_error( pl.error.instantiation( atom.indicator ) );
+								return;
+							} else if(!pl.type.is_term(hpointer) || hpointer.indicator !== "[]/0") {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+						// otherwise
+						} else {
+							thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+							return;
+						}
+						pointer = pointer.args[1];
+					}
+					if(pl.type.is_variable(pointer)) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if(!pl.type.is_term(pointer) || pointer.indicator !== "[]/0") {
+						thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+						return;
+					}
+					// Request
+					var xhttp = new XMLHttpRequest();
+					if(opt_mime !== null)
+						xhttp.overrideMimeType(opt_mime);
+					var fn = function() {
+						if(this.readyState == 4) {
+							if(this.status == 200) {
+								// Get response
+								var data = null;
+								var content_type = this.getResponseHeader("Content-Type");
+								if(this.responseType === "" || this.responseType === "json" || content_type.indexOf("application/json") !== -1) {
+									try {
+											data = pl.fromJavaScript.apply(JSON.parse(this.responseText));
+									} catch(e) {}
+								}
+								if(data === null) {
+									if((this.responseType === "document" || this.responseType === "" || content_type.indexOf("text/html") !== -1 || content_type.indexOf("application/xml") !== -1) && this.responseXML !== null && pl.type.DOM !== undefined) {
+										data = new pl.type.DOM( this.responseXML );
+									} else if(this.responseType === "" || this.responseType === "text") {
+										data = new pl.type.Term(this.responseText, []);
+									}
+								}
+								// Add answer
+								if(data !== null)
+									thread.prepend( [
+										new pl.type.State(
+											point.goal.replace(new pl.type.Term("=", [value, data])),
+											point.substitution,
+											point
+										)
+									] );
+							}
+							if(opt_async === "true")
+								thread.again();
+						}
+					};
+					xhttp.onreadystatechange = fn;
+					xhttp.open(method.id.toUpperCase(), url.id, opt_async === "true");
+					if(opt_type !== null && opt_async === "true")
+						xhttp.responseType = opt_type;
+					xhttp.withCredentials = opt_credentials === "true";
+					if(opt_async === "true")
+						xhttp.timeout = opt_timeout;
+					for(var i = 0; i < opt_headers.length; i++)
+						xhttp.setRequestHeader(opt_headers[i].header, opt_headers[i].value);
+					xhttp.send();
+					if(opt_async === "true")
+						return true;
+					else
+						fn.apply(xhttp);
+				}
 			}
 
 		};
 	};
 	
-	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3"];
+	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "ajax/4"];
 
 
 
