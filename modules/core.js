@@ -2705,7 +2705,7 @@
 				pointer = pointer.args[1];
 			}
 			if( pointer.indicator === "[]/0" )
-				return all_obj ? obj : arr;
+				return all_obj && arr.length > 0 ? obj : arr;
 
 		}
 		return this.toString();
