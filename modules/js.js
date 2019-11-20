@@ -7,7 +7,7 @@ var pl;
 			
 			// global/1
 			"global/1": function( thread, point, atom ) {
-				thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [atom.args[0], new pl.type.JSValue( pl.__env )] ) ), point.substitution, point )] );
+				thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [atom.args[0], pl.fromJavaScript.apply(pl.__env)] ) ), point.substitution, point )] );
 			},
 			
 			// apply/3:
@@ -91,6 +91,34 @@ var pl;
 							}
 						}
 						thread.prepend( states );
+					}
+				}
+			},
+
+			// json_prolog/2
+			"json_prolog/2": function( thread, point, atom ) {
+				var json = atom.args[0], prolog = atom.args[1];
+				if( pl.type.is_variable(json) && pl.type.is_variable(prolog) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable(json) && !pl.type.is_js_object(json) || typeof(json.value) !== "object" ) {
+					thread.throw_error( pl.error.type( "JsValueOBJECT", json, atom.indicator ) );
+				} else if( !pl.type.is_variable(prolog) && !pl.type.is_list(prolog) ) {
+					thread.throw_error( pl.error.type( "list", prolog, atom.indicator ) );
+				} else {
+					if(pl.type.is_variable(prolog)) {
+						var list = pl.fromJavaScript.apply(json.value, true);
+						thread.prepend([new pl.type.State(
+							point.goal.replace(new pl.type.Term("=", [prolog, list])),
+							point.substitution,
+							point
+						)]);
+					} else {
+						var obj = new pl.type.JSValue(prolog.toJavaScript());
+						thread.prepend([new pl.type.State(
+							point.goal.replace(new pl.type.Term("=", [json, obj])),
+							point.substitution,
+							point
+						)]);
 					}
 				}
 			},
@@ -257,9 +285,25 @@ var pl;
 		};
 	};
 	
-	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "ajax/3", "ajax/4"];
+	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "json_prolog/2", "ajax/3", "ajax/4"];
 
 
+
+	/*function prolog_to_json(prolog) {
+		var pointer = prolog;
+		var obj = {};
+		while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+			var pair = pointer.args[0];
+			if(pl.type.is_variable(pair)) {
+				return pl.error.instantiation( atom.indicator );
+			} else if(!pl.type.is_term(pair) || pair.indicator !== "-/2" || !pl.type.is_atom(pair.args[0])) {
+				return pl.error.domain( "pair", pair, atom.indicator );
+			}
+			if()
+			obj[pair.args[0].id] = pair.args[1].toJavaScript();
+			pointer = pointer.args[1];
+		}
+	}*/
 
 	// JS OBJECTS
 	function define_properties() {

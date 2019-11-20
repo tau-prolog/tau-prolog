@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 79, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 80, status: "beta" };
 
 
 
@@ -2676,7 +2676,7 @@
 	
 	// PROLOG TO JAVASCRIPT
 	Var.prototype.toJavaScript = function() {
-		return undefined;
+		return this.toString();
 	};
 	
 	// Numbers
@@ -2686,23 +2686,29 @@
 	
 	// Terms
 	Term.prototype.toJavaScript = function() {
+		// Atom => String
 		if( this.args.length === 0 && this.indicator !== "[]/0" ) {
-			return this.id;
+			return this.toString();
 		} else if( pl.type.is_list( this ) ) {
+			// List => Array
+			var all_obj = true;
 			var arr = [];
+			var obj = {};
 			var pointer = this;
 			var value;
 			while( pointer.indicator === "./2" ) {
 				value = pointer.args[0].toJavaScript();
-				if( value === undefined )
-					return undefined;
 				arr.push( value );
+				all_obj = all_obj && pl.type.is_term(pointer.args[0]) && pointer.args[0].indicator === "-/2" && pl.type.is_atom(pointer.args[0].args[0]);
+				if(all_obj)
+					obj[pointer.args[0].args[0].id] = pointer.args[0].args[1].toJavaScript();
 				pointer = pointer.args[1];
 			}
 			if( pointer.indicator === "[]/0" )
-				return arr;
+				return all_obj ? obj : arr;
+
 		}
-		return undefined;
+		return this.toString();
 	};
 	
 	
@@ -2787,37 +2793,38 @@
 			test: {
 				
 				// Boolean
-				boolean: function( obj ) {
+				boolean: function( obj, tobj ) {
 					return obj === true || obj === false;
 				},
 				
 				// Number
-				number: function( obj ) {
+				number: function( obj, tobj ) {
 					return typeof obj === "number";
 				},
 				
 				// String
-				string: function( obj ) {
+				string: function( obj, tobj ) {
 					return typeof obj === "string";
 				},
 				
 				// List
-				list: function( obj ) {
+				list: function( obj, tobj ) {
 					return obj instanceof Array;
 				},
 				
 				// Variable
-				variable: function( obj ) {
+				variable: function( obj, tobj ) {
 					return obj === undefined;
 				},
 
 				// Object
-				object: function( obj ) {
-					return !(obj instanceof Array) && typeof obj === "object";
+				object: function( obj, tobj ) {
+					tobj = tobj === undefined ? false : tobj;
+					return tobj && !(obj instanceof Array) && typeof obj === "object";
 				},
 				
 				// Any
-				any: function( _ ) {
+				any: function( _, tobj ) {
 					return true;
 				}
 				
@@ -2827,26 +2834,27 @@
 			conversion: {
 				
 				// Bolean
-				boolean: function( obj ) {
+				boolean: function( obj, tobj ) {
 					return new Term( obj ? "true" : "false", [] );
 				},
 				
 				// Number
-				number: function( obj ) {
+				number: function( obj, tobj ) {
 					return new Num( obj, obj % 1 !== 0 );
 				},
 				
 				// String
-				string: function( obj ) {
+				string: function( obj, tobj ) {
 					return new Term( obj, [] );
 				},
 				
 				// List
-				list: function( obj ) {
+				list: function( obj, tobj ) {
+					tobj = tobj === undefined ? false : tobj;
 					var arr = [];
 					var elem;
 					for( var i = 0; i < obj.length; i++ ) {
-						elem = pl.fromJavaScript.apply( obj[i] );
+						elem = pl.fromJavaScript.apply( obj[i], tobj );
 						if( elem === undefined )
 							return undefined;
 						arr.push( elem );
@@ -2855,38 +2863,39 @@
 				},
 				
 				// Variable
-				variable: function( obj ) {
+				variable: function( obj, tobj ) {
 					return new Var( "_" );
 				},
 
 				// Object
-				object: function( obj ) {
+				object: function( obj, tobj ) {
+					tobj = tobj === undefined ? false : tobj;
 					var list = new Term("[]", []);
 					var arr = [];
 					for(var prop in obj) {
 						if(!obj.hasOwnProperty(prop)) continue;
 						arr.push(new Term("-", [
-							pl.fromJavaScript.apply(prop),
-							pl.fromJavaScript.apply(obj[prop])
+							pl.fromJavaScript.apply(prop, tobj),
+							pl.fromJavaScript.apply(obj[prop], tobj)
 						]));
 					}
 					return arrayToList(arr);
 				},
 				
 				// Any
-				any: function( obj ) {
+				any: function( obj, tobj ) {
 					return undefined;
 				}
 				
 			},
 			
 			// Transform object
-			apply: function( obj ) {
+			apply: function( obj, tobj ) {
+				tobj = tobj === undefined ? false : tobj;
 				for( var i in pl.fromJavaScript.test )
-					if( i !== "any" && pl.fromJavaScript.test[i]( obj ) )
-						return pl.fromJavaScript.conversion[i]( obj );
-				console.log(obj);
-				return pl.fromJavaScript.conversion.any( obj );
+					if( i !== "any" && pl.fromJavaScript.test[i]( obj, tobj ) )
+						return pl.fromJavaScript.conversion[i]( obj, tobj );
+				return pl.fromJavaScript.conversion.any( obj, tobj );
 			}
 		},
 		
