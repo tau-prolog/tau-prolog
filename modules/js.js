@@ -100,7 +100,7 @@ var pl;
 				var json = atom.args[0], prolog = atom.args[1];
 				if( pl.type.is_variable(json) && pl.type.is_variable(prolog) ) {
 					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable(json) && !pl.type.is_js_object(json) || typeof(json.value) !== "object" ) {
+				} else if( !pl.type.is_variable(json) && (!pl.type.is_js_object(json) || typeof(json.value) !== "object")) {
 					thread.throw_error( pl.error.type( "JsValueOBJECT", json, atom.indicator ) );
 				} else if( !pl.type.is_variable(prolog) && !pl.type.is_list(prolog) ) {
 					thread.throw_error( pl.error.type( "list", prolog, atom.indicator ) );
@@ -119,6 +119,39 @@ var pl;
 							point.substitution,
 							point
 						)]);
+					}
+				}
+			},
+
+			// json_atom/2
+			"json_atom/2": function( thread, point, atom ) {
+				var json = atom.args[0], prolog = atom.args[1];
+				if( pl.type.is_variable(json) && pl.type.is_variable(prolog) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_variable(json) && (!pl.type.is_js_object(json) || typeof(json.value) !== "object")) {
+					thread.throw_error( pl.error.type( "JsValueOBJECT", json, atom.indicator ) );
+				} else if( !pl.type.is_variable(prolog) && !pl.type.is_atom(prolog) ) {
+					thread.throw_error( pl.error.type( "atom", prolog, atom.indicator ) );
+				} else {
+					if(pl.type.is_variable(prolog)) {
+						try {
+							var jatom = new pl.type.Term(JSON.stringify(json.value), []);
+							thread.prepend([new pl.type.State(
+								point.goal.replace(new pl.type.Term("=", [prolog, jatom])),
+								point.substitution,
+								point
+							)]);
+						} catch(ex) {}
+					} else {
+						try {
+							console.log(JSON.parse(prolog.id));
+							var obj = pl.fromJavaScript.apply(JSON.parse(prolog.id));
+							thread.prepend([new pl.type.State(
+								point.goal.replace(new pl.type.Term("=", [json, obj])),
+								point.substitution,
+								point
+							)]);
+						} catch(ex) {}
 					}
 				}
 			},
@@ -313,7 +346,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "json_prolog/2", "ajax/3", "ajax/4"];
+	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "json_prolog/2", "json_atom/2", "ajax/3", "ajax/4"];
 
 
 
