@@ -149,6 +149,7 @@ var pl;
 					var opt_async = "true";
 					var opt_mime = null;
 					var opt_headers = [];
+					var opt_body = new FormData();
 					// Options
 					while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
 						var option = pointer.args[0];
@@ -215,6 +216,33 @@ var pl;
 								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
 								return;
 							}
+						// body/1
+						} else if(option.indicator === "body/1") {
+							if(!pl.type.is_list(prop) && (pl.type.is_dom_object === undefined || !pl.type.is_dom_object(prop))) {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+							if(pl.type.is_list(prop)) {
+								var hpointer = prop;
+								while(pl.type.is_term(hpointer) && hpointer.indicator === "./2") {
+									var body = hpointer.args[0];
+									if(!pl.type.is_term(body) || body.indicator !== "-/2" || !pl.type.is_atom(body.args[0]) || !pl.type.is_atom(body.args[1])) {
+										thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+										return;
+									}
+									opt_body.append(body.args[0].id, body.args[1].id);
+									hpointer = hpointer.args[1];
+								}
+								if(pl.type.is_variable(hpointer)) {
+									thread.throw_error( pl.error.instantiation( atom.indicator ) );
+									return;
+								} else if(!pl.type.is_term(hpointer) || hpointer.indicator !== "[]/0") {
+									thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+									return;
+								}
+							} else {
+								opt_body = prop.value;
+							}
 						// otherwise
 						} else {
 							thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
@@ -274,7 +302,7 @@ var pl;
 						xhttp.timeout = opt_timeout;
 					for(var i = 0; i < opt_headers.length; i++)
 						xhttp.setRequestHeader(opt_headers[i].header, opt_headers[i].value);
-					xhttp.send();
+					xhttp.send(opt_body);
 					if(opt_async === "true")
 						return true;
 					else
