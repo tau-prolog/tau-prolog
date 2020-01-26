@@ -6373,6 +6373,25 @@
 
 
 
+			// TIME AND DATES
+
+			// get_time/1
+			"get_time/1": function( thread, point, atom ) {
+				var time = atom.args[0];
+				if(!pl.type.is_variable(time) && !pl.type.is_number(time)) {
+					thread.throw_error( pl.error.type( "number", time, atom.indicator ) );
+				} else {
+					var current = new Num(Date.now(), true);
+					thread.prepend( [new State(
+						point.goal.replace( new Term( "=", [time, current] ) ), 
+						point.substitution,
+						point
+					)] );
+				}
+			},
+
+
+
 			// GRAMMARS
 
 			// phrase/3
