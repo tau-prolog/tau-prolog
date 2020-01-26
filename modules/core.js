@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 80, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 81, status: "beta" };
 
 
 
@@ -2149,16 +2149,34 @@
 	};
 	Thread.prototype.consult = function( program, options ) {
 		var string = "";
+		// string
 		if( typeof program === "string" ) {
 			string = program;
 			var len = string.length;
-			if( string.substring( len-3, len ) === ".pl" && document.getElementById( string ) ) {
+			// script id
+			if( !nodejs_flag && document.getElementById( string ) ) {
 				var script = document.getElementById( string );
 				var type = script.getAttribute( "type" );
 				if( type !== null && type.replace( / /g, "" ).toLowerCase() === "text/prolog" ) {
 					string = script.text;
 				}
+			// file (node.js)
+			} else if( nodejs_flag ) {
+				var fs = require("fs");
+				string = fs.readFileSync( program ).toString();
+			// http request
+			} else {
+				try {
+					var xhttp = new XMLHttpRequest();
+					xhttp.onreadystatechange = function() {
+						if( this.readyState == 4 && this.status == 200 )
+							string = xhttp.responseText;
+					}
+					xhttp.open("GET", program, false);
+					xhttp.send();
+				} catch(ex) {}
 			}
+		// html
 		} else if( program.nodeName ) {
 			switch( program.nodeName.toLowerCase() ) {
 				case "input":
@@ -6333,6 +6351,23 @@
 							)] );
 						}
 					}
+				}
+			},
+
+
+
+			// LOAD PROLOG SOURCE FILES
+
+			// consult/1
+			"consult/1": function( thread, point, atom ) {
+				var src = atom.args[0];
+				if(pl.type.is_variable(src)) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if(!pl.type.is_atom(src)) {
+					thread.throw_error( pl.error.type( "atom", src, atom.indicator ) );
+				} else {
+					if(thread.consult( src.id ))
+						thread.success(point);
 				}
 			},
 
