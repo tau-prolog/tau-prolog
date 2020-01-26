@@ -251,7 +251,7 @@ var pl;
 							}
 						// body/1
 						} else if(option.indicator === "body/1") {
-							if(!pl.type.is_list(prop) && (pl.type.is_dom_object === undefined || !pl.type.is_dom_object(prop))) {
+							if(!pl.type.is_list(prop) && (pl.type.is_dom_object === undefined || !pl.type.is_dom_object(prop)) && !pl.type.is_atom(prop)) {
 								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
 								return;
 							}
@@ -273,6 +273,8 @@ var pl;
 									thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
 									return;
 								}
+							} else if(pl.type.is_atom(prop)) {
+								opt_body = prop.id;
 							} else {
 								opt_body = prop.value;
 							}
