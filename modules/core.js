@@ -3674,6 +3674,8 @@
 				thread.prepend( points );
 			},
 		
+
+			
 			// LOGIC AND CONTROL STRUCTURES
 		
 			// ;/2 (disjunction)
@@ -3684,13 +3686,14 @@
 					var goal_fst = point.goal.replace( new Term( ",", [cond, new Term( ",", [new Term( "!" ), then] )] ) );
 					var goal_snd = point.goal.replace( new Term( ",", [new Term( "!" ), otherwise] ) );
 					thread.prepend( [
-						new State( point.goal.replace( goal_fst ), point.substitution, point ),
-						new State( point.goal.replace( goal_snd ), point.substitution, point )
+						new State( goal_fst, point.substitution, point ),
+						new State( goal_snd, point.substitution, point )
 					] );
 				} else {
-					var state_left = new State( point.goal.replace( left ), point.substitution, point );
-					var sate_right = new State( point.goal.replace( right ), point.substitution, point );
-					thread.prepend( [state_left, sate_right] );
+					thread.prepend([
+						new State( point.goal.replace( left ), point.substitution, point ),
+						new State( point.goal.replace( right ), point.substitution, point )
+					]);
 				}
 			},
 			
