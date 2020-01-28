@@ -2154,7 +2154,7 @@
 			string = program;
 			var len = string.length;
 			// script id
-			if( !nodejs_flag && document.getElementById( string ) ) {
+			if( !nodejs_flag && program != "" && document.getElementById( string ) ) {
 				var script = document.getElementById( string );
 				var type = script.getAttribute( "type" );
 				if( type !== null && type.replace( / /g, "" ).toLowerCase() === "text/prolog" ) {
@@ -2165,7 +2165,7 @@
 				var fs = require("fs");
 				string = fs.readFileSync( program ).toString();
 			// http request
-			} else {
+			} else if( program != "" && !(/\s/.test(program)) ) {
 				try {
 					var xhttp = new XMLHttpRequest();
 					xhttp.onreadystatechange = function() {
