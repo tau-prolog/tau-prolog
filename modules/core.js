@@ -1110,6 +1110,14 @@
 				variable: free,
 				error: false
 			};
+		} else if( pl.type.is_term( expr ) && expr.indicator === "\\+/1" ) {
+			var left = body_to_dcg(expr.args[0], last, thread);
+			if( left.error ) return left;
+			return {
+				value: new Term(expr.id, [left.value]),
+				variable: last,
+				error: false
+			};
 		} else if( pl.type.is_term( expr ) && (expr.indicator === ",/2" || expr.indicator === "->/2") ) {
 			var left = body_to_dcg(expr.args[0], last, thread);
 			if( left.error ) return left;
