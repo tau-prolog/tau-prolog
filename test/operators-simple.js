@@ -28,37 +28,27 @@
  * X = a++ .
 ***********************************/
 
+var nodejs_flag = typeof module !== 'undefined' && module.exports !== undefined;
 if (typeof process === 'object') {
   var pl = require('../modules/core.js')
 }
 
-var nodejs_flag = typeof module !== 'undefined' && module.exports !== undefined;
+var programToBeTested = (
+  ":- op(1000, yf, ++).\
+		p(a,b,[1,c,2]).\
+		p(c,d,[1,X|Y]).\
+		q(+,+).\
+		q( * , * ).\
+		q( <, <).\
+		r(a,(b,c)).\
+		r((c,d),e).\
+		r(i, (j,k)).\
+		r((f,g), h)."
+);
 
-function testConsult (goal, predicates, testFn){
-  var session = new pl.type.Session( 10000 );
-  session.consult(predicates);
-  QUnit.test(goal, function(assert){
-    testFn(assert, session, session.thread);
-  });
+// TEST CASES
 
-  if(nodejs_flag){
-    var tmpFolder = '/tmp';
-    var fs = require('fs');
-    var tmpFilename = tmpFolder + '/predicates_' + new Date().getTime();
-    fs.writeFileSync(tmpFilename, predicates, 'utf8');
-
-    var sessionFile = new pl.type.Session( 10000 );
-    sessionFile.consult(tmpFilename);
-    QUnit.test(goal + ' -file', function(assert){
-      testFn(assert, sessionFile, sessionFile.thread);
-    });
-  }
-}
-
-QUnit.test("Goal  'X is 10+20.'", function(assert) {
-  var session = new pl.type.Session( 10000 );
-  var thread = session.thread;
-  session.query("X is 10+20.");
+testGoal('X is 10+20.', function(assert, session, thread) {
   assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
   assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
   assert.equal(thread.head_point().goal.args[1].id, "+", "Second 'is' argument is '+/2'");
@@ -67,10 +57,7 @@ QUnit.test("Goal  'X is 10+20.'", function(assert) {
   });
 });
 
-QUnit.test("Goal  'X is 2*3+6'", function(assert) {
-  var session = new pl.type.Session( 10000 );
-  var thread = session.thread;
-  session.query("X is 2*3+6.");
+testGoal("X is 2*3+6.", function(assert, session, thread) {
   assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
   assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
   assert.equal(thread.head_point().goal.args[1].id, "+", "Second 'is' argument is '+/2'");
@@ -80,11 +67,7 @@ QUnit.test("Goal  'X is 2*3+6'", function(assert) {
   });
 });
 
-
-QUnit.test("Goal  'X is 2*(3+6).'", function(assert) {
-  var session = new pl.type.Session( 10000 );
-  var thread = session.thread;
-  session.query("X is 2*(3+6).");
+testGoal("X is 2*(3+6).", function(assert, session, thread) {
   assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
   assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
   assert.equal(thread.head_point().goal.args[1].id, "*", "Second 'is' argument is '*/2'");
@@ -94,10 +77,7 @@ QUnit.test("Goal  'X is 2*(3+6).'", function(assert) {
   });
 });
 
-QUnit.test("Goal  'X is 2 -5.'", function(assert) {
-  var session = new pl.type.Session( 10000 );
-  var thread = session.thread;
-  session.query("X is 2 -5.");
+testGoal("X is 2 -5.", function(assert, session, thread) {
   assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
   assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
   assert.equal(thread.head_point().goal.args[1].id, "-", "Second 'is' argument is '-/2'");
@@ -106,10 +86,7 @@ QUnit.test("Goal  'X is 2 -5.'", function(assert) {
   });
 });
 
-QUnit.test("Goal  'X is 2-5.'", function(assert) {
-  var session = new pl.type.Session( 10000 );
-  var thread = session.thread;
-  session.query("X is 2-5.");
+testGoal("X is 2-5.", function(assert, session, thread) {
   assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
   assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
   assert.equal(thread.head_point().goal.args[1].id, "-", "Second 'is' argument is '-/2'");
@@ -118,10 +95,7 @@ QUnit.test("Goal  'X is 2-5.'", function(assert) {
   });
 });
 
-QUnit.test("Goal  'X is 1+2+3+4.'", function(assert) {
-  var session = new pl.type.Session( 10000 );
-  var thread = session.thread;
-  session.query("X is 1+2+3+4.");
+testGoal("X is 1+2+3+4.", function(assert, session, thread) {
   assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
   assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
   assert.equal(thread.head_point().goal.args[1].id, "+", "Second 'is' argument is '+/2'");
@@ -133,10 +107,7 @@ QUnit.test("Goal  'X is 1+2+3+4.'", function(assert) {
   });
 });
 
-QUnit.test("Goal  'X is 2**3.'", function(assert) {
-  var session = new pl.type.Session( 10000 );
-  var thread = session.thread;
-  session.query("X is 2**3.");
+testGoal("X is 2**3.", function(assert, session, thread) {
   assert.equal(thread.head_point().goal.id, "is", "First term is 'is/2'");
   assert.ok(pl.type.is_term(thread.head_point().goal.args[1]), "Second 'is' argument is Term");
   assert.equal(thread.head_point().goal.args[1].id, "**", "Second 'is' argument is '**/2'");
@@ -147,27 +118,14 @@ QUnit.test("Goal  'X is 2**3.'", function(assert) {
   });
 });
 
-QUnit.test("Goal  'X is 2**3**4.'", function(assert) {
-  var session = new pl.type.Session( 10000 );
-  var thread = session.thread;
-  session.query("X is 2**3**4.");
+testGoal("X is 2**3**4.", function(assert, session, thread) {
   assert.equal(thread.points.length, 0, "Program not parsed");
 });
 
-testConsult(
-  "Goal  'p(X,Y,Z).'", 
-  ":- op(1000, yf, ++).\
-		p(a,b,[1,c,2]).\
-		p(c,d,[1,X|Y]).\
-		q(+,+).\
-		q( * , * ).\
-		q( <, <).\
-		r(a,(b,c)).\
-		r((c,d),e).\
-		r(i, (j,k)).\
-		r((f,g), h).",
+testGoal(
+  "p(X,Y,Z).", 
+  programToBeTested,
   function(assert, session, thread) {
-    session.query("p(X,Y,Z).");
     assert.notEqual(thread.points.length, 0, "Program parsed");
     assert.equal(thread.head_point().goal.id, "p", "Goal is predicate 'p'");
 
@@ -252,20 +210,10 @@ testConsult(
   }
 );
 
-testConsult(
-  "Goal  'q(X,Y).'",
-  ":- op(1000, yf, ++).\
-		p(a,b,[1,c,2]).\
-		p(c,d,[1,X|Y]).\
-		q(+,+).\
-		q( * , * ).\
-		q( <, <).\
-		r(a,(b,c)).\
-		r((c,d),e).\
-		r(i, (j,k)).\
-		r((f,g), h).",
+testGoal(
+  "q(X,Y).",
+  programToBeTested,
   function(assert, session) {
-    session.query("q(X,Y).");
     // First call
     session.answer(function(success) {
       assert.equal(success.links.X.id, "+", "X is +");
@@ -284,23 +232,10 @@ testConsult(
   }
 );
 
-
-
-
-testConsult(
-  "Goal  'r(X,Y).'",
-  ":- op(1000, yf, ++).\
-      p(a,b,[1,c,2]).\
-      p(c,d,[1,X|Y]).\
-      q(+,+).\
-      q( * , * ).\
-      q( <, <).\
-      r(a,(b,c)).\
-      r((c,d),e).\
-      r(i, (j,k)).\
-      r((f,g), h).",
+testGoal(
+  "r(X,Y).",
+  programToBeTested,
   function(assert, session) {
-    session.query("r(X,Y).");
 
     session.answer(function(success) {
       // console.log(success);
@@ -335,3 +270,57 @@ testConsult(
     });
   }
 );
+
+
+
+// TEST UTILS
+
+function testGoal(goal, program, testFn) {
+  
+  function runTest(goal, session, testFn, postfix) {
+    var title = "Goal '" + goal + "'" + (postfix || '');
+    QUnit.test(title, function(assert){
+      testFn(assert, session, session.thread);
+    });
+  }
+
+  if(typeof program === 'function' && typeof testFn === 'undefined') {
+    testFn = program;
+    program = undefined;
+  }
+
+  if(program){
+    var session = withProgram(program, goal);
+    runTest(goal, session, testFn);
+    
+    if(nodejs_flag) {
+      var session2 = withProgram(tmpProgramFilename(program), goal);
+      runTest(goal, session2, testFn, ' -file');
+    }
+  } else {
+    var session = withoutProgram(goal);
+    runTest(goal, session, testFn);
+  }
+
+}
+
+function withProgram (program, query) {
+  var session = new pl.type.Session( 10000 );
+  session.consult(program);
+  session.query(query);
+  return session;
+}
+
+function withoutProgram (query) {
+  var session = new pl.type.Session( 10000 );
+  session.query(query);
+  return session;
+}
+
+function tmpProgramFilename (program) {
+  var tmpFolder = '/tmp';
+  var fs = require('fs');
+  var tmpFilename = tmpFolder + '/pl_program_' + new Date().getTime();
+  fs.writeFileSync(tmpFilename, program, 'utf8');
+  return tmpFilename;
+}
