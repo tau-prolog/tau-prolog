@@ -2163,7 +2163,9 @@
 			// file (node.js)
 			} else if( nodejs_flag ) {
 				var fs = require("fs");
-				string = fs.readFileSync( program ).toString();
+				const isFile = fs.existsSync(program);
+				if(isFile) string = fs.readFileSync( program ).toString();
+				else string = program;
 			// http request
 			} else {
 				try {
