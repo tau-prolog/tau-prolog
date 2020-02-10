@@ -23,7 +23,7 @@
 		"examples",
 		"test"
 	],
-	"author": "jariazavalverde",
+	"author": "José Antonio Riaza Valverde <riazavalverde@gmail.com> (http://jariaza.es)",
 	"license": "BSD-3-Clause",
 	"bugs": {
 		"url": "https://github.com/tau-prolog/tau-prolog/issues"
