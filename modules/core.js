@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 81, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 82, status: "beta" };
 
 
 
@@ -1532,7 +1532,7 @@
 				var id = this.id;
 				var operator = options.session ? options.session.lookup_operator( this.id, this.args.length ) : null;
 				if( options.session === undefined || options.ignore_ops || operator === null ) {
-					if( options.quoted && ! /^(!|[a-z][0-9a-zA-Z_]*)$/.test( id ) && id !== "{}" && id !== "[]" )
+					if( options.quoted && ! /^(!|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+)$/.test( id ) && id !== "{}" && id !== "[]" )
 						id = "'" + redoEscape(id) + "'";
 					return id + (this.args.length ? "(" + map( this.args,
 						function(x) { return x.toString( options); }
@@ -1552,11 +1552,11 @@
 					if( this.args.length === 0 ) {
 						return "(" + this.id + ")";
 					} else if( ["fy","fx"].indexOf( operator.class) !== -1 ) {
-						return lpar + id + " " + this.args[0].toString( options, operator ) + rpar;
+						return lpar + id + this.args[0].toString( options, operator ) + rpar;
 					} else if( ["yf","xf"].indexOf( operator.class) !== -1 ) {
-						return lpar + this.args[0].toString( options, operator ) + " " + id + rpar;
+						return lpar + this.args[0].toString( options, operator ) + id + rpar;
 					} else {
-						return lpar + this.args[0].toString( options, operator, "left" ) + " " + this.id + " " + this.args[1].toString( options, operator, "right" ) +  rpar;
+						return lpar + this.args[0].toString( options, operator, "left" ) + this.id + this.args[1].toString( options, operator, "right" ) +  rpar;
 					}
 				}
 		}
@@ -2115,10 +2115,10 @@
 					if( arity === 0 || this.__operators[p][name][i].length === arity+1 )
 						return {priority: p, class: this.__operators[p][name][i]};
 		return null;
-	}
+	};
 	Thread.prototype.lookup_operator = function( name, arity ) {
 		return this.session.lookup_operator( name, arity );
-	}
+	};
 	
 	// Throw a warning
 	Session.prototype.throw_warning = function( warning ) {
