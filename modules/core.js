@@ -1396,7 +1396,7 @@
 			500: { "+": ["yfx"], "-": ["yfx"], "/\\": ["yfx"], "\\/": ["yfx"] },
 			400: {
 				"*": ["yfx"], "/": ["yfx"], "//": ["yfx"], "rem": ["yfx"],
-				"mod": ["yfx"], "<<": ["yfx"], ">>": ["yfx"]
+				"mod": ["yfx"], "<<": ["yfx"], ">>": ["yfx"], "div": ["yfx"]
 			},
 			200: { "**": ["xfx"], "^": ["xfy"], "-": ["fy"], "+": ["fy"], "\\": ["fy"] }
 		};
@@ -1557,14 +1557,15 @@
 					operator.indicator = this.indicator;
 					var lpar = cond ? "(" : "";
 					var rpar = cond ? ")" : "";
+					var space = /^[a-z][0-9a-zA-Z_]*$/.test( id ) ? " " : "";
 					if( this.args.length === 0 ) {
 						return "(" + this.id + ")";
 					} else if( ["fy","fx"].indexOf( operator.class) !== -1 ) {
-						return lpar + id + this.args[0].toString( options, operator ) + rpar;
+						return lpar + id + space + this.args[0].toString( options, operator ) + rpar;
 					} else if( ["yf","xf"].indexOf( operator.class) !== -1 ) {
-						return lpar + this.args[0].toString( options, operator ) + id + rpar;
+						return lpar + this.args[0].toString( options, operator ) + space + id + rpar;
 					} else {
-						return lpar + this.args[0].toString( options, operator, "left" ) + this.id + this.args[1].toString( options, operator, "right" ) +  rpar;
+						return lpar + this.args[0].toString( options, operator, "left" ) + space + this.id + space + this.args[1].toString( options, operator, "right" ) +  rpar;
 					}
 				}
 		}
@@ -3377,7 +3378,12 @@
 				"///2": {
 					type_args: false,
 					type_result: false,
-					fn: function( x, y, thread ) { return y ? parseInt( x / y ) : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? Math.trunc( x / y ) : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
+				},
+				"div/2": {
+					type_args: false,
+					type_result: false,
+					fn: function( x, y, thread ) { return y ? Math.floor( x / y ) : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
 				},
 				"**/2": {
 					type_args: null,
