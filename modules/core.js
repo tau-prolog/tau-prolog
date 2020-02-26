@@ -3428,7 +3428,7 @@
 				"mod/2": {
 					type_args: false,
 					type_result: false,
-					fn: function( x, y, thread ) { return y ? x - parseInt( x / y ) * y : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? x - Math.floor( x / y ) * y : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
 				},
 				"max/2": {
 					type_args: null,
