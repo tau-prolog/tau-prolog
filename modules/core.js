@@ -1604,7 +1604,7 @@
 		if( !this.body ) {
 			return this.head.toString( options ) + ".";
 		} else {
-			return this.head.toString( options ) + " :- " + this.body.toString( options ) + ".";
+			return this.head.toString( options, 1200, "left" ) + " :- " + this.body.toString( options, 1200, "right" ) + ".";
 		}
 	};
 	
@@ -1615,7 +1615,8 @@
 			str += ":- use_module(library(" + this.modules[i] + ")).\n";
 		}
 		str += "\n";
-		for(key in this.rules) {
+		for(var key in this.rules) {
+			if(!this.rules.hasOwnProperty(key)) continue;
 			for(i = 0; i < this.rules[key].length; i++) {
 				str += this.rules[key][i].toString( options );
 				str += "\n";
@@ -2359,9 +2360,13 @@
 				if( pl.type.is_term( atom ) && atom.indicator === ":/2" ) {
 					mod = atom.args[0].id;
 					atom = atom.args[1];
+					atom.from_module = mod;
 				}
 
-				if( mod === null && pl.type.is_builtin( atom ) ) {
+				if(
+					(mod === null || atom.indicator === "listing/0" || atom.indicator === "listing/1")
+					&& pl.type.is_builtin( atom )
+				) {
 					this.__call_indicator = atom.indicator;
 					asyn = pl.predicate[atom.indicator]( this, point, atom );
 				} else {
@@ -4328,6 +4333,76 @@
 						states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
 					}
 					thread.prepend( states );
+				}
+			},
+
+			// listing/0
+			"listing/0": function( thread, point, atom ) {
+				var from_module = atom.from_module ? atom.from_module : "user";
+				var rules;
+				if(from_module === "user") {
+					rules = thread.session.rules;
+				} else {
+					if(pl.module[from_module])
+						rules = pl.module[from_module].rules;
+					else
+						rules = {};
+				}
+				var str = "";
+				for(var indicator in rules) {
+					if(!rules.hasOwnProperty(indicator)) continue;
+					var predicate = rules[indicator];
+					str += "% " + indicator + "\n";
+					if(predicate instanceof Array) {
+						for(var i = 0; i < predicate.length; i++)
+							str += predicate[i].toString( {session: thread.session} ) + "\n";
+					} else {
+						str += "/*\n" + predicate.toString() + "\n*/";
+					}
+					str += "\n";
+				}
+				thread.prepend( [new State(
+					point.goal.replace(new Term("write", [new Term(str, [])])),
+					point.substitution,
+					point
+				)] );
+			},
+
+			// listing/1
+			"listing/1": function( thread, point, atom ) {
+				var indicator = atom.args[0];
+				if(pl.type.is_variable(indicator)) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if(!pl.type.is_predicate_indicator(indicator)) {
+					thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
+				} else {
+					var from_module = atom.from_module ? atom.from_module : "user";
+					var rules;
+					if(from_module === "user") {
+						rules = thread.session.rules;
+					} else {
+						if(pl.module[from_module])
+							rules = pl.module[from_module].rules;
+						else
+							rules = {};
+					}
+					var str = "";
+					var str_indicator = indicator.args[0].id + "/" + indicator.args[1].value;
+					if(rules.hasOwnProperty(str_indicator)) {
+						var predicate = rules[str_indicator];
+						if(predicate instanceof Array) {
+							for(var i = 0; i < predicate.length; i++)
+								str += predicate[i].toString( {session: thread.session} ) + "\n";
+						} else {
+							str += "/*\n" + predicate.toString() + "\n*/";
+						}
+						str += "\n";
+					}
+					thread.prepend( [new State(
+						point.goal.replace(new Term("write", [new Term(str, [])])),
+						point.substitution,
+						point
+					)] );
 				}
 			},
 			
