@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 82, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 83, status: "beta" };
 
 
 
@@ -1490,7 +1490,15 @@
 	
 	// Numbers
 	Num.prototype.toString = function( _ ) {
-		return this.is_float && indexOf(this.value.toString(), ".") === -1 ? this.value + ".0" : this.value.toString();
+		var str = this.value.toString();
+		var e = str.indexOf("e");
+		if(e !== -1) {
+			if(str.indexOf(".") !== -1)
+				return str
+			else
+				return str.replace("e", ".0e");
+		}
+		return this.is_float && indexOf(str, ".") === -1 ? this.value + ".0" : str;
 	};
 	
 	// Terms
