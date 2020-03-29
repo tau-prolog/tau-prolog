@@ -1270,6 +1270,43 @@
 				return new Term( "/", [new Term( str.substring(0, i) ), new Num( parseInt(str.substring(i+1)), false )] );
 	}
 	
+	function escapeQueryTemplate( parts, values ) {
+		const parsed = []
+		parts.forEach(function( part, i ) {
+			parsed.push( part )
+			if (i < values.length) {
+				parsed.push( fromJavaScriptToQueryString(values[i]) )
+			}
+		})
+		return parsed.join('')
+	}
+
+	function fromJavaScriptToQueryString( value ) {
+		// Here we simply escape JS values for queries.
+		// A more efficient way might be (maybe) to convert directly to Terms
+		// and update the parser to accept a mix of strings & pre-parsed Terms.
+		if( value && value.__escaped ) {
+			return value.__escaped
+		}
+		if( typeof value === 'string' ) {
+			// Wrap in single quotes to accept any atom type
+			return `'${value}'`
+		}
+		if( typeof value === 'number' ) {
+			return value
+		}
+		if( Array.isArray( value ) ) {
+			// Convert to list syntax
+			return `[${value.map(fromJavaScriptToQueryString).join(',')}]`
+		}
+		let string
+		try {
+			string = JSON.stringify(value)
+		} catch(err) {
+			string = value
+		}
+		throw new Error(`[tau-prolog] While interpolating for query, unable to convert JS value: ${string}`)
+	}
 	
 
 	// PROLOG OBJECTS
@@ -2224,6 +2261,12 @@
 		return parseQuery( this, string );
 	};
 	
+	Session.prototype.query_all = function( parts, ...values ) {
+		const string = escapeQueryTemplate( parts, values )
+		this.query( string );
+		return collectSolutions( this );
+	}
+
 	// Get first choice point
 	Session.prototype.head_point = function() {
 		return this.thread.head_point();
@@ -2814,8 +2857,11 @@
 			// Code point at
 			codePointAt: codePointAt,
 			// From code point
-			fromCodePoint: fromCodePoint
+			fromCodePoint: fromCodePoint,
 			
+			escapeQueryTemplate: escapeQueryTemplate,
+			solutionToJavaScript: solutionToJavaScript,
+			unescapeForJavaScript: unescapeForJavaScript,
 		},
 		
 		// Statistics
@@ -6959,9 +7005,92 @@
 		// Create new session
 		create: function( limit ) {
 			return new pl.type.Session( limit );
+		},
+
+		escape: {
+			'var': function( value ) {
+				return { __escaped: `${value[0].match(/[A-Z]/) ? '' : '_'}${value}` }
 		}
+		},
 		
 	};
+
+	async function collectSolutions( session ) {
+		const results = []
+		while( true ) {
+			const {solutions, exhaustive} = await collectSolutionsNonExhaustive( session )
+			results.push(...solutions)
+			if( exhaustive ) break
+		}
+		return results
+	}
+
+	function collectSolutionsNonExhaustive( session ) {
+		return new Promise(function( resolve ) {
+			const solutions = [];
+
+			function collect( answer ) {
+				if (answer === null) {
+					resolve({ solutions, exhaustive: false });
+				}
+				else if (answer === false) {
+					resolve({ solutions, exhaustive: true });
+				}
+				else {
+					solutions.push( solutionToJavaScript(answer) );
+					session.answer( collect );
+				}
+			}
+			session.answer( collect );
+		})
+	}
+
+	function solutionToJavaScript( answer ) {
+		if( pl.type.is_error(answer) ) {
+			throw answer.args[0].toString();
+		}
+		else if( answer === false || answer === null ) {
+			return answer;
+		}
+		else {
+			const out = {};
+			if( pl.type.is_substitution(answer) ) {
+				const dom = answer.domain( true );
+				answer = answer.filter(function( id, value ) {
+					return !pl.type.is_variable( value ) ||
+						pl.type.is_variable( value ) && answer.has_attributes( id ) ||
+						dom.indexOf( value.id ) !== -1 && id !== value.id;
+				});
+			}
+			for( let link in answer.links ) {
+				if(
+					answer.links.hasOwnProperty( link ) &&
+					!(
+						pl.type.is_variable( answer.links[link] ) &&
+						link === answer.links[link].id
+					)
+				) {
+					let value = unescapeForJavaScript(answer.links[link]);
+
+					out[link.toString()] = value;
+				}
+			}
+			return out;
+		}
+	}
+
+	const singleQuotes = /^'|'$/g
+
+	function unescapeForJavaScript( node ) {
+		let value = node.toJavaScript()
+		// Remove any escaped quotes from atoms
+		if( pl.type.is_atom( node ) ) {
+			if (value[0] === "'" && value[value.length-1] === "'") {
+				value = value.replace(singleQuotes, '')
+			}
+		}
+		return value
+	}
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = pl;
