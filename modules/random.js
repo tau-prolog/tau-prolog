@@ -1,13 +1,22 @@
 var pl;
 (function( pl ) {
 
+	let random = Math.random;
+
 	var predicates = function() {
 		
 		return {
 			
+			"set_random/1": function( thread, point, atom ) {
+				if( thread.session.createRandom ) {
+					random = thread.session.createRandom(pl.utils.unescapeForJavaScript(atom.args[0]));
+					thread.success( point );
+				}
+			},
+
 			// maybe/0
 			"maybe/0": function( thread, point, _ ) {
-				if( Math.random() < 0.5 ) {
+				if( random() < 0.5 ) {
 					thread.success( point );
 				}
 			},
@@ -15,7 +24,7 @@ var pl;
 			// maybe/1
 			"maybe/1": function( thread, point, atom ) {
 				var num = atom.args[0];
-				if( Math.random() < num.value ) {
+				if( random() < num.value ) {
 					thread.success( point );
 				}
 			},
@@ -26,7 +35,7 @@ var pl;
 				if( !pl.type.is_variable( rand ) && !pl.type.is_number( rand ) ) {
 					thread.throw_error( pl.error.type( "number", rand, atom.indicator ) );
 				} else {
-					var gen = Math.random();
+					var gen = random();
 					thread.prepend( [new pl.type.State(
 						point.goal.replace( new pl.type.Term( "=", [rand, new pl.type.Num( gen, true )] ) ),
 						point.substitution, point 
@@ -48,7 +57,7 @@ var pl;
 				} else {
 					if( lower.value < upper.value ) {
 						var float = lower.is_float || upper.is_float;
-						var gen = lower.value + Math.random() * (upper.value - lower.value);
+						var gen = lower.value + random() * (upper.value - lower.value);
 						if( !float )
 							gen = Math.floor( gen );
 						thread.prepend( [new pl.type.State(
@@ -72,7 +81,7 @@ var pl;
 					thread.throw_error( pl.error.type( "integer", rand, atom.indicator ) );
 				} else {
 					if( lower.value < upper.value ) {
-						var gen = Math.floor(lower.value + Math.random() * (upper.value - lower.value + 1));
+						var gen = Math.floor(lower.value + random() * (upper.value - lower.value + 1));
 						thread.prepend( [new pl.type.State(
 							point.goal.replace( new pl.type.Term( "=", [rand, new pl.type.Num( gen, false )] ) ),
 							point.substitution, point 
@@ -94,7 +103,7 @@ var pl;
 						pointer = pointer.args[1];
 					}
 					if( array.length > 0 ) {
-						var gen = Math.floor(Math.random() * array.length);
+						var gen = Math.floor(random() * array.length);
 						thread.prepend( [new pl.type.State(
 							point.goal.replace( new pl.type.Term( "=", [member, array[gen]] ) ),
 							point.substitution, point 
@@ -123,7 +132,7 @@ var pl;
 						pointer = pointer.args[1];
 					}
 					for( i = 0; i < array.length; i++ ) {
-						var rand = Math.floor( Math.random() * array.length );
+						var rand = Math.floor( random() * array.length );
 						var tmp = array[i];
 						array[i] = array[rand];
 						array[rand] = tmp;
@@ -142,7 +151,7 @@ var pl;
 		
 	};
 	
-	var exports = ["maybe/0", "maybe/1", "random/1", "random/3", "random_between/3", "random_member/2", "random_permutation/2"];
+	var exports = ["set_random/1", "maybe/0", "maybe/1", "random/1", "random/3", "random_between/3", "random_member/2", "random_permutation/2"];
 
 
 	if( typeof module !== 'undefined' ) {
