@@ -2779,7 +2779,7 @@
 
 	// NODEJS
 
-	var nodejs_flag = typeof module !== 'undefined' && module.exports !== undefined;
+	var nodejs_flag = typeof process !== 'undefined' && !process.browser
 
 	var nodejs_arguments = nodejs_flag ?
 		arrayToList( map(process.argv.slice(1), function(arg) { return new Term( arg ); })) :
