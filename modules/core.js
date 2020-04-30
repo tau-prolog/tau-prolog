@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 83, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 84, status: "beta" };
 
 
 
@@ -980,38 +980,55 @@
 	}
 
 	function parseProgramExpansion(thread, options, reconsulted, expr) {
-		if(expr.value.body === null && expr.value.head.indicator === "?-/1") {
-			var n_thread = new Thread( thread.session );
-			n_thread.add_goal( expr.value.head.args[0] );
-			n_thread.answer( function( answer ) {
-				if( pl.type.is_error( answer ) ) {
-					thread.throw_warning( answer.args[0] );
-				} else if( answer === false || answer === null ) {
-					thread.throw_warning( pl.warning.failed_goal( expr.value.head.args[0], expr.len ) );
-				}
-			} );
-		} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
-			thread.run_directive(expr.value.head.args[0]);
+		var exprs = [];
+		if(pl.type.is_instantiated_list(expr.value.head) && expr.value.body === null) {
+			var pointer = expr.value.head;
+			while(pointer.indicator === "./2") {
+				var rule = pointer.args[0];
+				if(rule.indicator === ":-/2")
+					exprs.push(new Rule(rule.args[0], rule.args[1]));
+				else
+					exprs.push(new Rule(rule, null));
+				pointer = pointer.args[1];
+			}
 		} else {
-			indicator = expr.value.head.indicator;
-			if( options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
-				thread.session.rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
-				reconsulted[indicator] = true;
-			}
-			var goal_expansion = thread.session.rules["goal_expansion/2"];
-			if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
-				thread.renamed_variables = {};
-				var origin = {
-					head: function() { return expr.value.head; },
-					term: function() { return expr.value.body; },
-					set: function(h, p){
-						expr.value.head = h;
-						expr.value.body = p;
+			exprs.push(expr.value);
+		}
+		for(var i = 0; i < exprs.length; i++) {
+			expr.value = exprs[i];
+			if(expr.value.body === null && expr.value.head.indicator === "?-/1") {
+				var n_thread = new Thread( thread.session );
+				n_thread.add_goal( expr.value.head.args[0] );
+				n_thread.answer( function( answer ) {
+					if( pl.type.is_error( answer ) ) {
+						thread.throw_warning( answer.args[0] );
+					} else if( answer === false || answer === null ) {
+						thread.throw_warning( pl.warning.failed_goal( expr.value.head.args[0], expr.len ) );
 					}
-				};
-				parseGoalExpansion(thread, expr.value.head, body_conversion(expr.value.body), origin.set, origin);
+				} );
+			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
+				thread.run_directive(expr.value.head.args[0]);
+			} else {
+				indicator = expr.value.head.indicator;
+				if( options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
+					thread.session.rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
+					reconsulted[indicator] = true;
+				}
+				var goal_expansion = thread.session.rules["goal_expansion/2"];
+				if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
+					thread.renamed_variables = {};
+					var origin = {
+						head: function() { return expr.value.head; },
+						term: function() { return expr.value.body; },
+						set: function(h, p){
+							expr.value.head = h;
+							expr.value.body = p;
+						}
+					};
+					parseGoalExpansion(thread, expr.value.head, body_conversion(expr.value.body), origin.set, origin);
+				}
+				thread.add_rule(expr.value, options);
 			}
-			thread.add_rule(expr.value, options);
 		}
 	}
 	
