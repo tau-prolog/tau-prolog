@@ -1,7 +1,11 @@
 (function() {
 	
 	// VERSION
+<<<<<<< HEAD
+	var version = { major: 0, minor: 2, patch: 85, status: "beta" };
+=======
 	var version = { major: 0, minor: 2, patch: 84, status: "beta" };
+>>>>>>> 3e3f1c74f6002b99cfc7b76f51043c802fce0c3b
 
 
 
@@ -1358,7 +1362,6 @@
 		this.src_predicates = {};
 		this.rename = 0;
 		this.modules = [];
-		this.thread = new Thread( this );
 		this.total_threads = 1;
 		this.renamed_variables = {};
 		this.public_predicates = {};
@@ -1417,6 +1420,7 @@
 			},
 			200: { "**": ["xfx"], "^": ["xfy"], "-": ["fy"], "+": ["fy"], "\\": ["fy"] }
 		};
+		this.thread = new Thread( this );
 	}
 	
 	// Threads
@@ -1424,6 +1428,8 @@
 		this.epoch = Date.now();
 		this.session = session;
 		this.session.total_threads++;
+		this.format_success = session.format_success;
+		this.format_error = session.format_error;
 		this.total_steps = 0;
 		this.cpu_time = 0;
 		this.cpu_time_last = 0;
@@ -1431,9 +1437,9 @@
 		this.debugger = false;
 		this.debugger_states = [];
 		this.level = "top_level/0";
-		this.__calls = [];
 		this.current_limit = this.session.limit;
 		this.warnings = [];
+		this.__calls = [];
 		this.__goal_expansion = false;
 	}
 	
@@ -2495,13 +2501,13 @@
 			} else if( this.points.length === 0 ) {
 				success( false );
 			} else if( pl.type.is_error( this.head_point().goal ) ) {
-				answer = this.session.format_error( this.points.pop() );
+				answer = this.format_error( this.points.pop() );
 				this.points = [];
 				success( answer );
 			} else {
 				if( this.debugger )
 					this.debugger_states.push( this.head_point() );
-				answer = this.session.format_success( this.points.pop() );
+				answer = this.format_success( this.points.pop() );
 				success( answer );
 			}
 		}
@@ -3985,7 +3991,7 @@
 			},
 			
 			// ALL SOLUTIONS
-			
+
 			// findall/3
 			"findall/3": function( thread, point, atom ) {
 				var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
@@ -3998,33 +4004,36 @@
 				} else {
 					var variable = thread.next_free_variable();
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, template] )] );
-					var points = thread.points;
-					var limit = thread.session.limit;
-					var format_success = thread.session.format_success;
-					thread.session.format_success = function(x) { return x.substitution; };
-					thread.add_goal( newGoal, true, point );
+					var nthread = new Thread(thread.session);
+					nthread.format_success = function(state) { return state.substitution; };
+					nthread.format_error = function(state) { return state.goal; };
+					nthread.add_goal( newGoal, true, point );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							thread.__calls.unshift( callback );
 							answers.push( answer.links[variable.id] );
-							thread.session.limit = thread.current_limit;
+							nthread.answer(callback);
 						} else {
-							thread.points = points;
-							thread.session.limit = limit;
-							thread.session.format_success = format_success;
+							var reset_limit = true;
 							if( pl.type.is_error( answer ) ) {
 								thread.throw_error( answer.args[0] );
-							} else if( thread.current_limit > 0 ) {
-								var list = new Term( "[]" );
-								for( var i = answers.length - 1; i >= 0; i-- ) {
-									list = new Term( ".", [answers[i], list] );
-								}
-								thread.prepend( [new State( point.goal.replace( new Term( "=", [instances, list] ) ), point.substitution, point )] );
+							} else if( nthread.current_limit > 0 ) {
+								var list = arrayToList(answers);
+								thread.prepend( [new State(
+									point.goal.replace( new Term( "=", [instances, list] ) ),
+									point.substitution,
+									point
+								)] );
+							} else {
+								thread.prepend( [point] );
+								thread.current_limit = 0;
+								reset_limit = false;
 							}
+							thread.again(reset_limit);
 						}
 					};
-					thread.__calls.unshift( callback );
+					nthread.answer(callback);
+					return true;
 				}
 			},
 			
@@ -4055,15 +4064,13 @@
 						list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
 					}
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
-					var points = thread.points;
-					var limit = thread.session.limit;
-					var format_success = thread.session.format_success;
-					thread.session.format_success = function(x) { return x.substitution; };
-					thread.add_goal( newGoal, true, point );
+					var nthread = new Thread(thread.session);
+					nthread.format_success = function(state) { return state.substitution; };
+					nthread.format_error = function(state) { return state.goal; };
+					nthread.add_goal( newGoal, true, point );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							thread.__calls.unshift( callback );
 							var match = false;
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
@@ -4076,37 +4083,38 @@
 									break;
 								}
 							}
-							if( !match ) {
+							if( !match )
 								answers.push( {variables: arg_vars, answers: [arg_template]} );
-							}
-							thread.session.limit = thread.current_limit;
+							nthread.answer(callback);
 						} else {
-							thread.points = points;
-							thread.session.limit = limit;
-							thread.session.format_success = format_success;
+							reset_limit = true;
 							if( pl.type.is_error( answer ) ) {
 								thread.throw_error( answer.args[0] );
 							} else if( thread.current_limit > 0 ) {
 								var states = [];
 								for( var i = 0; i < answers.length; i++ ) {
 									answer = answers[i].answers;
-									var list = new Term( "[]" );
-									for( var j = answer.length - 1; j >= 0; j-- ) {
-										list = new Term( ".", [answer[j], list] );
-									}
+									var list = arrayToList(answer);
 									states.push( new State(
 										point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
-										point.substitution, point
+										point.substitution,
+										point
 									) );
 								}
 								thread.prepend( states );
+							} else {
+								thread.prepend( [point] );
+								thread.current_limit = 0;
+								reset_limit = false;
 							}
+							thread.again(reset_limit);
 						}
 					};
-					thread.__calls.unshift( callback );
+					nthread.answer(callback);
+					return true;
 				}
 			},
-	
+
 			// setof/3
 			"setof/3": function( thread, point, atom ) {
 				var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
@@ -4134,15 +4142,13 @@
 						list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
 					}
 					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
-					var points = thread.points;
-					var limit = thread.session.limit;
-					var format_success = thread.session.format_success;
-					thread.session.format_success = function(x) { return x.substitution; };
-					thread.add_goal( newGoal, true, point );
+					var nthread = new Thread(thread.session);
+					nthread.format_success = function(state) { return state.substitution; };
+					nthread.format_error = function(state) { return state.goal; };
+					nthread.add_goal( newGoal, true, point );
 					var answers = [];
 					var callback = function( answer ) {
 						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							thread.__calls.unshift( callback );
 							var match = false;
 							var arg_vars = answer.links[variable.id].args[0];
 							var arg_template = answer.links[variable.id].args[1];
@@ -4155,38 +4161,35 @@
 									break;
 								}
 							}
-							if( !match ) {
+							if( !match )
 								answers.push( {variables: arg_vars, answers: [arg_template]} );
-							}
-							thread.session.limit = thread.current_limit;
+							nthread.answer(callback);
 						} else {
-							thread.points = points;
-							thread.session.limit = limit;
-							thread.session.format_success = format_success;
+							reset_limit = true;
 							if( pl.type.is_error( answer ) ) {
 								thread.throw_error( answer.args[0] );
 							} else if( thread.current_limit > 0 ) {
 								var states = [];
 								for( var i = 0; i < answers.length; i++ ) {
 									answer = answers[i].answers.sort( pl.compare );
-									for( var i = answer.length-1; i > 0; i-- ) {
-										if( answer[i].equals(answer[i-1]) )
-										answer.splice(i,1);
-									}
-									var list = new Term( "[]" );
-									for( var j = answer.length - 1; j >= 0; j-- ) {
-										list = new Term( ".", [answer[j], list] );
-									}
+									var list = arrayToList(answer);
 									states.push( new State(
 										point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
-										point.substitution, point
+										point.substitution,
+										point
 									) );
 								}
 								thread.prepend( states );
+							} else {
+								thread.prepend( [point] );
+								thread.current_limit = 0;
+								reset_limit = false;
 							}
+							thread.again(reset_limit);
 						}
 					};
-					thread.__calls.unshift( callback );
+					nthread.answer(callback);
+					return true;
 				}
 			},
 			
