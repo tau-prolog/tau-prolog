@@ -2096,7 +2096,10 @@
 	};
 	Thread.prototype.run_directive = function( directive ) {
 		if( pl.type.is_directive( directive ) ) {
-			pl.directive[directive.indicator]( this, directive );
+			if(pl.directive[directive.indicator])
+				pl.directive[directive.indicator]( this, directive );
+			else
+				pl.directive[directive.id + "/*"]( this, directive );
 			return true;
 		}
 		return false;
@@ -3136,7 +3139,7 @@
 			
 			// Is a directive
 			is_directive: function( obj ) {
-				return obj instanceof Term && pl.directive[obj.indicator] !== undefined;
+				return obj instanceof Term && (pl.directive[obj.indicator] !== undefined || pl.directive[obj.id + "/*"] !== undefined);
 			},
 			
 			// Is a built-in predicate
@@ -3474,22 +3477,41 @@
 			
 			// dynamic/1
 			"dynamic/1": function( thread, atom ) {
-				var indicator = atom.args[0];
-				if( pl.type.is_variable( indicator ) ) {
+				var indicators = atom.args[0];
+				if(!pl.type.is_list(indicators))
+					indicators = arrayToList([indicators]);
+				var pointer = indicators;
+				while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+					indicator = pointer.args[0];
+					if( pl.type.is_variable( indicator ) ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					} else if( !pl.type.is_compound( indicator ) || indicator.indicator !== "//2" ) {
+						thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
+					} else if( pl.type.is_variable( indicator.args[0] ) || pl.type.is_variable( indicator.args[1] ) ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					} else if( !pl.type.is_atom( indicator.args[0] ) ) {
+						thread.throw_error( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
+					} else if( !pl.type.is_integer( indicator.args[1] ) ) {
+						thread.throw_error( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
+					} else {
+						var key = indicator.args[0].id + "/" + indicator.args[1].value;
+						thread.session.public_predicates[key] = true;
+						if( !thread.session.rules[key] )
+							thread.session.rules[key] = [];
+					}
+					pointer = pointer.args[1];
+				}
+				if(pl.type.is_variable(pointer)) {
 					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_compound( indicator ) || indicator.indicator !== "//2" ) {
+				} else if(!pl.type.is_term(pointer) || pointer.indicator !== "[]/0") {
 					thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
-				} else if( pl.type.is_variable( indicator.args[0] ) || pl.type.is_variable( indicator.args[1] ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_atom( indicator.args[0] ) ) {
-					thread.throw_error( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
-				} else if( !pl.type.is_integer( indicator.args[1] ) ) {
-					thread.throw_error( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
-				} else {
-					var key = atom.args[0].args[0].id + "/" + atom.args[0].args[1].value;
-					thread.session.public_predicates[key] = true;
-					if( !thread.session.rules[key] )
-						thread.session.rules[key] = [];
+				}
+			},
+
+			// dynamic/[2..]
+			"dynamic/*": function( thread, atom ) {
+				for(var i = 0; i < atom.args.length; i++) {
+					pl.directive["dynamic/1"](thread, new Term("dynamic", [atom.args[i]]));
 				}
 			},
 			
