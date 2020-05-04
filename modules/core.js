@@ -1,11 +1,7 @@
 (function() {
 	
 	// VERSION
-<<<<<<< HEAD
 	var version = { major: 0, minor: 2, patch: 85, status: "beta" };
-=======
-	var version = { major: 0, minor: 2, patch: 84, status: "beta" };
->>>>>>> 3e3f1c74f6002b99cfc7b76f51043c802fce0c3b
 
 
 
