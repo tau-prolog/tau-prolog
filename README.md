@@ -1,8 +1,8 @@
 ![Tau Prolog](http://tau-prolog.org/logo/tauprolog64.png "Tau Prolog")
 
-# Tau Prolog
-
 *[`@tau_prolog`](https://twitter.com/tau_prolog) ([`tau-prolog.org`](http://tau-prolog.org)) by [`@jariazavalverde`](https://twitter.com/jariazavalverde) ([`jariaza.es`](http://jariaza.es))*
+
+# Tau Prolog
 
 ## A Prolog interpreter in JavaScript
 **Tau Prolog** is a client-side Prolog interpreter fully implemented in JavaScript, whose development has been directed by the ISO Prolog Standard.
@@ -17,13 +17,16 @@
 
 ## A brief look
 
-1. **Load the library:**
+1. **Load the library**
 ```html
 <script src="tau-prolog.js"></script>
 ```
-2. **Consult a program:**
+2. **Create a session**
 ```javascript
 var session = pl.create();
+```
+3. **Consult a program**
+```javascript
 session.consult(`
     likes(sam, salad).
     likes(dean, pie).
@@ -31,11 +34,15 @@ session.consult(`
     likes(dean, whiskey).
 `);
 ```
-3. **Query a goal:**
+or
+```javascript
+session.consult("link/to/src.pl");
+```
+4. **Query a goal**
 ```javascript
 session.query("likes(sam, X).");
 ```
-4. **Look for answers:**
+5. **Look for answers**
 ```javascript
 var callback = console.log;
 session.answer(callback); // X = salad ;
@@ -57,6 +64,7 @@ $ npm install tau-prolog
 * [A simple tutorial](http://tau-prolog.org/manual/a-simple-tutorial)
 * [Compatibility with Node.js](http://tau-prolog.org/manual/compatibility-with-nodejs)
 * [Manipulating the DOM with Prolog](http://tau-prolog.org/manual/manipulating-the-dom-with-prolog)
+* [Making your own packages](http://tau-prolog.org/manual/making-your-own-packages)
 * [Prototypes and Prolog objects](http://tau-prolog.org/manual/prototypes-and-prolog-objects)
 
 ### [**Prolog Predicate Reference**](http://tau-prolog.org/documentation#prolog)
