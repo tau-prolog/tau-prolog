@@ -7,6 +7,27 @@
 
 	// IO FILE SYSTEM
 
+	function cd(working_directory, path) {
+        if(path[0] === "/")
+            working_directory = path;
+        else
+            working_directory += path;
+        if(working_directory[working_directory.length-1] !== "/")
+            working_directory += "/";
+        working_directory = working_directory.replace(/\/\.\//g, "/");
+        var dirs = working_directory.split("/");
+        var dirs2 = [];
+        for(var i = 0; i < dirs.length; i++) {
+            if(dirs[i] !== "..") {
+                dirs2.push(dirs[i]);
+            } else {
+                if(dirs2.length !== 0)
+                	dirs2.pop();
+            }
+        }
+        return dirs2.join("/");
+    }
+
 	// Virtual file system for browser
 	tau_file_system = {
 		// Current files
@@ -88,7 +109,7 @@
 			if( mode === "write" )
 				file.text = "";
 			return file;
-		},
+		}
 	};
 
 	// User input for browser
@@ -1376,6 +1397,7 @@
 		this.standard_output = this.streams["user_output"];
 		this.current_input = this.streams["user_input"];
 		this.current_output = this.streams["user_output"];
+		this.working_directory = "/"; // only for browser
 		this.format_success = function( state ) { return state.substitution; };
 		this.format_error = function( state ) { return state.goal; };
 		this.flag = {	
@@ -2035,6 +2057,8 @@
 
 	// Open file
 	Session.prototype.file_system_open = function( path, type, mode ) {
+		if(this.flag.nodejs.indicator === "false/0")
+			path = cd(this.working_directory, path);
 		return this.file_system.open( path, type, mode );
 	};
 	Thread.prototype.file_system_open = function( path, type, mode ) {
@@ -2836,7 +2860,9 @@
 			// Code point at
 			codePointAt: codePointAt,
 			// From code point
-			fromCodePoint: fromCodePoint
+			fromCodePoint: fromCodePoint,
+			// Current directory
+			cd: cd
 			
 		},
 		
@@ -3545,7 +3571,7 @@
 				} else if( !pl.type.is_value_flag( flag, value ) ) {
 					thread.throw_error( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
 				} else if( !pl.type.is_modifiable_flag( flag ) ) {
-					thread.throw_error( pl.error.permission( "modify", "flag", flag ) );
+					thread.throw_error( pl.error.permission( "modify", "flag", flag, atom.indicator ) );
 				} else {
 					thread.session.flag[flag.id] = value;
 				}
@@ -6454,60 +6480,6 @@
 
 
 
-			// OPERATING SYSTEM INTERACTION
-
-			// shell/1
-			"shell/1": function( thread, point, atom ) {
-				var command = atom.args[0];
-				thread.prepend( [new State(
-					point.goal.replace( new Term("shell", [command, new Num(0, false)]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// shell/2
-			"shell/2": function( thread, point, atom ) {
-				var command = atom.args[0], status = atom.args[1];
-				if( pl.type.is_variable(command) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_atom(command) ) {
-					thread.throw_error( pl.error.type( "atom", command, atom.indicator ) );
-				} else if( !pl.type.is_variable(status) && !pl.type.is_integer(status) ) {
-					thread.throw_error( pl.error.type( "integer", status, atom.indicator ) );
-				} else {
-					if(nodejs_flag) {
-						const { exec } = require('child_process');
-						exec( command.id, function() {} ).on( 'exit', function(code) {
-							thread.prepend( [new State(
-								point.goal.replace( new Term("=", [status, new Num(code, false)]) ),
-								point.substitution,
-								point
-							)] );
-							thread.again();
-						} );
-						return true;
-					} else {
-						try {
-							eval( command.id );
-							thread.prepend( [new State(
-								point.goal.replace( new Term("=", [status, new Num(0, false)]) ),
-								point.substitution,
-								point
-							)] );
-						} catch( error ) {
-							thread.prepend( [new State(
-								point.goal.replace( new Term("=", [status, new Num(1, false)]) ),
-								point.substitution,
-								point
-							)] );
-						}
-					}
-				}
-			},
-
-
-
 			// LOAD PROLOG SOURCE FILES
 
 			// consult/1
@@ -6700,8 +6672,8 @@
 			
 			// NodeJS
 			nodejs: {
-				allowed: [new Term( "yes" ), new Term( "no" )],
-				value: new Term( nodejs_flag ? "yes" : "no" ),
+				allowed: [new Term( "true" ), new Term( "false" )],
+				value: new Term( nodejs_flag ? "true" : "false" ),
 				changeable: false
 			},
 
