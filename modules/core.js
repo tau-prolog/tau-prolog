@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 85, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 86, status: "beta" };
 
 
 
@@ -6925,6 +6925,14 @@
 				var str = "";
 				if( pl.type.is_substitution( answer ) ) {
 					var dom = answer.domain( true );
+					for( var link in answer.links ){
+						if( !answer.links.hasOwnProperty(link) ) continue;
+						if( pl.type.is_variable(answer.links[link]) ) {
+							var links = {};
+							links[answer.links[link].id] = new Var(link);
+							answer = answer.apply( new Substitution(links) );
+						}
+					}
 					answer = answer.filter( function( id, value ) {
 						return !pl.type.is_variable( value ) ||
 							pl.type.is_variable( value ) && answer.has_attributes( id ) ||
