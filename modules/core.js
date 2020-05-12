@@ -47,6 +47,7 @@
 					return null;
 				file = {
 					path: path,
+					name: name,
 					text: "",
 					type: type,
 					get: function(length, position) {

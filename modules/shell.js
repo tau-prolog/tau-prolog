@@ -284,13 +284,64 @@ var pl;
                         }
                     }
                 }
+            },
+
+            // mv/2
+            "mv/2": function(thread, point, atom) {
+                var old_path = atom.args[0], new_path = atom.args[1];
+                if(pl.type.is_variable(old_path) || pl.type.is_variable(new_path)) {
+                    thread.throw_error(pl.error.instantiation(atom.indicator));
+                } else if(!pl.type.is_atom(old_path)) {
+                    thread.throw_error(pl.error.type("atom", old_path, atom.indicator));
+                } else if(!pl.type.is_atom(new_path)) {
+                    thread.throw_error(pl.error.type("atom", new_path, atom.indicator));
+                } else {
+                    if(thread.get_flag("nodejs").indicator === "true/0") {
+                        var fs = require('fs');
+                        fs.stat(old_path.id, function(error, stat) {
+                            if(error || !stat.isFile()) {
+                                thread.throw_error(pl.error.existence("source_sink", old_path, atom.indicator));
+                                thread.again();
+                            } else {
+                                fs.rename(old_path.id, new_path.id, function(error) { 
+                                    if(error)
+                                        thread.throw_error(pl.error.existence("source_sink", new_path, atom.indicator));
+                                    else
+                                        thread.success(point);
+                                    thread.again();
+                                });
+                            }
+                        });
+                        return true;
+                    } else {
+                        var old_file = thread.file_system_open(old_path.id, "text", "read");
+                        if(old_file) {
+                            var new_file = thread.file_system_open(new_path.id, "text", "write");
+                            if(new_file) {
+                                new_file.text = old_file.text;
+                                var absolute = pl.utils.cd(thread.session.working_directory, old_path.id);
+                                var dirs = absolute.replace(/\/$/, "").split("/");
+                                var dir = thread.session.file_system.files;
+                                var name = dirs[dirs.length-1];
+                                for(var i = 1; i < dirs.length-1; i++)
+                                    dir = dir[dirs[i]];
+                                delete dir[name];
+                                thread.success(point);
+                            } else {
+                                thread.throw_error(pl.error.existence("source_sink", new_path, atom.indicator));
+                            }
+                        } else {
+                            thread.throw_error(pl.error.existence("source_sink", old_path, atom.indicator));
+                        }
+                    }
+                }
             }
 		
 		};
 		
 	};
 	
-    var exports = ["shell/1", "shell/2", "cd/1", "ls/0", "ls/1", "pwd/0", "cwd/1", "rm/1", "mkdir/1"];
+    var exports = ["shell/1", "shell/2", "cd/1", "ls/0", "ls/1", "pwd/0", "cwd/1", "rm/1", "mv/2", "mkdir/1"];
 
     function is_empty(obj) {
         for(var prop in obj)
