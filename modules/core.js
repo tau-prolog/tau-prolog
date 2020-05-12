@@ -2064,7 +2064,7 @@
 
 	// Open file
 	Session.prototype.file_system_open = function( path, type, mode ) {
-		if(this.flag.nodejs.indicator === "false/0")
+		if(this.get_flag("nodejs").indicator === "false/0")
 			path = cd(this.working_directory, path);
 		return this.file_system.open( path, type, mode );
 	};
@@ -2225,14 +2225,14 @@
 			string = program;
 			var len = string.length;
 			// script id
-			if( !nodejs_flag && program != "" && document.getElementById( string ) ) {
+			if( this.get_flag("nodejs").indicator === "false/0" && program != "" && document.getElementById( string ) ) {
 				var script = document.getElementById( string );
 				var type = script.getAttribute( "type" );
 				if( type !== null && type.replace( / /g, "" ).toLowerCase() === "text/prolog" ) {
 					string = script.text;
 				}
 			// file (node.js)
-			} else if( nodejs_flag ) {
+			} else if( this.get_flag("nodejs").indicator === "true/0" ) {
 				var fs = require("fs");
 				const isFile = fs.existsSync(program);
 				if(isFile) string = fs.readFileSync( program ).toString();
@@ -6429,7 +6429,7 @@
 			
 			// halt/0
 			"halt/0": function( thread, point, _ ) {
-				if( nodejs_flag )
+				if( thread.get_flag("nodejs").indicator === "true/0" )
 					process.exit();
 				thread.points = [];
 			},
@@ -6442,7 +6442,7 @@
 				} else if( !pl.type.is_integer( int ) ) {
 					thread.throw_error( pl.error.type( "integer", int, atom.indicator ) );
 				} else {
-					if( nodejs_flag )
+					if( thread.get_flag("nodejs").indicator === "true/0" )
 						process.exit(int.value);
 					thread.points = [];
 				}

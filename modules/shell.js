@@ -27,7 +27,7 @@ var pl;
 				} else if( !pl.type.is_variable(status) && !pl.type.is_integer(status) ) {
 					thread.throw_error( pl.error.type( "integer", status, atom.indicator ) );
 				} else {
-					if(pl.flag["nodejs"].value.indicator === "true/0") {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
 						const { exec } = require('child_process');
 						exec( command.id, function() {} ).on( 'exit', function(code) {
 							thread.prepend( [new pl.type.State(
@@ -65,7 +65,7 @@ var pl;
                 } else if(!pl.type.is_atom(path)) {
                     thread.throw_error(pl.error.type("atom", path, atom.indicator));
                 } else {
-                    if(thread.session.flag.nodejs.indicator === "true/0") {
+                    if(thread.get_flag("nodejs").indicator === "true/0") {
                         try {
                             process.chdir(path.id);
                             thread.success(point);
@@ -101,7 +101,7 @@ var pl;
                 } else if(!pl.type.is_atom(path)) {
                     thread.throw_error(pl.error.type("atom", path, atom.indicator));
                 } else {
-                    if(thread.session.flag.nodejs.indicator === "true/0") {
+                    if(thread.get_flag("nodejs").indicator === "true/0") {
                         var fs = require('fs');
                         fs.readdir(path.id, function(error, items) {
                             if(error) {
@@ -144,7 +144,7 @@ var pl;
             // pwd/0
             "pwd/0": function(thread, point, atom) {
                 var wd;
-                if(thread.session.flag.nodejs.indicator === "true/0") {
+                if(thread.get_flag("nodejs").indicator === "true/0") {
                     wd = process.cwd();
                 } else {
                     wd = thread.session.working_directory;
@@ -163,7 +163,7 @@ var pl;
                     thread.throw_error(pl.error.type("atom", path, atom.indicator));
                 } else {
                     var wd;
-                    if(thread.session.flag.nodejs.indicator === "true/0") {
+                    if(thread.get_flag("nodejs").indicator === "true/0") {
                         wd = process.cwd();
                     } else {
                         wd = thread.session.working_directory;
@@ -184,7 +184,7 @@ var pl;
                 } else if(!pl.type.is_atom(path)) {
                     thread.throw_error(pl.error.type("atom", path, atom.indicator));
                 } else {
-                    if(thread.session.flag.nodejs.indicator === "true/0") {
+                    if(thread.get_flag("nodejs").indicator === "true/0") {
                         var fs = require('fs');
                         fs.stat(path.id, function(error, stat) {
                             if(error) {
@@ -236,13 +236,61 @@ var pl;
                         }
                     }
                 }
+            },
+
+            // mkdir/1
+            "mkdir/1": function(thread, point, atom) {
+                var path = atom.args[0];
+                if(pl.type.is_variable(path)) {
+                    thread.throw_error(pl.error.instantiation(atom.indicator));
+                } else if(!pl.type.is_atom(path)) {
+                    thread.throw_error(pl.error.type("atom", path, atom.indicator));
+                } else {
+                    if(thread.get_flag("nodejs").indicator === "true/0") {
+                        var fs = require('fs');
+                        fs.stat(path.id, function(error, stat) {
+                            if(!error && (stat.isDirectory() || stat.isFile())) {
+                                thread.throw_error(pl.error.permission("create", "directory", path, atom.indicator));
+                                thread.again();
+                            } else {
+                                fs.mkdir(path.id, function(error) { 
+                                    if(error)
+                                        thread.throw_error(pl.error.existence("directory", path, atom.indicator));
+                                    else
+                                        thread.success(point);
+                                    thread.again();
+                                });
+                            }
+                        });
+                        return true;
+                    } else {
+                        var absolute = pl.utils.cd(thread.session.working_directory, path.id);
+                        var dirs = absolute.replace(/\/$/, "").split("/");
+                        var dir = thread.session.file_system.files;
+                        var name = dirs[dirs.length-1];
+                        for(var i = 1; i < dirs.length-1; i++) {
+                            if(dir.hasOwnProperty(dirs[i]))
+                                dir = dir[dirs[i]];
+                            else {
+                                thread.throw_error(pl.error.existence("directory", path, atom.indicator));
+                                return;
+                            }
+                        }
+                        if(dir[name]) {
+                            thread.throw_error(pl.error.permission("create", "directory", path, atom.indicator));
+                        } else {
+                            dir[name] = {};
+                            thread.success(point);
+                        }
+                    }
+                }
             }
 		
 		};
 		
 	};
 	
-    var exports = ["shell/1", "shell/2", "cd/1", "ls/0", "ls/1", "pwd/0", "cwd/1", "rm/1"];
+    var exports = ["shell/1", "shell/2", "cd/1", "ls/0", "ls/1", "pwd/0", "cwd/1", "rm/1", "mkdir/1"];
 
     function is_empty(obj) {
         for(var prop in obj)
