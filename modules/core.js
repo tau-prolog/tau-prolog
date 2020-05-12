@@ -11,9 +11,7 @@
         if(path[0] === "/")
             working_directory = path;
         else
-            working_directory += path;
-        if(working_directory[working_directory.length-1] !== "/")
-            working_directory += "/";
+            working_directory += working_directory[working_directory.length-1] === "/" ? path : "/" + path;
         working_directory = working_directory.replace(/\/\.\//g, "/");
         var dirs = working_directory.split("/");
         var dirs2 = [];
@@ -25,7 +23,7 @@
                 	dirs2.pop();
             }
         }
-        return dirs2.join("/");
+        return dirs2.join("/").replace(/\/\.$/, "/");
     }
 
 	// Virtual file system for browser
@@ -33,80 +31,89 @@
 		// Current files
 		files: {},
 		// Open file
-		open: function( path, type, mode ) {
-			var file = tau_file_system.files[path];
-			if( !file ) {
-				if( mode === "read" )
+		open: function(path, type, mode) {
+			var dirs = path.replace(/\/$/, "").split("/");
+			var dir = tau_file_system.files;
+			var name = dirs[dirs.length-1];
+			for(var i = 1; i < dirs.length-1; i++) {
+				if(dir.hasOwnProperty(dirs[i]))
+					dir = dir[dirs[i]];
+				else
+					return null;
+			}
+			var file = dir[name];
+			if(file === undefined) {
+				if(mode === "read")
 					return null;
 				file = {
 					path: path,
 					text: "",
 					type: type,
-					get: function( length, position ) {
-						if( position === this.text.length ) {
+					get: function(length, position) {
+						if(position === this.text.length) {
 							return "end_of_file";
-						} else if( position > this.text.length ) {
+						} else if(position > this.text.length) {
 							return "end_of_file";
 						} else {
-							return this.text.substring( position, position+length );
+							return this.text.substring(position, position+length);
 						}
 					},
-					put: function( text, position ) {
-						if( position === "end_of_file" ) {
+					put: function(text, position) {
+						if(position === "end_of_file") {
 							this.text += text;
 							return true;
-						} else if( position === "past_end_of_file" ) {
+						} else if(position === "past_end_of_file") {
 							return null;
 						} else {
 							this.text = this.text.substring(0, position) + text + this.text.substring(position+text.length);
 							return true;
 						}
 					},
-					get_byte: function( position ) {
-						if( position === "end_of_stream" )
+					get_byte: function(position) {
+						if(position === "end_of_stream")
 							return -1;
 						var index = Math.floor(position/2);
-						if( this.text.length <= index )
+						if(this.text.length <= index)
 							return -1;
-						var code = codePointAt( this.text[Math.floor(position/2)], 0 );
-						if( position % 2 === 0 )
+						var code = codePointAt(this.text[Math.floor(position/2)], 0);
+						if(position % 2 === 0)
 							return code & 0xff;
 						else
 							return code / 256 >>> 0;
 					},
-					put_byte: function( byte, position ) {
+					put_byte: function(byte, position) {
 						var index = position === "end_of_stream" ? this.text.length : Math.floor(position/2);
-						if( this.text.length < index )
+						if(this.text.length < index)
 							return null;
-						var code = this.text.length === index ? -1 : codePointAt( this.text[Math.floor(position/2)], 0 );
-						if( position % 2 === 0 ) {
+						var code = this.text.length === index ? -1 : codePointAt(this.text[Math.floor(position/2)], 0);
+						if(position % 2 === 0) {
 							code = code / 256 >>> 0;
 							code = ((code & 0xff) << 8) | (byte & 0xff);
 						} else {
 							code = code & 0xff;
 							code = ((byte & 0xff) << 8) | (code & 0xff);
 						}
-						if( this.text.length === index )
-							this.text += fromCodePoint( code );
+						if(this.text.length === index)
+							this.text += fromCodePoint(code);
 						else 
-							this.text = this.text.substring( 0, index ) + fromCodePoint( code ) + this.text.substring( index+1 );
+							this.text = this.text.substring(0, index) + fromCodePoint(code) + this.text.substring(index+1);
 						return true;
 					},
 					flush: function() {
 						return true;
 					},
 					close: function() {
-						var file = tau_file_system.files[this.path];
-						if( !file ) {
+						var file = dir[name];
+						if(!file) {
 							return null;
 						} else {
 							return true;
 						}
 					}
 				};
-				tau_file_system.files[path] = file;
+				dir[name] = file;
 			}
-			if( mode === "write" )
+			if(mode === "write")
 				file.text = "";
 			return file;
 		}

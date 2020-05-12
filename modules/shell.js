@@ -103,27 +103,34 @@ var pl;
                 } else {
                     if(thread.session.flag.nodejs.indicator === "true/0") {
                         var fs = require('fs');
-                        fs.readdir(path.id, function(_err, items) {
-                            var listing = items.join(" ");
-                            thread.prepend([new pl.type.State(
-                                point.goal.replace( new pl.type.Term("write", [new pl.type.Term(listing, [])]) ),
-                                point.substitution,
-                                point
-                            )]);
+                        fs.readdir(path.id, function(error, items) {
+                            if(error) {
+                                thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
+                            } else {
+                                var listing = items.join(" ");
+                                thread.prepend([new pl.type.State(
+                                    point.goal.replace( new pl.type.Term("write", [new pl.type.Term(listing, [])]) ),
+                                    point.substitution,
+                                    point
+                                )]);
+                            }
                             thread.again();
                         });
                         return true;
                     } else {
-                        var directory = pl.utils.cd(thread.session.working_directory, path.id);
-                        var fs = thread.session.file_system;
-                        var list = [];
-                        for(var file in fs.files) {
-                            if(file.substr(0, directory.length) === directory) {
-                                var rest = file.substr(directory.length).split("/");
-                                if(list.indexOf(rest[0]) === -1)
-                                    list.push(rest[0]);
+                        var file = pl.utils.cd(thread.session.working_directory, path.id);
+                        var dirs = file.replace(/\/$/, "").split("/");
+                        var dir = thread.session.file_system.files;
+                        for(var i = 1; i < dirs.length; i++) {
+                            if(!dir.hasOwnProperty(dirs[i])) {
+                                thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
+                                return;
                             }
+                            dir = dir[dirs[i]];
                         }
+                        var list = [];
+                        for(var prop in dir)
+                            list.push(prop);
                         var listing = list.join(" ");
                         thread.prepend([new pl.type.State(
                             point.goal.replace( new pl.type.Term("write", [new pl.type.Term(listing, [])]) ),
@@ -206,8 +213,23 @@ var pl;
                         return true;
                     } else {
                         var file = pl.utils.cd(thread.session.working_directory, path.id);
-                        if(thread.session.file_system.files.hasOwnProperty(file)) {
-                            thread.session.file_system.files[file] = undefined;
+                        var dirs = file.replace(/\/$/, "").split("/");
+                        var dir = thread.session.file_system.files;
+                        var name = dirs[dirs.length-1];
+                        for(var i = 1; i < dirs.length-1; i++) {
+                            if(dir.hasOwnProperty(dirs[i]))
+                                dir = dir[dirs[i]];
+                            else {
+                                thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
+                                return;
+                            }
+                        }
+                        if(dir[name]) {
+                            if(dir[name].path !== file && !is_empty(dir[name])) {
+                                thread.throw_error(pl.error.permission("delete", "source_sink", path, atom.indicator));
+                                return;
+                            }
+                            delete dir[name];
                             thread.success(point);
                         } else {
                             thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
@@ -222,6 +244,12 @@ var pl;
 	
     var exports = ["shell/1", "shell/2", "cd/1", "ls/0", "ls/1", "pwd/0", "cwd/1", "rm/1"];
 
+    function is_empty(obj) {
+        for(var prop in obj)
+            if(obj.hasOwnProperty(prop))
+                return false;
+        return true;
+    }
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
