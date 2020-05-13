@@ -27,9 +27,8 @@
 	}
 	
 	// Virtual file
-	function TauFile(path, name, type, parent, text) {
+	function TauFile(name, type, parent, text) {
 		text = text === undefined ? "" : text;
-		this.path = path;
 		this.name = name;
 		this.type = type;
 		this.parent = parent;
@@ -98,27 +97,59 @@
 		return true;
 	};
 
+	// Virtual directory
+	function TauDirectory(name, parent) {
+		this.name = name;
+		this.parent = parent;
+		this.files = {};
+		this.length = 0;
+	}
+
+	TauDirectory.prototype.lookup = function(file) {
+		if(this.files.hasOwnProperty(file))
+			return this.files[file];
+		return null;
+	};
+
+	TauDirectory.prototype.push = function(name, file) {
+		if(!this.files.hasOwnProperty(name))
+			this.length++;
+		this.files[name] = file;
+	};
+
+	TauDirectory.prototype.remove = function(name) {
+		if(this.files.hasOwnProperty(name)) {
+			this.length--;
+			delete this.files[name];
+		}
+	};
+
+	TauDirectory.prototype.empty = function() {
+		return this.length === 0;
+	}
+
 	// Virtual file system for browser
 	tau_file_system = {
 		// Current files
-		files: {},
+		files: new TauDirectory("/", "/", null),
 		// Open file
 		open: function(path, type, mode) {
 			var dirs = path.replace(/\/$/, "").split("/");
 			var dir = tau_file_system.files;
 			var name = dirs[dirs.length-1];
 			for(var i = 1; i < dirs.length-1; i++) {
-				if(dir.hasOwnProperty(dirs[i]))
-					dir = dir[dirs[i]];
-				else
+				dir = dir.lookup(dirs[i]);
+				if(!pl.type.is_directory(dir))
 					return null;
 			}
-			var file = dir[name];
-			if(file === undefined) {
+			var file = dir.lookup(name);
+			if(file === null) {
 				if(mode === "read")
 					return null;
-				file = new TauFile(path, name, type, dir);
-				dir[name] = file;
+				file = new TauFile(name, type, dir);
+				dir.push(name, file);
+			} else if(!pl.type.is_file(file)) {
+				return null;
 			}
 			if(mode === "write")
 				file.text = "";
@@ -127,13 +158,13 @@
 		// Get item
 		get: function(path) {
 			var dirs = path.replace(/\/$/, "").split("/");
-			var pointer = tau_file_system.files;
+			var file = tau_file_system.files;
 			for(var i = 1; i < dirs.length; i++)
-				if(!pl.type.is_file(pointer) && pointer.hasOwnProperty(dirs[i]))
-					pointer = pointer[dirs[i]];
+				if(pl.type.is_directory(file))
+					file = file.lookup(dirs[i]);
 				else
 					return null;
-			return pointer;
+			return file;
 		}
 	};
 
@@ -3029,6 +3060,7 @@
 			Session: Session,
 			Substitution: Substitution,
 			File: TauFile,
+			Directory: TauDirectory,
 			
 			// Order
 			order: [Var, Num, Term, Stream],
@@ -3300,6 +3332,11 @@
 			// Is a virtual file
 			is_file: function( obj ) {
 				return obj instanceof TauFile;
+			},
+
+			// Is a virtual directory
+			is_directory: function( obj ) {
+				return obj instanceof TauDirectory;
 			}
 			
 		},

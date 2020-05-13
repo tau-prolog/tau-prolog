@@ -88,9 +88,9 @@ var pl;
 					} else {
 						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
-						if(file && !pl.type.is_file(file)) {
+						if(pl.type.is_directory(file)) {
 							var items = [];
-							for(var prop in file)
+							for(var prop in file.files)
 								items.push(prop);
 							var listing = new pl.type.Term("[]", []);
 							for(var i = items.length-1; i >= 0; i--)
@@ -164,8 +164,8 @@ var pl;
 					} else {
 						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
-						if(file && pl.type.is_file(file)) {
-							delete file.parent[file.name];
+						if(pl.type.is_file(file)) {
+							file.parent.remove(file.name);
 							thread.success(point);
 						} else {
 							thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
@@ -201,26 +201,16 @@ var pl;
 						return true;
 					} else {
 						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
-						var dirs = absolute.replace(/\/$/, "").split("/");
-						var dir = thread.session.file_system.files;
-						var name = dirs[dirs.length-1];
-						for(var i = 1; i < dirs.length-1; i++) {
-							if(dir.hasOwnProperty(dirs[i]))
-								dir = dir[dirs[i]];
-							else {
-								thread.throw_error(pl.error.existence("directory", path, atom.indicator));
-								return;
-							}
-						}
-						if(!dir.hasOwnProperty(name) || pl.type.is_file(dir[name])) {
-							thread.throw_error(pl.error.existence("directory", path, atom.indicator));
-						} else {
-							if(is_empty(dir[name])) {
-								delete dir[name];
+						var file = thread.session.file_system.get(absolute);
+						if(pl.type.is_directory(file)) {
+							if(file !== thread.session.file_system.files && file.empty()) {
+								file.parent.remove(file.name);
 								thread.success(point);
 							} else {
 								thread.throw_error(pl.error.permission("delete", "directory", path, atom.indicator));
 							}
+						} else {
+							thread.throw_error(pl.error.existence("directory", path, atom.indicator));
 						}
 					}
 				}
@@ -257,17 +247,16 @@ var pl;
 						var dir = thread.session.file_system.files;
 						var name = dirs[dirs.length-1];
 						for(var i = 1; i < dirs.length-1; i++) {
-							if(dir.hasOwnProperty(dirs[i]))
-								dir = dir[dirs[i]];
-							else {
+							dir = dir.lookup(dirs[i]);
+							if(!pl.type.is_directory(dir)) {
 								thread.throw_error(pl.error.existence("directory", path, atom.indicator));
 								return;
 							}
 						}
-						if(dir[name]) {
+						if(dir.lookup(name)) {
 							thread.throw_error(pl.error.permission("create", "directory", path, atom.indicator));
 						} else {
-							dir[name] = {};
+							dir.push(name, new pl.type.Directory(name, dir));
 							thread.success(point);
 						}
 					}
@@ -344,7 +333,7 @@ var pl;
 					} else {
 						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
-						if(file && pl.type.is_file(file))
+						if(pl.type.is_file(file))
 							thread.success(point);
 					}
 				}
@@ -369,7 +358,7 @@ var pl;
 					} else {
 						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
-						if(file && !pl.type.is_file(file))
+						if(pl.type.is_directory(file))
 							thread.success(point);
 					}
 				}
@@ -463,13 +452,6 @@ var pl;
 	};
 	
 	var exports = ["shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1"];
-
-	function is_empty(obj) {
-		for(var prop in obj)
-			if(obj.hasOwnProperty(prop))
-				return false;
-		return true;
-	}
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
