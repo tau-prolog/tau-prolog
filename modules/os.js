@@ -301,8 +301,8 @@ var pl;
 								var dir = thread.session.file_system.files;
 								var name = dirs[dirs.length-1];
 								for(var i = 1; i < dirs.length-1; i++)
-									dir = dir[dirs[i]];
-								delete dir[name];
+									dir = dir.lookup(dirs[i]);
+								dir.remove(name);
 								thread.success(point);
 							} else {
 								thread.throw_error(pl.error.existence("source_sink", new_path, atom.indicator));
@@ -445,13 +445,99 @@ var pl;
 							thread.success(point);
 					}
 				}
+			},
+
+			// size_file/2
+			"size_file/2": function(thread, point, atom) {
+				var path = atom.args[0], size = atom.args[1];
+				if(pl.type.is_variable(path)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(path)) {
+					thread.throw_error(pl.error.type("atom", path, atom.indicator));
+				} else if(!pl.type.is_variable(size) && !pl.type.is_integer(size)) {
+					thread.throw_error(pl.error.type("integer", size, atom.indicator));
+				} else {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var fs = require('fs');
+						fs.stat(path.id, function(error, stat) {
+							if(!error) {
+								var filesize = stat.size;
+								thread.prepend([new pl.type.State(
+									point.goal.replace(new pl.type.Term("=", [size, new pl.type.Num(filesize, false)])),
+									point.substitution,
+									point
+								)]);
+							} else {
+								thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
+							}
+							thread.again();
+						});
+						return true;
+					} else {
+						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
+						var file = thread.session.file_system.get(absolute);
+						if(pl.type.is_file(file) || pl.type.is_directory(file)) {
+							var filesize = file.size();
+							thread.prepend([new pl.type.State(
+								point.goal.replace(new pl.type.Term("=", [size, new pl.type.Num(filesize, false)])),
+								point.substitution,
+								point
+							)]);
+						} else {
+							thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
+						}
+					}
+				}
+			},
+
+			// time_file/2
+			"time_file/2": function(thread, point, atom) {
+				var path = atom.args[0], time = atom.args[1];
+				if(pl.type.is_variable(path)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(path)) {
+					thread.throw_error(pl.error.type("atom", path, atom.indicator));
+				} else if(!pl.type.is_variable(time) && !pl.type.is_number(time)) {
+					thread.throw_error(pl.error.type("number", time, atom.indicator));
+				} else {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var fs = require('fs');
+						fs.stat(path.id, function(error, stat) {
+							if(!error) {
+								var mtime = stat.mtime / 1000;
+								thread.prepend([new pl.type.State(
+									point.goal.replace(new pl.type.Term("=", [time, new pl.type.Num(mtime)])),
+									point.substitution,
+									point
+								)]);
+							} else {
+								thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
+							}
+							thread.again();
+						});
+						return true;
+					} else {
+						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
+						var file = thread.session.file_system.get(absolute);
+						if(pl.type.is_file(file) || pl.type.is_directory(file)) {
+							var mtime = file.modified;
+							thread.prepend([new pl.type.State(
+								point.goal.replace(new pl.type.Term("=", [time, new pl.type.Num(mtime)])),
+								point.substitution,
+								point
+							)]);
+						} else {
+							thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
+						}
+					}
+				}
 			}
 		
 		};
 		
 	};
 	
-	var exports = ["shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1"];
+	var exports = ["shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "time_file/2"];
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {

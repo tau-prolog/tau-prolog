@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 86, status: "beta" };
+	var version = { major: 0, minor: 2, patch: 87, status: "beta" };
 
 
 
@@ -33,6 +33,8 @@
 		this.type = type;
 		this.parent = parent;
 		this.text = text;
+		this.created = Date.now() / 1000;
+		this.modified = this.created;
 	}
 
 	TauFile.prototype.get = function(length, position) {
@@ -94,7 +96,12 @@
 	};
 
 	TauFile.prototype.close = function() {
+		this.modified = Date.now() / 1000;
 		return true;
+	};
+
+	TauFile.prototype.size = function() {
+		return this.text.length;
 	};
 
 	// Virtual directory
@@ -103,6 +110,8 @@
 		this.parent = parent;
 		this.files = {};
 		this.length = 0;
+		this.created = Date.now() / 1000;
+		this.modified = this.created;
 	}
 
 	TauDirectory.prototype.lookup = function(file) {
@@ -115,18 +124,24 @@
 		if(!this.files.hasOwnProperty(name))
 			this.length++;
 		this.files[name] = file;
+		this.modified = Date.now() / 1000;
 	};
 
 	TauDirectory.prototype.remove = function(name) {
 		if(this.files.hasOwnProperty(name)) {
 			this.length--;
 			delete this.files[name];
+			this.modified = Date.now() / 1000;
 		}
 	};
 
 	TauDirectory.prototype.empty = function() {
 		return this.length === 0;
-	}
+	};
+
+	TauDirectory.prototype.size = function() {
+		return 4096;
+	};
 
 	// Virtual file system for browser
 	tau_file_system = {
