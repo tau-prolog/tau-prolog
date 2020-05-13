@@ -1,6 +1,9 @@
 ![Tau Prolog](http://tau-prolog.org/logo/tauprolog64.png "Tau Prolog")
 
-*[`@tau_prolog`](https://twitter.com/tau_prolog) ([`tau-prolog.org`](http://tau-prolog.org)) by [`@jariazavalverde`](https://twitter.com/jariazavalverde) ([`jariaza.es`](http://jariaza.es))*
+[![www](https://img.shields.io/badge/www-tau--prolog.org-442178)](http://tau-prolog.org)
+[![twitter](https://img.shields.io/badge/twitter-%40tau__prolog-blue)](https://twitter.com/tau_prolog)
+[![license](https://img.shields.io/github/license/tau-prolog/tau-prolog?color=green)](http://tau-prolog.org/license)
+[![npm version](https://img.shields.io/npm/v/tau-prolog?color=red "npm version")](https://www.npmjs.com/tau-prolog)
 
 # Tau Prolog
 
@@ -36,7 +39,7 @@ session.consult(`
 ```
 or
 ```javascript
-session.consult("link/to/src.pl");
+session.consult("path/to/src.pl");
 ```
 4. **Query a goal**
 ```javascript
@@ -53,7 +56,7 @@ session.answer(callback); // false.
 For further information, check the [Documentation](http://tau-prolog.org/documentation).
 
 ## Downloads
-You can download a custom bundle including only the modules you need [here](http://tau-prolog.org/downloads#custom). Source code of Tau Prolog is available on [GitHub](/modules). You can install Tau Prolog from [npm](https://www.npmjs.com/tau-prolog):
+You can download a custom bundle including only the modules you need [here](http://tau-prolog.org/downloads#custom). Source code of Tau Prolog is available on [GitHub](/modules). You can also install Tau Prolog from [npm](https://www.npmjs.com/tau-prolog):
 ```shell
 $ npm install tau-prolog
 ```
@@ -74,6 +77,7 @@ $ npm install tau-prolog
 * [Random module](http://tau-prolog.org/documentation#random)
 * [Statistics module](http://tau-prolog.org/documentation#statistics)
 * [JavaScript module](http://tau-prolog.org/documentation#js)
+* [OS module](http://tau-prolog.org/documentation#os)
 
 ## License
-Tau Prolog is released under the [BSD 3-Clause License](http://tau-prolog.org/license).
+Tau Prolog source code is released under the terms of the [BSD 3-Clause License](http://tau-prolog.org/license).
