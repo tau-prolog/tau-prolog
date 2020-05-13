@@ -24,7 +24,79 @@
             }
         }
         return dirs2.join("/").replace(/\/\.$/, "/");
-    }
+	}
+	
+	// Virtual file
+	function TauFile(path, name, type, parent, text) {
+		text = text === undefined ? "" : text;
+		this.path = path;
+		this.name = name;
+		this.type = type;
+		this.parent = parent;
+		this.text = text;
+	}
+
+	TauFile.prototype.get = function(length, position) {
+		if(position === this.text.length) {
+			return "end_of_file";
+		} else if(position > this.text.length) {
+			return "end_of_file";
+		} else {
+			return this.text.substring(position, position+length);
+		}
+	};
+
+	TauFile.prototype.put = function(text, position) {
+		if(position === "end_of_file") {
+			this.text += text;
+			return true;
+		} else if(position === "past_end_of_file") {
+			return null;
+		} else {
+			this.text = this.text.substring(0, position) + text + this.text.substring(position+text.length);
+			return true;
+		}
+	};
+
+	TauFile.prototype.get_byte = function(position) {
+		if(position === "end_of_stream")
+			return -1;
+		var index = Math.floor(position/2);
+		if(this.text.length <= index)
+			return -1;
+		var code = codePointAt(this.text[Math.floor(position/2)], 0);
+		if(position % 2 === 0)
+			return code & 0xff;
+		else
+			return code / 256 >>> 0;
+	};
+
+	TauFile.prototype.put_byte = function(byte, position) {
+		var index = position === "end_of_stream" ? this.text.length : Math.floor(position/2);
+		if(this.text.length < index)
+			return null;
+		var code = this.text.length === index ? -1 : codePointAt(this.text[Math.floor(position/2)], 0);
+		if(position % 2 === 0) {
+			code = code / 256 >>> 0;
+			code = ((code & 0xff) << 8) | (byte & 0xff);
+		} else {
+			code = code & 0xff;
+			code = ((byte & 0xff) << 8) | (code & 0xff);
+		}
+		if(this.text.length === index)
+			this.text += fromCodePoint(code);
+		else 
+			this.text = this.text.substring(0, index) + fromCodePoint(code) + this.text.substring(index+1);
+		return true;
+	};
+
+	TauFile.prototype.flush = function() {
+		return true;
+	};
+
+	TauFile.prototype.close = function() {
+		return true;
+	};
 
 	// Virtual file system for browser
 	tau_file_system = {
@@ -45,78 +117,23 @@
 			if(file === undefined) {
 				if(mode === "read")
 					return null;
-				file = {
-					path: path,
-					name: name,
-					text: "",
-					type: type,
-					get: function(length, position) {
-						if(position === this.text.length) {
-							return "end_of_file";
-						} else if(position > this.text.length) {
-							return "end_of_file";
-						} else {
-							return this.text.substring(position, position+length);
-						}
-					},
-					put: function(text, position) {
-						if(position === "end_of_file") {
-							this.text += text;
-							return true;
-						} else if(position === "past_end_of_file") {
-							return null;
-						} else {
-							this.text = this.text.substring(0, position) + text + this.text.substring(position+text.length);
-							return true;
-						}
-					},
-					get_byte: function(position) {
-						if(position === "end_of_stream")
-							return -1;
-						var index = Math.floor(position/2);
-						if(this.text.length <= index)
-							return -1;
-						var code = codePointAt(this.text[Math.floor(position/2)], 0);
-						if(position % 2 === 0)
-							return code & 0xff;
-						else
-							return code / 256 >>> 0;
-					},
-					put_byte: function(byte, position) {
-						var index = position === "end_of_stream" ? this.text.length : Math.floor(position/2);
-						if(this.text.length < index)
-							return null;
-						var code = this.text.length === index ? -1 : codePointAt(this.text[Math.floor(position/2)], 0);
-						if(position % 2 === 0) {
-							code = code / 256 >>> 0;
-							code = ((code & 0xff) << 8) | (byte & 0xff);
-						} else {
-							code = code & 0xff;
-							code = ((byte & 0xff) << 8) | (code & 0xff);
-						}
-						if(this.text.length === index)
-							this.text += fromCodePoint(code);
-						else 
-							this.text = this.text.substring(0, index) + fromCodePoint(code) + this.text.substring(index+1);
-						return true;
-					},
-					flush: function() {
-						return true;
-					},
-					close: function() {
-						var file = dir[name];
-						if(!file) {
-							return null;
-						} else {
-							return true;
-						}
-					}
-				};
+				file = new TauFile(path, name, type, dir);
 				dir[name] = file;
 			}
 			if(mode === "write")
 				file.text = "";
 			return file;
+		},
+		// Get item
+		get: function(path) {
+			var dirs = path.replace(/\/$/, "").split("/");
+			var pointer = tau_file_system.files;
+			for(var i = 1; i < dirs.length; i++)
+				if(!pl.type.is_file(pointer) && pointer.hasOwnProperty(dirs[i]))
+					pointer = pointer[dirs[i]];
+				else
+					return null;
+			return pointer;
 		}
 	};
 
@@ -3011,6 +3028,7 @@
 			Thread: Thread,
 			Session: Session,
 			Substitution: Substitution,
+			File: TauFile,
 			
 			// Order
 			order: [Var, Num, Term, Stream],
@@ -3277,6 +3295,11 @@
 			// Is an existing module
 			is_module: function( obj ) {
 				return obj instanceof Term && obj.indicator === "library/1" && obj.args[0] instanceof Term && obj.args[0].args.length === 0 && pl.module[obj.args[0].id] !== undefined;
+			},
+
+			// Is a virtual file
+			is_file: function( obj ) {
+				return obj instanceof TauFile;
 			}
 			
 		},

@@ -335,13 +335,100 @@ var pl;
 						}
 					}
 				}
+			},
+			
+			// exists_file/1
+			"exists_file/1": function(thread, point, atom) {
+				var path = atom.args[0];
+				if(pl.type.is_variable(path)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(path)) {
+					thread.throw_error(pl.error.type("atom", path, atom.indicator));
+				} else {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var fs = require('fs');
+						fs.stat(path.id, function(error, stat) {
+							if(!error && stat.isFile())
+								thread.success(point);
+							thread.again();
+						});
+						return true;
+					} else {
+						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
+						var file = thread.session.file_system.get(absolute);
+						if(file && pl.type.is_file(file))
+							thread.success(point);
+					}
+				}
+			},
+
+			// exists_directory/1
+			"exists_directory/1": function(thread, point, atom) {
+				var path = atom.args[0];
+				if(pl.type.is_variable(path)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(path)) {
+					thread.throw_error(pl.error.type("atom", path, atom.indicator));
+				} else {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var fs = require('fs');
+						fs.stat(path.id, function(error, stat) {
+							if(!error && stat.isDirectory())
+								thread.success(point);
+							thread.again();
+						});
+						return true;
+					} else {
+						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
+						var file = thread.session.file_system.get(absolute);
+						if(file && !pl.type.is_file(file))
+							thread.success(point);
+					}
+				}
+			},
+
+			// same_file/2
+			"same_file/2": function(thread, point, atom) {
+				var fst_path = atom.args[0], snd_path = atom.args[1];
+				if(pl.type.is_variable(fst_path) || pl.type.is_variable(snd_path)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(fst_path)) {
+					thread.throw_error(pl.error.type("atom", fst_path, atom.indicator));
+				} else if(!pl.type.is_atom(snd_path)) {
+					thread.throw_error(pl.error.type("atom", snd_path, atom.indicator));
+				} else {
+					if(fst_path.id === snd_path.id) {
+						thread.success(point);
+					} else {
+						if(thread.get_flag("nodejs").indicator === "true/0") {
+							var fs = require('fs');
+							fs.stat(fst_path.id, function(error, fst_stat) {
+								if(!error)
+									fs.stat(snd_path.id, function(error, snd_stat) {
+										if(!error && fst_stat.dev === snd_stat.dev && fst_stat.ino === snd_stat.ino)
+											thread.success(point);
+										thread.again();
+									});
+								else
+									thread.again();
+							});
+							return true;
+						} else {
+							var working_directory = thread.session.working_directory;
+							var fst_file = thread.session.file_system.get(pl.utils.cd(working_directory, fst_path.id));
+							var snd_file = thread.session.file_system.get(pl.utils.cd(working_directory, snd_path.id));
+							if(fst_file && snd_file && fst_file === snd_file)
+								thread.success(point);
+						}
+					}
+				}
 			}
 		
 		};
 		
 	};
 	
-	var exports = ["shell/1", "shell/2", "cd/1", "ls/0", "ls/1", "pwd/0", "cwd/1", "rm/1", "mv/2", "mkdir/1"];
+	var exports = ["shell/1", "shell/2", "cd/1", "ls/0", "ls/1", "pwd/0", "cwd/1", "rm/1", "mv/2", "mkdir/1", "exists_file/1", "exists_directory/1", "same_file/2"];
 
 	function is_empty(obj) {
 		for(var prop in obj)
