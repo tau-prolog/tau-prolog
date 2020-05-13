@@ -56,60 +56,28 @@ var pl;
 					}
 				}
 			},
-			
-			// cd/1
-			"cd/1": function(thread, point, atom) {
-				var path = atom.args[0];
+
+			// directory_files/2
+			"directory_files/2": function(thread, point, atom) {
+				var path = atom.args[0], entries = atom.args[1];
 				if(pl.type.is_variable(path)) {
 					thread.throw_error(pl.error.instantiation(atom.indicator));
 				} else if(!pl.type.is_atom(path)) {
 					thread.throw_error(pl.error.type("atom", path, atom.indicator));
-				} else {
-					if(thread.get_flag("nodejs").indicator === "true/0") {
-						try {
-							process.chdir(path.id);
-							thread.success(point);
-						} catch(err) {
-							thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
-						}
-					} else {
-						var working_directory = pl.utils.cd(thread.session.working_directory, path.id);
-						if(working_directory === null) {
-							thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
-						} else {
-							thread.session.working_directory = working_directory;
-							thread.success(point);
-						}
-					}
-				}
-			},
-
-			// ls/0
-			"ls/0": function(thread, point, atom) {
-				thread.prepend([new pl.type.State(
-					point.goal.replace( new pl.type.Term("ls", [new pl.type.Term(".", [])]) ),
-					point.substitution,
-					point
-				)]);
-			},
-
-			// ls/1
-			"ls/1": function(thread, point, atom) {
-				var path = atom.args[0];
-				if(pl.type.is_variable(path)) {
-					thread.throw_error(pl.error.instantiation(atom.indicator));
-				} else if(!pl.type.is_atom(path)) {
-					thread.throw_error(pl.error.type("atom", path, atom.indicator));
+				} else if(!pl.type.is_variable(entries) && !pl.type.is_list(entries)) {
+					thread.throw_error(pl.error.type("list", entries, atom.indicator));
 				} else {
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
 						fs.readdir(path.id, function(error, items) {
 							if(error) {
-								thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
+								thread.throw_error(pl.error.existence("directory", path, atom.indicator));
 							} else {
-								var listing = items.join(" ");
+								var listing = new pl.type.Term("[]", []);
+								for(var i = items.length-1; i >= 0; i--)
+									listing = new pl.type.Term(".", [new pl.type.Term(items[i], []), listing]);
 								thread.prepend([new pl.type.State(
-									point.goal.replace( new pl.type.Term("write", [new pl.type.Term(listing, [])]) ),
+									point.goal.replace(new pl.type.Term("=", [entries, listing])),
 									point.substitution,
 									point
 								)]);
@@ -118,66 +86,58 @@ var pl;
 						});
 						return true;
 					} else {
-						var file = pl.utils.cd(thread.session.working_directory, path.id);
-						var dirs = file.replace(/\/$/, "").split("/");
-						var dir = thread.session.file_system.files;
-						for(var i = 1; i < dirs.length; i++) {
-							if(!dir.hasOwnProperty(dirs[i])) {
-								thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
-								return;
-							}
-							dir = dir[dirs[i]];
+						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
+						var file = thread.session.file_system.get(absolute);
+						if(file && !pl.type.is_file(file)) {
+							var items = [];
+							for(var prop in file)
+								items.push(prop);
+							var listing = new pl.type.Term("[]", []);
+							for(var i = items.length-1; i >= 0; i--)
+								listing = new pl.type.Term(".", [new pl.type.Term(items[i], []), listing]);
+							thread.prepend([new pl.type.State(
+								point.goal.replace(new pl.type.Term("=", [entries, listing])),
+								point.substitution,
+								point
+							)]);
+						} else {
+							thread.throw_error(pl.error.existence("directory", path, atom.indicator));
 						}
-						var list = [];
-						for(var prop in dir)
-							list.push(prop);
-						var listing = list.join(" ");
-						thread.prepend([new pl.type.State(
-							point.goal.replace( new pl.type.Term("write", [new pl.type.Term(listing, [])]) ),
-							point.substitution,
-							point
-						)]);
 					}
 				}
 			},
 
-			// pwd/0
-			"pwd/0": function(thread, point, atom) {
-				var wd;
-				if(thread.get_flag("nodejs").indicator === "true/0") {
-					wd = process.cwd();
-				} else {
-					wd = thread.session.working_directory;
-				}
-				thread.prepend([new pl.type.State(
-					point.goal.replace( new pl.type.Term("write", [new pl.type.Term(wd, [])]) ),
-					point.substitution,
-					point
-				)]);
-			},
-
-			// cwd/1
-			"cwd/1": function(thread, point, atom) {
-				var path = atom.args[0];
-				if(!pl.type.is_variable(path) && !pl.type.is_atom(path)) {
-					thread.throw_error(pl.error.type("atom", path, atom.indicator));
+			// working_directory/2
+			"working_directory/2": function(thread, point, atom) {
+				var oldcwd = atom.args[0], newcwd = atom.args[1];
+				if(pl.type.is_variable(newcwd) && (!pl.type.is_variable(oldcwd) || oldcwd.id !== newcwd.id)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_variable(oldcwd) && !pl.type.is_atom(oldcwd)) {
+					thread.throw_error(pl.error.type("atom", oldcwd, atom.indicator));
+				} else if(!pl.type.is_variable(newcwd) && !pl.type.is_atom(newcwd)) {
+					thread.throw_error(pl.error.type("atom", newcwd, atom.indicator));
 				} else {
 					var wd;
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						wd = process.cwd();
+						if(!pl.type.is_variable(newcwd))
+							process.chdir(newcwd.id);
 					} else {
 						wd = thread.session.working_directory;
+						if(!pl.type.is_variable(newcwd)) {
+							thread.session.working_directory = pl.utils.cd(wd, newcwd.id);
+						}
 					}
 					thread.prepend([new pl.type.State(
-						point.goal.replace( new pl.type.Term("=", [path, new pl.type.Term(wd, [])]) ),
+						point.goal.replace(new pl.type.Term("=", [oldcwd, new pl.type.Term(wd, [])])),
 						point.substitution,
 						point
 					)]);
 				}
 			},
 
-			// rm/1
-			"rm/1": function(thread, point, atom) {
+			// delete_file/1
+			"delete_file/1": function(thread, point, atom) {
 				var path = atom.args[0];
 				if(pl.type.is_variable(path)) {
 					thread.throw_error(pl.error.instantiation(atom.indicator));
@@ -187,49 +147,25 @@ var pl;
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
 						fs.stat(path.id, function(error, stat) {
-							if(error) {
+							if(!error && stat.isFile()) {
+								fs.unlink(path.id, function(error) {
+									if(error)
+										thread.throw_error(pl.error.permission("delete", "source_sink", path, atom.indicator));
+									else
+										thread.success( point );
+									thread.again();
+								});
+							} else {
 								thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
 								thread.again();
-							} else {
-								if(stat.isDirectory()) {
-									fs.rmdir(path.id, function(error) {
-										if(error)
-											thread.throw_error(pl.error.permission("delete", "source_sink", path, atom.indicator));
-										else
-											thread.success( point );
-										thread.again();
-									});
-								} else {
-									fs.unlink(path.id, function(error) {
-										if(error)
-											thread.throw_error(pl.error.permission("delete", "source_sink", path, atom.indicator));
-										else
-											thread.success( point );
-										thread.again();
-									});
-								}
 							}
 						});
 						return true;
 					} else {
-						var file = pl.utils.cd(thread.session.working_directory, path.id);
-						var dirs = file.replace(/\/$/, "").split("/");
-						var dir = thread.session.file_system.files;
-						var name = dirs[dirs.length-1];
-						for(var i = 1; i < dirs.length-1; i++) {
-							if(dir.hasOwnProperty(dirs[i]))
-								dir = dir[dirs[i]];
-							else {
-								thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
-								return;
-							}
-						}
-						if(dir[name]) {
-							if(dir[name].path !== file && !is_empty(dir[name])) {
-								thread.throw_error(pl.error.permission("delete", "source_sink", path, atom.indicator));
-								return;
-							}
-							delete dir[name];
+						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
+						var file = thread.session.file_system.get(absolute);
+						if(file && pl.type.is_file(file)) {
+							delete file.parent[file.name];
 							thread.success(point);
 						} else {
 							thread.throw_error(pl.error.existence("source_sink", path, atom.indicator));
@@ -238,8 +174,60 @@ var pl;
 				}
 			},
 
-			// mkdir/1
-			"mkdir/1": function(thread, point, atom) {
+			// delete_directory/1
+			"delete_directory/1": function(thread, point, atom) {
+				var path = atom.args[0];
+				if(pl.type.is_variable(path)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(path)) {
+					thread.throw_error(pl.error.type("atom", path, atom.indicator));
+				} else {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var fs = require('fs');
+						fs.stat(path.id, function(error, stat) {
+							if(!error && stat.isDirectory()) {
+								fs.rmdir(path.id, function(error) {
+									if(error)
+										thread.throw_error(pl.error.permission("delete", "directory", path, atom.indicator));
+									else
+										thread.success( point );
+									thread.again();
+								});
+							} else {
+								thread.throw_error(pl.error.existence("directory", path, atom.indicator));
+								thread.again();
+							}
+						});
+						return true;
+					} else {
+						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
+						var dirs = absolute.replace(/\/$/, "").split("/");
+						var dir = thread.session.file_system.files;
+						var name = dirs[dirs.length-1];
+						for(var i = 1; i < dirs.length-1; i++) {
+							if(dir.hasOwnProperty(dirs[i]))
+								dir = dir[dirs[i]];
+							else {
+								thread.throw_error(pl.error.existence("directory", path, atom.indicator));
+								return;
+							}
+						}
+						if(!dir.hasOwnProperty(name) || pl.type.is_file(dir[name])) {
+							thread.throw_error(pl.error.existence("directory", path, atom.indicator));
+						} else {
+							if(is_empty(dir[name])) {
+								delete dir[name];
+								thread.success(point);
+							} else {
+								thread.throw_error(pl.error.permission("delete", "directory", path, atom.indicator));
+							}
+						}
+					}
+				}
+			},
+
+			// make_directory/1
+			"make_directory/1": function(thread, point, atom) {
 				var path = atom.args[0];
 				if(pl.type.is_variable(path)) {
 					thread.throw_error(pl.error.instantiation(atom.indicator));
@@ -286,8 +274,8 @@ var pl;
 				}
 			},
 
-			// mv/2
-			"mv/2": function(thread, point, atom) {
+			// rename_file/2
+			"rename_file/2": function(thread, point, atom) {
 				var old_path = atom.args[0], new_path = atom.args[1];
 				if(pl.type.is_variable(old_path) || pl.type.is_variable(new_path)) {
 					thread.throw_error(pl.error.instantiation(atom.indicator));
@@ -422,13 +410,59 @@ var pl;
 						}
 					}
 				}
+			},
+
+			// absolute_file_name/2
+			"absolute_file_name/2": function(thread, point, atom) {
+				var filename = atom.args[0], absolute = atom.args[1];
+				if(pl.type.is_variable(filename)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(filename)) {
+					thread.throw_error(pl.error.type("atom", filename, atom.indicator));
+				} else if(!pl.type.is_variable(absolute) && !pl.type.is_atom(absolute)) {
+					thread.throw_error(pl.error.type("atom", absolute, atom.indicator));
+				} else {
+					var absolute_filename;
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var path = require("path");
+						absolute_filename = path.resolve(filename.id);
+					} else {
+						absolute_filename = pl.utils.cd(thread.session.working_directory, filename.id);
+					}
+					thread.prepend([new pl.type.State(
+						point.goal.replace(new pl.type.Term("=", [
+							absolute,
+							new pl.type.Term(absolute_filename, [])])),
+						point.substitution,
+						point
+					)]);
+				}
+			},
+
+			// is_absolute_file_name/1
+			"is_absolute_file_name/1": function(thread, point, atom) {
+				var filename = atom.args[0];
+				if(pl.type.is_variable(filename)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(filename)) {
+					thread.throw_error(pl.error.type("atom", filename, atom.indicator));
+				} else {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var path = require('path');
+						if(path.isAbsolute(filename.id))
+							thread.success(point);
+					} else {
+						if(filename.id.length > 0 && filename.id[0] === "/")
+							thread.success(point);
+					}
+				}
 			}
 		
 		};
 		
 	};
 	
-	var exports = ["shell/1", "shell/2", "cd/1", "ls/0", "ls/1", "pwd/0", "cwd/1", "rm/1", "mv/2", "mkdir/1", "exists_file/1", "exists_directory/1", "same_file/2"];
+	var exports = ["shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1"];
 
 	function is_empty(obj) {
 		for(var prop in obj)
