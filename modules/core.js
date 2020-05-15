@@ -3352,6 +3352,18 @@
 			// Is a virtual directory
 			is_directory: function( obj ) {
 				return obj instanceof TauDirectory;
+			},
+
+			// Is a predicate property
+			is_predicate_property: function(obj) {
+				return pl.type.is_term(obj) && (
+					obj.indicator === "built_in/0" ||
+					obj.indicator === "static/0" ||
+					obj.indicator === "dynamic/0" ||
+					obj.indicator === "native_code/0" ||
+					obj.indicator === "multifile/0" ||
+					obj.indicator === "meta_predicate/1"
+				);
 			}
 			
 		},
@@ -4526,6 +4538,134 @@
 						states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
 					}
 					thread.prepend( states );
+				}
+			},
+
+			// predicate_property/2
+			"predicate_property/2": function(thread, point, atom) {
+				var head = atom.args[0], property = atom.args[1];
+				if(!pl.type.is_variable(head) && !pl.type.is_callable(head)) {
+					thread.throw_error(pl.error.type("callable", head, atom.indicator));
+				} else if(!pl.type.is_variable(property) && !pl.type.is_predicate_property(property)) {
+					thread.throw_error(pl.error.domain("predicate_property", property, atom.indicator));
+				} else {
+					var points = [];
+					// all predicates
+					if(pl.type.is_variable(head)) {
+						// built-in predicates (built_in + static + native_code)
+						for(var prop in pl.predicate) {
+							var indicator = str_indicator(prop);
+							var unif_head = indicator.args[0];
+							for(var i = 0; i < indicator.args[1].value; i++)
+								unif_head.args.push(thread.next_free_variable());
+							var current_properties = ["static", "built_in", "native_code"];
+							// all predicates, all properties
+							if(pl.type.is_variable(property)) {
+								for(var i = 0; i < current_properties.length; i++) {
+									points.push(new State(
+										point.goal.replace(new Term(",", [
+											new Term("=", [head, unif_head]),
+											new Term("=", [property, new Term(current_properties[i])])
+										])),
+										point.substitution,
+										point
+									));
+								}
+							// all predicates, one property
+							} else {
+								if(indexOf(current_properties, property.id) !== -1) {
+									points.push(new State(
+										point.goal.replace(new Term("=", [head, unif_head])),
+										point.substitution,
+										point
+									));
+								}
+							}
+						}
+						// user-defined predicates
+						for(var prop in thread.session.rules) {
+							var indicator = str_indicator(prop);
+							var unif_head = indicator.args[0];
+							for(var i = 0; i < indicator.args[1].value; i++)
+								unif_head.args.push(thread.next_free_variable());
+							var current_properties = [];
+							if(thread.is_public_predicate(prop))
+								current_properties.push("dynamic");
+							else
+								current_properties.push("static");
+							if(thread.session.rules[prop] instanceof Function)
+								current_properties.push("native_code");
+							if(thread.is_multifile_predicate(prop))
+								current_properties.push("multifile");
+							// all predicates, all properties
+							if(pl.type.is_variable(property)) {
+								for(var i = 0; i < current_properties.length; i++) {
+									points.push(new State(
+										point.goal.replace(new Term(",", [
+											new Term("=", [head, unif_head]),
+											new Term("=", [property, new Term(current_properties[i])])
+										])),
+										point.substitution,
+										point
+									));
+								}
+							// all predicates, one property
+							} else {
+								if(indexOf(current_properties, property.id) !== -1) {
+									points.push(new State(
+										point.goal.replace(new Term("=", [head, unif_head])),
+										point.substitution,
+										point
+									));
+								}
+							}
+						}
+					// one predicate
+					} else {
+						var mod = null;
+						if(head.indicator === ":/2" && pl.type.is_atom(head.args[0]) && pl.type.is_callable(head.args[1])) {
+							mod = head.args[0].id;
+							head = head.args[1];
+						}
+						var builtin = mod === null && pl.type.is_builtin(head);
+						var predicate = builtin ? pl.predicate[atom.indicator] : thread.step_rule(null, head);
+						if(predicate) {
+							var current_properties;
+							if(builtin) {
+								current_properties = ["static", "built_in", "native_code"];
+							} else {
+								current_properties = [];
+								if(thread.is_public_predicate(head.indicator))
+									current_properties.push("dynamic");
+								else
+									current_properties.push("static");
+								if(predicate instanceof Function)
+									current_properties.push("native_code");
+								if(thread.is_multifile_predicate(head.indicator))
+									current_properties.push("multifile");
+							}
+							// one predicate, all properties
+							if(pl.type.is_variable(property)) {
+								for(var i = 0; i < current_properties.length; i++) {
+									points.push(new State(
+										point.goal.replace(new Term("=", [property, new Term(current_properties[i])])),
+										point.substitution,
+										point
+									));
+								}
+							// one predicate, one property
+							} else {
+								if(indexOf(current_properties, property.id) !== -1) {
+									points.push(new State(
+										point.goal.replace(null),
+										point.substitution,
+										point
+									));
+								}
+							}
+						}
+					}
+					thread.prepend(points);
 				}
 			},
 
