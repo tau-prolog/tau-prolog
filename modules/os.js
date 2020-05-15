@@ -531,13 +531,88 @@ var pl;
 						}
 					}
 				}
+			},
+
+			// getenv/2
+			"getenv/2": function(thread, point, atom) {
+				var name = atom.args[0], value = atom.args[1];
+				if(!pl.type.is_variable(name) && !pl.type.is_atom(name)) {
+					thread.throw_error(pl.error.type("atom", name, atom.indicator));
+				} else if(!pl.type.is_variable(value) && !pl.type.is_atom(value)) {
+					thread.throw_error(pl.error.type("atom", value, atom.indicator));
+				} else {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var points = [];
+						if(pl.type.is_variable(name)) {
+							for(var prop in process.env) {
+								if(!process.env.hasOwnProperty(prop))
+									continue;
+								var getname = new pl.type.Term(prop, []);
+								var getvalue = new pl.type.Term(process.env[prop], []);
+								points.push(new pl.type.State(
+									point.goal.replace(new pl.type.Term(",", [
+										new pl.type.Term("=", [name, getname]),
+										new pl.type.Term("=", [value, getvalue])
+									])),
+									point.substitution,
+									point
+								));
+							}
+						} else {
+							var getvalue = process.env[name.id] ? new pl.type.Term(process.env[name.id].toString(), []) : null;
+							if(getvalue !== null) {
+								points.push(new pl.type.State(
+									point.goal.replace(new pl.type.Term("=", [value, getvalue])),
+									point.substitution,
+									point
+								));
+							}
+						}
+						thread.prepend(points);
+					}
+				}
+			},
+
+			// setenv/2
+			"setenv/2": function(thread, point, atom) {
+				var name = atom.args[0], value = atom.args[1];
+				if(pl.type.is_variable(name) || pl.type.is_variable(value)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(name) && !pl.type.is_integer(name)) {
+					thread.throw_error(pl.error.type("atom_or_integer", name, atom.indicator));
+				} else if(!pl.type.is_atom(value) && !pl.type.is_integer(value)) {
+					thread.throw_error(pl.error.type("atom_or_integer", value, atom.indicator));
+				} else {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var getname = pl.type.is_atom(name) ? name.id : name.value.toString();
+						var getvalue = pl.type.is_atom(value) ? value.id : value.value.toString();
+						process.env[getname] = getvalue;
+						thread.success(point);
+					}
+				}
+			},
+
+			// unsetenv/1
+			"unsetenv/1": function(thread, point, atom) {
+				var name = atom.args[0];
+				if(pl.type.is_variable(name)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(name) && !pl.type.is_integer(name)) {
+					thread.throw_error(pl.error.type("atom_or_integer", name, atom.indicator));
+				} else {
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var getname = pl.type.is_atom(name) ? name.id : name.value.toString();
+						delete process.env[getname];
+						thread.success(point);
+					}
+				}
 			}
 		
 		};
 		
 	};
 	
-	var exports = ["shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "time_file/2"];
+	var exports = ["shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1"];
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
