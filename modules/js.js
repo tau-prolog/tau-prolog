@@ -172,7 +172,7 @@ var pl;
 					thread.throw_error( pl.error.type( "atom", method, atom.indicator ) );
 				} else if(!pl.type.is_list(options)) {
 					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
-				} else if(method.id !== "get" && method.id !== "post" && method.id !== "put" && method.id !== "delete") {
+				} else if(["connect", "delete", "get", "head", "options", "patch", "post", "put", "trace"].indexOf(method.id) === -1) {
 					thread.throw_error( pl.error.domain( "http_method", method, atom.indicator ) );
 				} else {
 					var pointer = options;
@@ -183,6 +183,8 @@ var pl;
 					var opt_mime = null;
 					var opt_headers = [];
 					var opt_body = new FormData();
+					var opt_user = null;
+					var opt_password = null;
 					// Options
 					while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
 						var option = pointer.args[0];
@@ -198,6 +200,20 @@ var pl;
 								return;
 							}
 							opt_type = prop.id;
+						// user/1
+						} else if(option.indicator === "user/1") {
+							if(!pl.type.is_atom(prop)) {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+							opt_user = prop.id;
+						// password/1
+						} else if(option.indicator === "password/1") {
+							if(!pl.type.is_atom(prop)) {
+								thread.throw_error( pl.error.domain( "ajax_option", option, atom.indicator ) );
+								return;
+							}
+							opt_password = prop.id;
 						// timeout/1
 						} else if(option.indicator === "timeout/1") {
 							if(!pl.type.is_integer(prop) || prop.value < 0) {
@@ -302,13 +318,15 @@ var pl;
 								// Get response
 								var data = null;
 								var content_type = this.getResponseHeader("Content-Type");
-								if(this.responseType === "" || this.responseType === "json" || content_type.indexOf("application/json") !== -1) {
+								if(this.responseType === "json" && this.response) {
+									data = pl.fromJavaScript.apply(this.response);
+								} else if(this.responseType === "" && content_type.indexOf("application/json") !== -1) {
 									try {
-											data = pl.fromJavaScript.apply(JSON.parse(this.responseText));
+										data = pl.fromJavaScript.apply(JSON.parse(this.responseText));
 									} catch(e) {}
 								}
 								if(data === null) {
-									if((this.responseType === "document" || this.responseType === "" || content_type.indexOf("text/html") !== -1 || content_type.indexOf("application/xml") !== -1) && this.responseXML !== null && pl.type.DOM !== undefined) {
+									if((this.responseType === "document" || this.responseType === "" && content_type.indexOf("text/html") !== -1 || this.responseType === "" && content_type.indexOf("application/xml") !== -1) && this.responseXML !== null && pl.type.DOM !== undefined) {
 										data = new pl.type.DOM( this.responseXML );
 									} else if(this.responseType === "" || this.responseType === "text") {
 										data = new pl.type.Term(this.responseText, []);
@@ -329,7 +347,7 @@ var pl;
 						}
 					};
 					xhttp.onreadystatechange = fn;
-					xhttp.open(method.id.toUpperCase(), url.id, opt_async === "true");
+					xhttp.open(method.id.toUpperCase(), url.id, opt_async === "true", opt_user, opt_password);
 					if(opt_type !== null && opt_async === "true")
 						xhttp.responseType = opt_type;
 					xhttp.withCredentials = opt_credentials === "true";
