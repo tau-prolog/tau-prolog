@@ -4439,6 +4439,40 @@
 					thread.prepend( [new State( point.goal.replace( new Term( "=", [vars, list] ) ), point.substitution, point )] );
 				}
 			},
+
+			// numbervars/3
+			"numbervars/3": function(thread, point, atom) {
+				var term = atom.args[0], start = atom.args[1], end = atom.args[2];
+				if(pl.type.is_variable(start)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_integer(start)) {
+					thread.throw_error(pl.error.type("integer", start, atom.indicator));
+				} else if(!pl.type.is_variable(end) && !pl.type.is_integer(end)) {
+					thread.throw_error(pl.error.type("integer", end, atom.indicator));
+				} else if(start.value < 0) {
+					thread.throw_error(pl.error.domain("not_less_than_zero", start, atom.indicator));
+				} else {
+					var variables = nub(term.variables());
+					var value = start.value;
+					var unif_body = new Term("true");
+					for(var i = 0; i < variables.length; i++) {
+						unif_body = new Term(",", [
+							new Term("=", [
+								new Var(variables[i]),
+								new Term("$VAR", [new Num(value, false)])]),
+								unif_body]);
+						value++;
+					}
+					var unif_end = new Term("=", [end, new Num(value, false)]);
+					if(pl.type.is_variable(end) || end.value === value) {
+						thread.prepend([new State(
+							point.goal.replace(new Term(",", [unif_body, unif_end])),
+							point.substitution,
+							point
+						)]);
+					}
+				}
+			},
 			
 			// CLAUSE RETRIEVAL AND INFORMATION
 			
