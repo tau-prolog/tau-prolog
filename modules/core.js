@@ -4132,8 +4132,19 @@
 			// ALL SOLUTIONS
 
 			// findall/3
-			"findall/3": function( thread, point, atom ) {
+			"findall/3": function(thread, point, atom) {
 				var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
+				var tail = new Term("[]", []);
+				thread.prepend([new State(
+					point.goal.replace(new Term("findall", [template, goal, instances, tail])),
+					point.substitution,
+					point
+				)]);
+			},
+
+			// findall/4
+			"findall/4": function(thread, point, atom) {
+				var template = atom.args[0], goal = atom.args[1], instances = atom.args[2], tail = atom.args[3];
 				if( pl.type.is_variable( goal ) ) {
 					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( goal ) ) {
@@ -4159,7 +4170,7 @@
 							if( pl.type.is_error( answer ) ) {
 								thread.throw_error( answer.args[0] );
 							} else if( nthread.current_limit > 0 ) {
-								var list = arrayToList(answers);
+								var list = arrayToList(answers, tail);
 								thread.prepend( [new State(
 									point.goal.replace( new Term( "=", [instances, list] ) ),
 									point.substitution,
