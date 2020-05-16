@@ -6913,7 +6913,7 @@
 			// Double quotes behavior
 			double_quotes: {
 				allowed: [new Term( "chars" ), new Term( "codes" ), new Term( "atom" )],
-				value: new Term( "codes" ),
+				value: new Term( "chars" ),
 				changeable: true
 			},
 			
