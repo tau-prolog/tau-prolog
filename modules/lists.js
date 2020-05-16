@@ -84,8 +84,26 @@ var pl;
 			
 			// foldl/4
 			"foldl/4": [
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Var("I"),new pl.type.Var("I")]), null),
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("P"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("T")]),new pl.type.Var("I"),new pl.type.Var("R")]), new pl.type.Term(",", [new pl.type.Term("=..", [new pl.type.Var("P"),new pl.type.Var("L")]),new pl.type.Term(",", [new pl.type.Term("append", [new pl.type.Var("L"),new pl.type.Term(".", [new pl.type.Var("I"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Term("[]", [])])])]),new pl.type.Var("L2")]),new pl.type.Term(",", [new pl.type.Term("=..", [new pl.type.Var("P2"),new pl.type.Var("L2")]),new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("P2")]),new pl.type.Term("foldl", [new pl.type.Var("P"),new pl.type.Var("T"),new pl.type.Var("X"),new pl.type.Var("R")])])])])]))
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Var("V"),new pl.type.Var("V")]), null),
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("T")]),new pl.type.Var("V0"),new pl.type.Var("V")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal"),new pl.type.Var("H"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Var("T"),new pl.type.Var("V1"),new pl.type.Var("V")])]))
+			],
+			
+			// foldl/5
+			"foldl/5": [
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V"),new pl.type.Var("V")]), null),
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Term(".", [new pl.type.Var("H1"),new pl.type.Var("T1")]),new pl.type.Term(".", [new pl.type.Var("H2"),new pl.type.Var("T2")]),new pl.type.Var("V0"),new pl.type.Var("V")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal"),new pl.type.Var("H1"),new pl.type.Var("H2"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Var("T1"),new pl.type.Var("T2"),new pl.type.Var("V1"),new pl.type.Var("V")])]))
+			],
+			
+			// foldl/6
+			"foldl/6": [
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V"),new pl.type.Var("V")]), null),
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Term(".", [new pl.type.Var("H1"),new pl.type.Var("T1")]),new pl.type.Term(".", [new pl.type.Var("H2"),new pl.type.Var("T2")]),new pl.type.Term(".", [new pl.type.Var("H3"),new pl.type.Var("T3")]),new pl.type.Var("V0"),new pl.type.Var("V")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal"),new pl.type.Var("H1"),new pl.type.Var("H2"),new pl.type.Var("H3"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Var("T1"),new pl.type.Var("T2"),new pl.type.Var("T3"),new pl.type.Var("V1"),new pl.type.Var("V")])]))
+			],
+			
+			// foldl/7
+			"foldl/7": [
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V"),new pl.type.Var("V")]), null),
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Term(".", [new pl.type.Var("H1"),new pl.type.Var("T1")]),new pl.type.Term(".", [new pl.type.Var("H2"),new pl.type.Var("T2")]),new pl.type.Term(".", [new pl.type.Var("H3"),new pl.type.Var("T3")]),new pl.type.Term(".", [new pl.type.Var("H4"),new pl.type.Var("T4")]),new pl.type.Var("V0"),new pl.type.Var("V")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal"),new pl.type.Var("H1"),new pl.type.Var("H2"),new pl.type.Var("H3"),new pl.type.Var("H4"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Var("T1"),new pl.type.Var("T2"),new pl.type.Var("T3"),new pl.type.Var("T4"),new pl.type.Var("V1"),new pl.type.Var("V")])]))
 			],
 			
 			// select/3
@@ -416,7 +434,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["append/2", "append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "prefix/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "sort/2", "msort/2", "keysort/2", "take/3", "drop/3", "reverse/2", "list_to_set/2"];
+	var exports = ["append/2", "append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "foldl/5", "foldl/6", "foldl/7", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "prefix/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "sort/2", "msort/2", "keysort/2", "take/3", "drop/3", "reverse/2", "list_to_set/2"];
 
 
 	if( typeof module !== 'undefined' ) {
