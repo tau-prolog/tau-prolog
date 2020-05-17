@@ -1358,16 +1358,27 @@
 	}
 	
 	// call/n
-	function callN( n ) {
-		return function ( thread, point, atom ) {
+	function callN(n) {
+		return function(thread, point, atom) {
 			var closure = atom.args[0], args = atom.args.slice(1, n);
-			if( pl.type.is_variable( closure ) ) {
-				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_callable( closure ) ) {
-				thread.throw_error( pl.error.type( "callable", closure, atom.indicator ) );
+			var module_atom;
+			if(pl.type.is_term(closure) && closure.indicator === ":/2") {
+				if(!pl.type.is_atom(closure.args[0])) {
+					thread.throw_error(pl.error.type("module", closure.args[0], atom.indicator));
+					return;
+				}
+				module_atom = closure.args[0];
+				closure = closure.args[1];
+			}
+			if(pl.type.is_variable(closure)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(closure)) {
+				thread.throw_error( pl.error.type( "callable", closure, atom.indicator));
 			} else {
-				var goal = new Term( closure.id, closure.args.concat( args ) );
-				thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+				var goal = new Term(closure.id, closure.args.concat(args));
+				if(module_atom)
+					goal = new Term(":", [module_atom, goal]);
+				thread.prepend([new State(point.goal.replace(goal), point.substitution, point)]);
 			}
 		};
 	}
@@ -2206,19 +2217,37 @@
 	};
 
 	// Add a rule
-	Session.prototype.add_rule = function( rule, options ) {
-		return this.thread.add_rule( rule, options );
+	Session.prototype.add_rule = function(rule, options) {
+		return this.thread.add_rule(rule, options);
 	};
-	Thread.prototype.add_rule = function( rule, options ) {
+	Thread.prototype.add_rule = function(rule, options) {
 		options = options ? options : {};
 		options.from = options.from ? options.from : "$tau-js";
-		this.__last_module_parsed.src_predicates[rule.head.indicator] = options.from;
-		if(!this.__last_module_parsed.rules[rule.head.indicator]) {
-			this.__last_module_parsed.rules[rule.head.indicator] = [];
+		var module_id, get_module;
+		if(pl.type.is_term(rule.head) && rule.head.indicator === ":/2") {
+			if(!pl.type.is_atom(rule.head.args[0])) {
+				thread.throw_warning(pl.error.type("module", rule.head.args[0], atom.indicator));
+				return;
+			}
+			module_id = rule.head.args[0].id;
+			rule.head = rule.head.args[1];
 		}
-		this.__last_module_parsed.rules[rule.head.indicator].push(rule);
-		if( !this.__last_module_parsed.public_predicates.hasOwnProperty( rule.head.indicator ) )
-			this.__last_module_parsed.public_predicates[rule.head.indicator] = false;
+		if(module_id) {
+			get_module = this.session.current_modules[module_id];
+			if(!pl.type.is_module(get_module)) {
+				get_module = new Module(module_id, {}, "all", {session: this.session});
+				this.session.current_modules[module_id] = get_module;
+			}
+		} else {
+			get_module = this.__last_module_parsed;
+		}
+		get_module.src_predicates[rule.head.indicator] = options.from;
+		if(!get_module.rules[rule.head.indicator]) {
+			get_module.rules[rule.head.indicator] = [];
+		}
+		get_module.rules[rule.head.indicator].push(rule);
+		if(!get_module.public_predicates.hasOwnProperty(rule.head.indicator))
+			get_module.public_predicates[rule.head.indicator] = false;
 		return true;
 	};
 
