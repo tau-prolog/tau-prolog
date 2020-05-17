@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 2, patch: 87, status: "beta" };
+	var version = { major: 0, minor: 3, patch: 0, status: "beta" };
 
 
 
@@ -1343,12 +1343,13 @@
 		}
 		return unique;
 	}
+
 	// Retract a rule
-	function retract( thread, point, indicator, rule ) {
-		if( thread.session.current_modules.user.rules[indicator] !== null ) {
-			for( var i = 0; i < thread.session.current_modules.user.rules[indicator].length; i++ ) {
-				if( thread.session.current_modules.user.rules[indicator][i] === rule ) {
-					thread.session.current_modules.user.rules[indicator].splice( i, 1 );
+	function retract(thread, point, indicator, rule, get_module) {
+		if(get_module.rules[indicator]) {
+			for(var i = 0; i < get_module.rules[indicator].length; i++) {
+				if(get_module.rules[indicator][i] === rule) {
+					get_module.rules[indicator].splice(i, 1);
 					thread.success( point );
 					break;
 				}
@@ -3669,7 +3670,7 @@
 						thread.throw_warning( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 					} else {
 						var key = indicator.args[0].id + "/" + indicator.args[1].value;
-						thread.session.current_modules.user.public_predicates[key] = true;
+						thread.__last_module_parsed.public_predicates[key] = true;
 						if( !thread.__last_module_parsed.rules[key] )
 							thread.__last_module_parsed.rules[key] = [];
 					}
@@ -4945,95 +4946,130 @@
 			},
 			
 			// retract/1
-			"retract/1": function( thread, point, atom ) {
-				if( pl.type.is_variable( atom.args[0] ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_callable( atom.args[0] ) ) {
-					thread.throw_error( pl.error.type( "callable", atom.args[0], atom.indicator ) );
+			"retract/1": function(thread, point, atom) {
+				var clause = atom.args[0];
+				if(pl.type.is_variable(clause)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_callable(clause)) {
+					thread.throw_error(pl.error.type("callable", clause, atom.indicator));
 				} else {
-					var head, body;
-					if( atom.args[0].indicator === ":-/2" ) {
-						head = atom.args[0].args[0];
-						body = atom.args[0].args[1];
+					var head, body, module_atom, module_id;
+					if(clause.indicator === ":-/2") {
+						head = clause.args[0];
+						body = clause.args[1];
 					} else {
-						head = atom.args[0];
-						body = new Term( "true" );
+						head = clause;
+						body = new Term("true");
 					}
-					if( typeof point.retract === "undefined" ) {
-						if( thread.is_public_predicate( head.indicator ) ) {
-							if( thread.session.current_modules.user.rules[head.indicator] !== undefined ) {
-								var states = [];
-								for( var i = 0; i < thread.session.current_modules.user.rules[head.indicator].length; i++ ) {
-									thread.session.renamed_variables = {};
-									var orule = thread.session.current_modules.user.rules[head.indicator][i];
-									var rule = orule.rename( thread );
-									if( rule.body === null )
-										rule.body = new Term( "true", [] );
-									var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
-									var mgu = pl.unify( new Term( ",", [head, body] ), new Term( ",", [rule.head, rule.body] ), occurs_check );
-									if( mgu !== null ) {
-										var state = new State( point.goal.replace( new Term(",", [
-											new Term( "retract", [ new Term( ":-", [head, body] ) ] ),
-											new Term( ",", [
-												new Term( "=", [head, rule.head] ),
-												new Term( "=", [body, rule.body] )
-											] )
-										] ) ), point.substitution, point );
-										state.retract = orule;
-										states.push( state );
-									}
-								}
-								thread.prepend( states );
-							}
-						} else {
-							thread.throw_error( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
+					if(head.indicator === ":/2") {
+						module_atom = head.args[0];
+						head = head.args[1];
+						if(!pl.type.is_atom(module_atom)) {
+							thread.throw_error(pl.error.type("module", module_atom, atom.indicator));
+							return;
 						}
 					} else {
-						retract( thread, point, head.indicator, point.retract );
+						module_atom = new Term("user");
+					}
+					module_id = module_atom.id;
+					var get_module = thread.session.current_modules[module_id];
+					if(!pl.type.is_module(get_module))
+						return;
+					if(!point.retract) {
+						if(thread.is_public_predicate(head.indicator, module_id)) {
+							if(get_module.rules[head.indicator] !== undefined) {
+								var states = [];
+								for(var i = 0; i < get_module.rules[head.indicator].length; i++) {
+									thread.session.renamed_variables = {};
+									var orule = get_module.rules[head.indicator][i];
+									var rule = orule.rename(thread);
+									if(rule.body === null)
+										rule.body = new Term("true", []);
+									var occurs_check = thread.get_flag("occurs_check").indicator === "true/0";
+									var mgu = pl.unify(new Term(",", [head, body]), new Term(",", [rule.head, rule.body]), occurs_check);
+									if(mgu !== null) {
+										var state = new State(
+											point.goal.replace(new Term(",", [
+												new Term("retract", [new Term(":-", [new Term(":", [module_atom, head]), body])]),
+												new Term(",", [
+													new Term("=", [head, rule.head]),
+													new Term("=", [body, rule.body])
+												] )
+											])), point.substitution, point);
+										state.retract = orule;
+										states.push(state);
+									}
+								}
+								thread.prepend(states);
+							}
+						} else {
+							thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
+						}
+					} else {
+						retract(thread, point, head.indicator, point.retract, get_module);
 					}
 				}
 			},
 			
 			// retractall/1
-			"retractall/1": function( thread, point, atom ) {
+			"retractall/1": function(thread, point, atom) {
 				var head = atom.args[0];
-				if( pl.type.is_variable( head ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_callable( head ) ) {
-					thread.throw_error( pl.error.type( "callable", head, atom.indicator ) );
+				if(pl.type.is_variable(head)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_callable(head)) {
+					thread.throw_error(pl.error.type("callable", head, atom.indicator));
 				} else {
-				thread.prepend( [
-						new State( point.goal.replace( new Term( ",", [
-							new Term( "retract", [new pl.type.Term( ":-", [head, new Var( "_" )] )] ),
-							new Term( "fail", [] )
-						] ) ), point.substitution, point ),
-						new State( point.goal.replace( null ), point.substitution, point )
-					] );
+					thread.prepend([
+						new State(point.goal.replace(new Term(",", [
+							new Term("retract", [new pl.type.Term(":-", [head, new Var("_")])]),
+							new Term("fail", [])
+						])), point.substitution, point ),
+						new State(point.goal.replace(null), point.substitution, point)
+					]);
 				}
 			},
 
 			// abolish/1
-			"abolish/1": function( thread, point, atom ) {
-				if( pl.type.is_variable( atom.args[0] ) || pl.type.is_term( atom.args[0] ) && atom.args[0].indicator === "//2"
-				&& (pl.type.is_variable( atom.args[0].args[0] ) || pl.type.is_variable( atom.args[0].args[1] )) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_term( atom.args[0] ) || atom.args[0].indicator !== "//2" ) {
-					thread.throw_error( pl.error.type( "predicate_indicator", atom.args[0], atom.indicator ) );
-				} else if( !pl.type.is_atom( atom.args[0].args[0] ) ) {
-					thread.throw_error( pl.error.type( "atom", atom.args[0].args[0], atom.indicator ) );
-				} else if( !pl.type.is_integer( atom.args[0].args[1] ) ) {
-					thread.throw_error( pl.error.type( "integer", atom.args[0].args[1], atom.indicator ) );
-				} else if( atom.args[0].args[1].value < 0 ) {
-					thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[0].args[1], atom.indicator ) );
-				} else if( pl.type.is_number(thread.get_flag( "max_arity" )) && atom.args[0].args[1].value > thread.get_flag( "max_arity" ).value ) {
-					thread.throw_error( pl.error.representation( "max_arity", atom.indicator ) );
+			"abolish/1": function(thread, point, atom) {
+				var predicate = atom.args[0];
+				var module_id;
+				if(pl.type.is_term(predicate) && predicate.indicator === ":/2") {
+					if(!pl.type.is_atom(predicate.args[0])) {
+						thread.throw_error(pl.error.type("module", predicate.args[0], atom.indicator));
+						return;
+					}
+					module_id = predicate.args[0].id;
+					predicate = predicate.args[1];
 				} else {
-					var indicator = atom.args[0].args[0].id + "/" + atom.args[0].args[1].value;
-					if( thread.is_public_predicate( indicator ) ) {
-						delete thread.session.current_modules.user.rules[indicator];
-						thread.success( point );
+					module_id = "user";
+				}
+				if(pl.type.is_variable(predicate) || pl.type.is_term(predicate) && predicate.indicator === "//2"
+				&& (pl.type.is_variable(predicate.args[0]) || pl.type.is_variable(predicate.args[1]))) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_term(predicate) || predicate.indicator !== "//2") {
+					thread.throw_error(pl.error.type("predicate_indicator", predicate, atom.indicator));
+				} else if(!pl.type.is_atom(predicate.args[0])) {
+					thread.throw_error(pl.error.type("atom", predicate.args[0], atom.indicator));
+				} else if(!pl.type.is_integer(predicate.args[1])) {
+					thread.throw_error(pl.error.type("integer", predicate.args[1], atom.indicator));
+				} else if(predicate.args[1].value < 0) {
+					thread.throw_error(pl.error.domain("not_less_than_zero", predicate.args[1], atom.indicator));
+				} else if(pl.type.is_number(thread.get_flag("max_arity")) && predicate.args[1].value > thread.get_flag("max_arity").value) {
+					thread.throw_error(pl.error.representation("max_arity", atom.indicator));
+				} else {
+					var get_module = thread.session.current_modules[module_id];
+					if(pl.type.is_module(get_module)) {
+						var indicator = predicate.args[0].id + "/" + predicate.args[1].value;
+						if(thread.is_public_predicate(indicator, module_id)) {
+							delete get_module.rules[indicator];
+							delete get_module.public_predicates[indicator];
+							delete get_module.multifile_predicates[indicator];
+							thread.success(point);
+						} else {
+							thread.throw_error(pl.error.permission("modify", "static_procedure", atom.args[0], atom.indicator));
+						}
 					} else {
-						thread.throw_error( pl.error.permission( "modify", "static_procedure", indicator, atom.indicator ) );
+						thread.success(point);
 					}
 				}
 			},
