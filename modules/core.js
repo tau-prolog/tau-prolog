@@ -1103,10 +1103,10 @@
 			} else {
 				indicator = expr.value.head.indicator;
 				if( options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
-					thread.session.rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
+					thread.__last_module_parsed.rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
 					reconsulted[indicator] = true;
 				}
-				var goal_expansion = thread.session.rules["goal_expansion/2"];
+				var goal_expansion = thread.__last_module_parsed.rules["goal_expansion/2"];
 				if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
 					thread.renamed_variables = {};
 					var origin = {
@@ -1139,7 +1139,7 @@
 				if(tokens[expr_position] && tokens[expr_position].name === "atom" && tokens[expr_position].raw === ".") {
 					expr.value = body_conversion(expr.value);
 					// Goal expansion
-					var goal_expansion = thread.session.rules["goal_expansion/2"];
+					var goal_expansion = thread.__last_module_parsed.rules["goal_expansion/2"];
 					if(!thread.__goal_expansion && goal_expansion && goal_expansion.length > 0) {
 						parseQueryExpansion(thread, expr.value);
 					} else {
@@ -1343,13 +1343,12 @@
 		}
 		return unique;
 	}
-	
 	// Retract a rule
 	function retract( thread, point, indicator, rule ) {
-		if( thread.session.rules[indicator] !== null ) {
-			for( var i = 0; i < thread.session.rules[indicator].length; i++ ) {
-				if( thread.session.rules[indicator][i] === rule ) {
-					thread.session.rules[indicator].splice( i, 1 );
+		if( thread.session.current_modules.user.rules[indicator] !== null ) {
+			for( var i = 0; i < thread.session.current_modules.user.rules[indicator].length; i++ ) {
+				if( thread.session.current_modules.user.rules[indicator][i] === rule ) {
+					thread.session.current_modules.user.rules[indicator].splice( i, 1 );
 					thread.success( point );
 					break;
 				}
@@ -1362,9 +1361,9 @@
 		return function ( thread, point, atom ) {
 			var closure = atom.args[0], args = atom.args.slice(1, n);
 			if( pl.type.is_variable( closure ) ) {
-				thread.throw_error( pl.error.instantiation( thread.level ) );
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_callable( closure ) ) {
-				thread.throw_error( pl.error.type( "callable", closure, thread.level ) );
+				thread.throw_error( pl.error.type( "callable", closure, atom.indicator ) );
 			} else {
 				var goal = new Term( closure.id, closure.args.concat( args ) );
 				thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
@@ -1446,14 +1445,16 @@
 	// Session
 	function Session( limit ) {
 		limit = limit === undefined || limit <= 0 ? 1000 : limit;
-		this.rules = {};
-		this.src_predicates = {};
 		this.rename = 0;
-		this.modules = [];
+		this.modules = {};
+		this.modules.user = new Module("user", {}, "all");
+		this.current_modules = {};
+		this.current_modules.user = this.modules.user;
+		this.rules = this.current_modules.user.rules;
 		this.total_threads = 1;
 		this.renamed_variables = {};
-		this.public_predicates = {};
-		this.multifile_predicates = {};
+		this.public_predicates = this.current_modules.user.public_predicates;
+		this.multifile_predicates = this.current_modules.user.multifile_predicates;
 		this.limit = limit;
 		this.streams = {
 			"user_input": new Stream(
@@ -1525,23 +1526,57 @@
 		this.points = [];
 		this.debugger = false;
 		this.debugger_states = [];
-		this.level = "top_level/0";
+		this.level = new Term("top_level");
 		this.current_limit = this.session.limit;
 		this.warnings = [];
+		this.__last_module_parsed = this.session.current_modules.user;
 		this.__calls = [];
 		this.__goal_expansion = false;
 	}
 	
 	// Modules
-	function Module( id, rules, exports ) {
+	function Module(id, rules, exports, options) {
+		options = options === undefined ? {} : options;
+		options.public_predicates = options.public_predicates === undefined ? {} : options.public_predicates;
+		options.multifile_predicates = options.multifile_predicates === undefined ? {} : options.multifile_predicates;
+		options.session = options.session === undefined ? null : options.session;
+		options.dependencies = options.dependencies === undefined ? [] : options.dependencies;
 		this.id = id;
 		this.rules = rules;
+		this.public_predicates = options.public_predicates;
+		this.multifile_predicates = options.multifile_predicates;
+		this.src_predicates = {};
+		this.dependencies = options.dependencies;
 		this.exports = exports;
-		pl.module[id] = this;
+		this.is_library = options.session === null;
+		if(id !== "user") {
+			if(options.session)
+				options.session.modules[id] = this;
+			else
+				pl.modules[id] = this;
+		}
+		if(exports !== "all") {
+			for(var i = 0; i < exports; i++) {
+				this.public_predicates[exports[i]] =
+					options.public_predicates.hasOwnProperty(exports[i]) &&
+					options.public_predicates[exports[i]] === true;
+			}
+		}
 	}
 	
-	Module.prototype.exports_predicate = function( indicator ) {
-		return this.exports.indexOf( indicator ) !== -1;
+	// Check if a predicate is exported
+	Module.prototype.exports_predicate = function(indicator) {
+		return this.exports === "all" || indexOf(this.exports, indicator) !== -1;
+	};
+
+	// Check if a predicate is public
+	Module.prototype.is_public_predicate = function(indicator) {
+		return !this.public_predicates.hasOwnProperty(indicator) || this.public_predicates[indicator] === true;
+	};
+	
+	// Check if a predicate is multifile
+	Module.prototype.is_multifile_predicate = function( indicator ) {
+		return this.multifile_predicates.hasOwnProperty(indicator) && this.multifile_predicates[indicator] === true;
 	};
 
 
@@ -1723,14 +1758,15 @@
 	// Session
 	Session.prototype.toString = function( options ) {
 		var str = "";
-		for(var i = 0; i < this.modules.length; i++) {
-			str += ":- use_module(library(" + this.modules[i] + ")).\n";
+		for(var prop in this.current_modules) {
+			if(this.current_modules.hasOwnProperty(prop) && this.current_modules[prop].is_library)
+				str += ":- use_module(library(" + this.modules[prop] + ")).\n";
 		}
 		str += "\n";
-		for(var key in this.rules) {
-			if(!this.rules.hasOwnProperty(key)) continue;
-			for(i = 0; i < this.rules[key].length; i++) {
-				str += this.rules[key][i].toString( options );
+		for(var key in this.current_modules.user.rules) {
+			if(!this.current_modules.user.rules.hasOwnProperty(key)) continue;
+			for(i = 0; i < this.current_modules.user.rules[key].length; i++) {
+				str += this.current_modules.user.rules[key][i].toString(options);
 				str += "\n";
 			}
 		}
@@ -2170,19 +2206,19 @@
 
 	// Add a rule
 	Session.prototype.add_rule = function( rule, options ) {
-		options = options ? options : {};
-		options.from = options.from ? options.from : "$tau-js";
-		this.src_predicates[rule.head.indicator] = options.from;
-		if(!this.rules[rule.head.indicator]) {
-			this.rules[rule.head.indicator] = [];
-		}
-		this.rules[rule.head.indicator].push(rule);
-		if( !this.public_predicates.hasOwnProperty( rule.head.indicator ) )
-			this.public_predicates[rule.head.indicator] = false;
-		return true;
+		return this.thread.add_rule( rule, options );
 	};
 	Thread.prototype.add_rule = function( rule, options ) {
-		return this.session.add_rule( rule, options );
+		options = options ? options : {};
+		options.from = options.from ? options.from : "$tau-js";
+		this.__last_module_parsed.src_predicates[rule.head.indicator] = options.from;
+		if(!this.__last_module_parsed.rules[rule.head.indicator]) {
+			this.__last_module_parsed.rules[rule.head.indicator] = [];
+		}
+		this.__last_module_parsed.rules[rule.head.indicator].push(rule);
+		if( !this.__last_module_parsed.public_predicates.hasOwnProperty( rule.head.indicator ) )
+			this.__last_module_parsed.public_predicates[rule.head.indicator] = false;
+		return true;
 	};
 
 	// Run a directive
@@ -2284,6 +2320,7 @@
 	};
 	Thread.prototype.consult = function( program, options ) {
 		var string = "";
+		this.__last_module_parsed = this.session.current_modules.user;
 		// string
 		if( typeof program === "string" ) {
 			string = program;
@@ -2338,6 +2375,7 @@
 	Thread.prototype.query = function( string ) {
 		this.points = [];
 		this.debugger_states = [];
+		this.level = new Term("top_level");
 		return parseQuery( this, string );
 	};
 	
@@ -2387,19 +2425,21 @@
 	};
 	
 	// Check if a predicate is public
-	Session.prototype.is_public_predicate = function( indicator ) {
-		return !this.public_predicates.hasOwnProperty( indicator ) || this.public_predicates[indicator] === true;
+	Session.prototype.is_public_predicate = function(indicator, module_id) {
+		module_id = module_id === undefined ? "user" : module_id;
+		return pl.type.is_module(this.current_modules[module_id]) && this.current_modules[module_id].is_public_predicate(indicator);
 	};
-	Thread.prototype.is_public_predicate = function( indicator ) {
-		return this.session.is_public_predicate( indicator );
+	Thread.prototype.is_public_predicate = function(indicator, module_id) {
+		return this.session.is_public_predicate(indicator, module_id);
 	};
 	
 	// Check if a predicate is multifile
-	Session.prototype.is_multifile_predicate = function( indicator ) {
-		return this.multifile_predicates.hasOwnProperty( indicator ) && this.multifile_predicates[indicator] === true;
+	Session.prototype.is_multifile_predicate = function(indicator, module_id) {
+		module_id = module_id === undefined ? "user" : module_id;
+		return pl.type.is_module(this.current_modules[module_id]) && this.current_modules[module_id].is_multifile_predicate(indicator);
 	};
-	Thread.prototype.is_multifile_predicate = function( indicator ) {
-		return this.session.is_multifile_predicate( indicator );
+	Thread.prototype.is_multifile_predicate = function(indicator, module_id) {
+		return this.session.is_multifile_predicate(indicator, module_id);
 	};
 	
 	// Insert states at the beginning
@@ -2429,20 +2469,25 @@
 	};
 	
 	// Selection rule
-	Session.prototype.step_rule = function( mod, atom ) {
-		return this.thread.step_rule( mod, atom );
+	Session.prototype.get_predicate_module = function( mod, atom ) {
+		return this.thread.get_predicate_module( mod, atom );
 	}
-	Thread.prototype.step_rule = function( mod, atom ) {
+	Thread.prototype.get_predicate_module = function(module_id, atom) {
 		var name = atom.indicator;
-		if( mod === "user" )
-			mod = null;
-		if( mod === null && this.session.rules.hasOwnProperty(name) )
-			return this.session.rules[name];
-		var modules = mod === null ? this.session.modules : (indexOf(this.session.modules, mod) === -1 ? [] : [mod]);
-		for( var i = 0; i < modules.length; i++ ) {
-			var module = pl.module[modules[i]];
-			if( module.rules.hasOwnProperty(name) && (module.rules.hasOwnProperty(this.level) || module.exports_predicate(name)) )
-				return pl.module[modules[i]].rules[name];
+		var mod = module_id === null ? (this.level.found_in_module ? this.level.found_in_module.id : "user") : module_id;
+		if(pl.type.is_module(this.session.current_modules[mod])) {
+			mod = this.session.current_modules[mod];
+			if(mod.rules.hasOwnProperty(name) && (module_id !== null || mod.rules.hasOwnProperty(this.level.indicator) || mod.exports_predicate(name)))
+				return mod;
+		}
+		if(module_id === null) {
+			for(var prop in this.session.current_modules) {
+				if(!this.session.current_modules.hasOwnProperty(prop))
+					continue;
+				mod = this.session.current_modules[prop];
+				if(mod.rules.hasOwnProperty(name) && (mod.rules.hasOwnProperty(this.level.indicator) || mod.exports_predicate(name)))
+					return mod;
+			}
 		}
 		return null;
 	};
@@ -2452,59 +2497,67 @@
 		return this.thread.step();
 	}
 	Thread.prototype.step = function() {
-		if( this.points.length === 0 ) {
+		if(this.points.length === 0) {
 			return;
 		}
 		var asyn = false;
 		var point = this.points.pop();
 		this.current_point = point;
-		if( this.debugger )
-			this.debugger_states.push( point );
-		
-		if( pl.type.is_term( point.goal ) ) {
-			
+		if(this.debugger)
+			this.debugger_states.push(point);
+		if(pl.type.is_term(point.goal)) {
 			var atom = point.goal.select();
 			var mod = null;
 			var states = [];
-			if( atom !== null ) {
-
+			if(atom !== null) {
 				this.total_steps++;
 				var level = point;
 				while( level.parent !== null && level.parent.goal.search( atom ) )
 					level = level.parent;
-				this.level = level.parent === null ? "top_level/0" : level.parent.goal.select().indicator;
-				
-				if( pl.type.is_term( atom ) && atom.indicator === ":/2" ) {
-					mod = atom.args[0].id;
+				if(level.parent === null) {
+					this.level = new Term("top_level");
+				} else {
+					this.level = level.parent.goal.select();
+					if(this.level.indicator === ":/2")
+						this.level = this.level.args[1];
+				}
+				if(pl.type.is_term(atom) && atom.indicator === ":/2") {
+					mod = atom.args[0];
 					atom = atom.args[1];
 					atom.from_module = mod;
+					if(!pl.type.is_atom(mod)) {
+						this.throw_error(pl.error.type("module", mod, this.level.indicator));
+						return;
+					}
+					mod = mod.id;
 				}
-
 				if(
 					(mod === null || atom.indicator === "listing/0" || atom.indicator === "listing/1")
-					&& pl.type.is_builtin( atom )
+					&& pl.type.is_builtin(atom)
 				) {
 					this.__call_indicator = atom.indicator;
-					asyn = pl.predicate[atom.indicator]( this, point, atom );
+					asyn = pl.predicate[atom.indicator](this, point, atom);
 				} else {
-					var srule = this.step_rule(mod, atom);
-					if( srule === null ) {
-						if( !this.session.rules.hasOwnProperty( atom.indicator ) ) {
+					var get_module = this.get_predicate_module(mod, atom);
+					atom.found_in_module = get_module;
+					var get_rules = get_module === null ? null : get_module.rules[atom.indicator];
+					if(get_rules === null) {
+						if( !this.session.current_modules.user.rules.hasOwnProperty( atom.indicator ) ) {
 							if( this.get_flag( "unknown" ).id === "error" ) {
-								this.throw_error( pl.error.existence( "procedure", atom.indicator, this.level ) );
+								this.throw_error( pl.error.existence( "procedure", atom.indicator, this.level.indicator ) );
 							} else if( this.get_flag( "unknown" ).id === "warning" ) {
-								this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level + ")" );
+								this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level.indicator + ")" );
 							}
 						}
-					} else if( srule instanceof Function ) {
-						asyn = srule( this, point, atom );
+					} else if(get_rules instanceof Function) {
+						asyn = get_rules(this, point, atom);
 					} else {
 						// Goal expansion
 						if( this.__goal_expansion && atom.indicator === "goal_expansion/2" )
-							srule = srule.concat(pl.predicate["goal_expansion/2"]);
-						for( var _rule in srule ) {
-							if(!srule.hasOwnProperty(_rule)) continue;
-							var rule = srule[_rule];
+							get_rules = get_rules.concat(pl.predicate["goal_expansion/2"]);
+						for( var _rule in get_rules ) {
+							if(!get_rules.hasOwnProperty(_rule)) continue;
+							var rule = get_rules[_rule];
 							this.session.renamed_variables = {};
 							rule = rule.rename( this );
 							var occurs_check = this.get_flag( "occurs_check" ).indicator === "true/0";
@@ -2525,9 +2578,9 @@
 				}
 			}
 		} else if( pl.type.is_variable( point.goal ) ) {
-			this.throw_error( pl.error.instantiation( this.level ) );
+			this.throw_error( pl.error.instantiation( this.level.indicator ) );
 		} else {
-			this.throw_error( pl.error.type( "callable", point.goal, this.level ) );
+			this.throw_error( pl.error.type( "callable", point.goal, this.level.indicator ) );
 		}
 		return asyn;
 	};
@@ -2626,7 +2679,7 @@
 				body2 = body2.apply( point.substitution );
 			unfolded.push( new Rule( head2, body2 ) );
 		}
-		var rules = this.rules[head.indicator];
+		var rules = this.current_modules.user.rules[head.indicator];
 		var index = indexOf( rules, rule );
 		if( unfolded.length > 0 && index !== -1 ) {
 			rules.splice.apply( rules, [index, 1].concat(unfolded) );
@@ -2644,7 +2697,7 @@
 	
 	// Variables
 	Var.prototype.interpret = function( thread ) {
-		return pl.error.instantiation( thread.level );
+		return pl.error.instantiation( thread.level.indicator );
 	};
 	
 	// Numbers
@@ -2816,13 +2869,13 @@
 	// Sessions
 	Session.prototype.compile = function() {
 		var str, obj = [], rules;
-		for( var _indicator in this.rules ) {
-			if(!this.rules.hasOwnProperty(_indicator)) continue;
-			var indicator = this.rules[_indicator];
+		for( var _indicator in this.current_modules.user.rules ) {
+			if(!this.current_modules.user.rules.hasOwnProperty(_indicator)) continue;
+			var indicator = this.current_modules.user.rules[_indicator];
 			rules = [];
 			str = "\"" + _indicator + "\": [";
-			for( var i = 0; i < indicator.length; i++ ) {
-				rules.push( indicator[i].compile() );
+			for(var i = 0; i < indicator.length; i++) {
+				rules.push(indicator[i].compile());
 			}
 			str += rules.join();
 			str += "]";
@@ -2912,7 +2965,7 @@
 		__env: nodejs_flag ? global : window,
 		
 		// Modules
-		module: {},
+		modules: {},
 		
 		// Version
 		version: version,
@@ -3338,10 +3391,10 @@
 			is_modifiable_flag: function( obj ) {
 				return pl.type.is_flag( obj ) && pl.flag[obj.id].changeable;
 			},
-			
-			// Is an existing module
+
+			// Is a module
 			is_module: function( obj ) {
-				return obj instanceof Term && obj.indicator === "library/1" && obj.args[0] instanceof Term && obj.args[0].args.length === 0 && pl.module[obj.args[0].id] !== undefined;
+				return obj instanceof Module;
 			},
 
 			// Is a virtual file
@@ -3605,27 +3658,27 @@
 				while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
 					indicator = pointer.args[0];
 					if( pl.type.is_variable( indicator ) ) {
-						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						thread.throw_warning( pl.error.instantiation( atom.indicator ) );
 					} else if( !pl.type.is_compound( indicator ) || indicator.indicator !== "//2" ) {
-						thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
+						thread.throw_warning( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
 					} else if( pl.type.is_variable( indicator.args[0] ) || pl.type.is_variable( indicator.args[1] ) ) {
-						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						thread.throw_warning( pl.error.instantiation( atom.indicator ) );
 					} else if( !pl.type.is_atom( indicator.args[0] ) ) {
-						thread.throw_error( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
+						thread.throw_warning( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
 					} else if( !pl.type.is_integer( indicator.args[1] ) ) {
-						thread.throw_error( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
+						thread.throw_warning( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 					} else {
 						var key = indicator.args[0].id + "/" + indicator.args[1].value;
-						thread.session.public_predicates[key] = true;
-						if( !thread.session.rules[key] )
-							thread.session.rules[key] = [];
+						thread.session.current_modules.user.public_predicates[key] = true;
+						if( !thread.__last_module_parsed.rules[key] )
+							thread.__last_module_parsed.rules[key] = [];
 					}
 					pointer = pointer.args[1];
 				}
 				if(pl.type.is_variable(pointer)) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					thread.throw_warning( pl.error.instantiation( atom.indicator ) );
 				} else if(!pl.type.is_term(pointer) || pointer.indicator !== "[]/0") {
-					thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
+					thread.throw_warning( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
 				}
 			},
 
@@ -3640,15 +3693,15 @@
 			"multifile/1": function( thread, atom ) {
 				var indicator = atom.args[0];
 				if( pl.type.is_variable( indicator ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					thread.throw_warning( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_compound( indicator ) || indicator.indicator !== "//2" ) {
-					thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
+					thread.throw_warning( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
 				} else if( pl.type.is_variable( indicator.args[0] ) || pl.type.is_variable( indicator.args[1] ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					thread.throw_warning( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( indicator.args[0] ) ) {
-					thread.throw_error( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
+					thread.throw_warning( pl.error.type( "atom", indicator.args[0], atom.indicator ) );
 				} else if( !pl.type.is_integer( indicator.args[1] ) ) {
-					thread.throw_error( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
+					thread.throw_warning( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
 					thread.session.multifile_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
 				}
@@ -3658,35 +3711,84 @@
 			"set_prolog_flag/2": function( thread, atom ) {
 				var flag = atom.args[0], value = atom.args[1];
 				if( pl.type.is_variable( flag ) || pl.type.is_variable( value ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					thread.throw_warning( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_atom( flag ) ) {
-					thread.throw_error( pl.error.type( "atom", flag, atom.indicator ) );
+					thread.throw_warning( pl.error.type( "atom", flag, atom.indicator ) );
 				} else if( !pl.type.is_flag( flag ) ) {
-					thread.throw_error( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
+					thread.throw_warning( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
 				} else if( !pl.type.is_value_flag( flag, value ) ) {
-					thread.throw_error( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
+					thread.throw_warning( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
 				} else if( !pl.type.is_modifiable_flag( flag ) ) {
-					thread.throw_error( pl.error.permission( "modify", "flag", flag, atom.indicator ) );
+					thread.throw_warning( pl.error.permission( "modify", "flag", flag, atom.indicator ) );
 				} else {
 					thread.session.flag[flag.id] = value;
 				}
 			},
+
+			// module/2
+			"module/2": function(thread, atom) {
+				var module_id = atom.args[0], exports = atom.args[1];
+				if(pl.type.is_variable(module_id) || pl.type.is_variable(exports)) {
+					thread.throw_warning(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(module_id)) {
+					thread.throw_warning(pl.error.type("atom", module_id, atom.indicator));
+				} else if(!pl.type.is_list(exports)) {
+					thread.throw_warning(pl.error.type("list", exports, atom.indicator));
+				} else {
+					if(!pl.type.is_module(thread.session.current_modules[module_id.indicator])) {
+						var pointer = exports;
+						var indicators = [];
+						while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+							var predicate = pointer.args[0];
+							if(!pl.type.is_predicate_indicator(predicate)) {
+								thread.throw_warning(pl.error.type("predicate_indicator", predicate, atom.indicator));
+							} else {
+								indicators.push(predicate.args[0].id + "/" + predicate.args[1].value);
+							}
+							pointer = pointer.args[1];
+						}
+						if(pl.type.is_variable(pointer)) {
+							thread.throw_warning(pl.error.instantiation(atom.indicator));
+						} else if(!pl.type.is_empty_list(pointer)) {
+							thread.throw_warning(pl.error.type("list", exports, atom.indicator));
+						}
+						var new_module = new Module(module_id.id, {}, indicators, {
+							session: thread.session
+						});
+						thread.session.current_modules[module_id.id] = new_module;
+						thread.__last_module_parsed = new_module;
+					} else {
+						thread.throw_warning(pl.error.permission("create", "module", module_id, atom.indicator));
+					}
+				}
+			},
 			
 			// use_module/1
-			"use_module/1": function( thread, atom ) {
-				var module = atom.args[0];
-				if( pl.type.is_variable( module ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_term( module ) ) {
-					thread.throw_error( pl.error.type( "term", module, atom.indicator ) );
+			"use_module/1": function(thread, atom) {
+				var module_id = atom.args[0];
+				var module_o = module_id;
+				if(pl.type.is_variable(module_id)) {
+					thread.throw_warning(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_term(module_id)) {
+					thread.throw_warning(pl.error.type("term", module_id, atom.indicator));
 				} else {
-					if( pl.type.is_module( module ) ) {
-						var name = module.args[0].id;
-						if( indexOf(thread.session.modules, name) === -1 )
-							thread.session.modules.push( name );
+					var library = module_id.indicator === "library/1";
+					if(library)
+						module_id = module_id.args[0];
+					var name = module_id.id;
+					var mod = library ? pl.modules[name] : thread.session.modules[name];
+					if(pl.type.is_module(mod)) {
+						if(!thread.session.current_modules.hasOwnProperty(name)) {
+							thread.session.current_modules[name] = mod;
+							for(var i = 0; i < mod.dependencies.length; i++) {
+								var term = new Term("use_module",
+									[new Term("library", [
+										new Term(mod.dependencies[i])])]);
+								pl.directive["use_module/1"](thread, term);
+							}
+						}
 					} else {
-						// TODO
-						// error no existe modulo
+						thread.throw_warning(pl.error.existence("module", module_o, atom.indicator));
 					}
 				}
 			},
@@ -3695,11 +3797,11 @@
 			"char_conversion/2": function( thread, atom ) {
 				var inchar = atom.args[0], outchar = atom.args[1];
 				if( pl.type.is_variable( inchar ) || pl.type.is_variable( outchar ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					thread.throw_warning( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_character( inchar ) ) {
-					thread.throw_error( pl.error.type( "character", inchar, atom.indicator ) );
+					thread.throw_warning( pl.error.type( "character", inchar, atom.indicator ) );
 				} else if( !pl.type.is_character( outchar ) ) {
-					thread.throw_error( pl.error.type( "character", outchar, atom.indicator ) );
+					thread.throw_warning( pl.error.type( "character", outchar, atom.indicator ) );
 				} else {
 					if( inchar.id === outchar.id ) {
 						delete thread.session.__char_conversion[inchar.id];
@@ -3713,21 +3815,21 @@
 			"op/3": function( thread, atom ) {
 				var priority = atom.args[0], type = atom.args[1], operator = atom.args[2];
 				if( pl.type.is_variable( priority ) || pl.type.is_variable( type ) || pl.type.is_variable( operator ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					thread.throw_warning( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_integer( priority ) ) {
-					thread.throw_error( pl.error.type( "integer", priority, atom.indicator ) );
+					thread.throw_warning( pl.error.type( "integer", priority, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
-					thread.throw_error( pl.error.type( "atom", type, atom.indicator ) );
+					thread.throw_warning( pl.error.type( "atom", type, atom.indicator ) );
 				} else if( !pl.type.is_atom( operator ) ) {
-					thread.throw_error( pl.error.type( "atom", operator, atom.indicator ) );
+					thread.throw_warning( pl.error.type( "atom", operator, atom.indicator ) );
 				} else if( priority.value < 0 || priority.value > 1200 ) {
-					thread.throw_error( pl.error.domain( "operator_priority", priority, atom.indicator ) );
+					thread.throw_warning( pl.error.domain( "operator_priority", priority, atom.indicator ) );
 				} else if( operator.id === "," ) {
-					thread.throw_error( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
+					thread.throw_warning( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
 				} else if( operator.id === "|" && (priority.value < 1001 || type.id.length !== 3 ) ) {
-					thread.throw_error( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
+					thread.throw_warning( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
 				} else if( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"].indexOf( type.id ) === -1 ) {
-					thread.throw_error( pl.error.domain( "operator_specifier", type, atom.indicator ) );
+					thread.throw_warning( pl.error.domain( "operator_specifier", type, atom.indicator ) );
 				} else {
 					var fix = { prefix: null, infix: null, postfix: null };
 					for( var p in thread.session.__operators ) {
@@ -3751,7 +3853,7 @@
 					}
 					if( ((fix.prefix && current_class === "prefix" || fix.postfix && current_class === "postfix" || fix.infix && current_class === "infix")
 						&& fix[current_class].type !== type.id || fix.infix && current_class === "postfix" || fix.postfix && current_class === "infix") && priority.value !== 0 ) {
-						thread.throw_error( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+						thread.throw_warning( pl.error.permission( "create", "operator", operator, atom.indicator ) );
 					} else {
 						if( fix[current_class] ) {
 							remove( thread.session.__operators[fix[current_class].priority][operator.id], type.id );
@@ -3921,9 +4023,9 @@
 			"\\+/1": function( thread, point, atom ) {
 				var goal = atom.args[0];
 				if( pl.type.is_variable( goal ) ) {
-					thread.throw_error( pl.error.instantiation( thread.level ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_callable( goal ) ) {
-					thread.throw_error( pl.error.type( "callable", goal, thread.level ) );
+					thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
 				} else {
 					// TRANSPARENT VERSION OF THE NEGATION
 					/*var neg_thread;
@@ -4006,7 +4108,7 @@
 			// throw/1
 			"throw/1": function( thread, point, atom ) {
 				if( pl.type.is_variable( atom.args[0] ) ) {
-					thread.throw_error( pl.error.instantiation( thread.level ) );
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
 				} else {
 					thread.throw_error( atom.args[0] );
 				}
@@ -4507,12 +4609,12 @@
 					thread.throw_error( pl.error.type( "callable", atom.args[0], atom.indicator ) );
 				} else if( !pl.type.is_variable( atom.args[1] ) && !pl.type.is_callable( atom.args[1] ) ) {
 					thread.throw_error( pl.error.type( "callable", atom.args[1], atom.indicator ) );
-				} else if( thread.session.rules[atom.args[0].indicator] !== undefined ) {
+				} else if( thread.session.current_modules.user.rules[atom.args[0].indicator] !== undefined ) {
 					if( thread.is_public_predicate( atom.args[0].indicator ) ) {
 						var states = [];
-						for( var _rule in thread.session.rules[atom.args[0].indicator] ) {
-							if(!thread.session.rules[atom.args[0].indicator].hasOwnProperty(_rule)) continue;
-							var rule = thread.session.rules[atom.args[0].indicator][_rule];
+						for( var _rule in thread.session.current_modules.user.rules[atom.args[0].indicator] ) {
+							if(!thread.session.current_modules.user.rules[atom.args[0].indicator].hasOwnProperty(_rule)) continue;
+							var rule = thread.session.current_modules.user.rules[atom.args[0].indicator][_rule];
 							thread.session.renamed_variables = {};
 							rule = rule.rename( thread );
 							if( rule.body === null ) {
@@ -4539,8 +4641,8 @@
 					thread.throw_error( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
 					var states = [];
-					for( var i in thread.session.rules ) {
-						if(!thread.session.rules.hasOwnProperty(i)) continue;
+					for( var i in thread.session.current_modules.user.rules ) {
+						if(!thread.session.current_modules.user.rules.hasOwnProperty(i)) continue;
 						var index = i.lastIndexOf( "/" );
 						var name = i.substr( 0, index );
 						var arity = parseInt( i.substr( index+1, i.length-(index+1) ) );
@@ -4594,7 +4696,7 @@
 							}
 						}
 						// user-defined predicates
-						for(var prop in thread.session.rules) {
+						for(var prop in thread.session.current_modules.user.rules) {
 							var indicator = str_indicator(prop);
 							var unif_head = indicator.args[0];
 							for(var i = 0; i < indicator.args[1].value; i++)
@@ -4604,7 +4706,7 @@
 								current_properties.push("dynamic");
 							else
 								current_properties.push("static");
-							if(thread.session.rules[prop] instanceof Function)
+							if(thread.session.current_modules.user.rules[prop] instanceof Function)
 								current_properties.push("native_code");
 							if(thread.is_multifile_predicate(prop))
 								current_properties.push("multifile");
@@ -4639,7 +4741,9 @@
 							head = head.args[1];
 						}
 						var builtin = mod === null && pl.type.is_builtin(head);
-						var predicate = builtin ? pl.predicate[atom.indicator] : thread.step_rule(null, head);
+						var predicate = builtin ? pl.predicate[atom.indicator] : thread.get_predicate_module(null, head);
+						if(predicate !== null)
+							predicate = predicate.rules[atom.indicator];
 						if(predicate) {
 							var current_properties;
 							if(builtin) {
@@ -4683,14 +4787,9 @@
 			// listing/0
 			"listing/0": function( thread, point, atom ) {
 				var from_module = atom.from_module ? atom.from_module : "user";
-				var rules;
-				if(from_module === "user") {
-					rules = thread.session.rules;
-				} else {
-					if(pl.module[from_module])
-						rules = pl.module[from_module].rules;
-					else
-						rules = {};
+				var rules = {};
+				if(pl.type.is_module(thread.session.current_modules[from_module])) {
+					rules = thread.session.current_modules[from_module].rules;
 				}
 				var str = "";
 				for(var indicator in rules) {
@@ -4721,14 +4820,9 @@
 					thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
 				} else {
 					var from_module = atom.from_module ? atom.from_module : "user";
-					var rules;
-					if(from_module === "user") {
-						rules = thread.session.rules;
-					} else {
-						if(pl.module[from_module])
-							rules = pl.module[from_module].rules;
-						else
-							rules = {};
+					var rules = {};
+					if(pl.type.is_module(thread.session.current_modules[from_module])) {
+						rules = thread.session.current_modules[from_module].rules;
 					}
 					var str = "";
 					var str_indicator = indicator.args[0].id + "/" + indicator.args[1].value;
@@ -4753,65 +4847,99 @@
 			// CLAUSE CREATION AND DESTRUCTION
 			
 			// asserta/1
-			"asserta/1": function( thread, point, atom ) {
-				if( pl.type.is_variable( atom.args[0] ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_callable( atom.args[0] ) ) {
-					thread.throw_error( pl.error.type( "callable", atom.args[0], atom.indicator ) );
+			"asserta/1": function(thread, point, atom) {
+				var clause = atom.args[0];
+				if(pl.type.is_variable(clause)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_callable(clause)) {
+					thread.throw_error(pl.error.type("callable", clause, atom.indicator));
 				} else {
-					var head, body;
-					if( atom.args[0].indicator === ":-/2" ) {
-						head = atom.args[0].args[0];
-						body = body_conversion( atom.args[0].args[1] );
+					var head, body, module_id, get_module;
+					if(clause.indicator === ":-/2") {
+						head = clause.args[0];
+						body = body_conversion(clause.args[1]);
 					} else {
-						head = atom.args[0];
+						head = clause;
 						body = null;
 					}
-					if( !pl.type.is_callable( head ) ) {
-						thread.throw_error( pl.error.type( "callable", head, atom.indicator ) );
-					} else if( body !== null && !pl.type.is_callable( body ) ) {
-						thread.throw_error( pl.error.type( "callable", body, atom.indicator ) );
-					} else if( thread.is_public_predicate( head.indicator ) ) {
-						if( thread.session.rules[head.indicator] === undefined ) {
-							thread.session.rules[head.indicator] = [];
+					if(head.indicator === ":/2") {
+						module_id = head.args[0];
+						head = head.args[1];
+						if(!pl.type.is_atom(module_id)) {
+							thread.throw_error(pl.error.type("module", module_id, atom.indicator));
+							return;
 						}
-						thread.session.public_predicates[head.indicator] = true;
-						thread.session.rules[head.indicator] = [new Rule( head, body, true )].concat( thread.session.rules[head.indicator] );
-						thread.success( point );
+						module_id = module_id.id;
 					} else {
-						thread.throw_error( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
+						module_id = "user";
+					}
+					if(!pl.type.is_callable(head)) {
+						thread.throw_error(pl.error.type("callable", head, atom.indicator));
+					} else if(body !== null && !pl.type.is_callable(body)) {
+						thread.throw_error( pl.error.type("callable", body, atom.indicator));
+					} else if(!pl.type.is_module(thread.session.current_modules[module_id]) || thread.is_public_predicate(head.indicator, module_id)) {
+						if(!pl.type.is_module(thread.session.current_modules[module_id])) {
+							get_module = new Module(module_id, {}, "all", {session: thread.session});
+							thread.session.current_modules[module_id] = get_module;
+						} else {
+							get_module = thread.session.current_modules[module_id];
+						}
+						if(get_module.rules[head.indicator] === undefined)
+							get_module.rules[head.indicator] = [];
+						get_module.public_predicates[head.indicator] = true;
+						get_module.rules[head.indicator] = [new Rule(head, body, true)].concat(get_module.rules[head.indicator]);
+						thread.success(point);
+					} else {
+						thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
 					}
 				}
 			},
 			
 			// assertz/1
-			"assertz/1": function( thread, point, atom ) {
-				if( pl.type.is_variable( atom.args[0] ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_callable( atom.args[0] ) ) {
-					thread.throw_error( pl.error.type( "callable", atom.args[0], atom.indicator ) );
+			"assertz/1": function(thread, point, atom) {
+				var clause = atom.args[0];
+				if(pl.type.is_variable(clause)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_callable(clause)) {
+					thread.throw_error(pl.error.type("callable", clause, atom.indicator));
 				} else {
-					var head, body;
-					if( atom.args[0].indicator === ":-/2" ) {
-						head = atom.args[0].args[0];
-						body = body_conversion( atom.args[0].args[1] );
+					var head, body, module_id, get_module;
+					if(clause.indicator === ":-/2") {
+						head = clause.args[0];
+						body = body_conversion(clause.args[1]);
 					} else {
-						head = atom.args[0];
+						head = clause;
 						body = null;
 					}
-					if( !pl.type.is_callable( head ) ) {
-						thread.throw_error( pl.error.type( "callable", head, atom.indicator ) );
-					} else if( body !== null && !pl.type.is_callable( body ) ) {
-						thread.throw_error( pl.error.type( "callable", body, atom.indicator ) );
-					} else if( thread.is_public_predicate( head.indicator ) ) {
-						if( thread.session.rules[head.indicator] === undefined ) {
-							thread.session.rules[head.indicator] = [];
+					if(head.indicator === ":/2") {
+						module_id = head.args[0];
+						head = head.args[1];
+						if(!pl.type.is_atom(module_id)) {
+							thread.throw_error(pl.error.type("module", module_id, atom.indicator));
+							return;
 						}
-						thread.session.public_predicates[head.indicator] = true;
-						thread.session.rules[head.indicator].push( new Rule( head, body, true ) );
-						thread.success( point );
+						module_id = module_id.id;
 					} else {
-						thread.throw_error( pl.error.permission( "modify", "static_procedure", head.indicator, atom.indicator ) );
+						module_id = "user";
+					}
+					if(!pl.type.is_callable(head)) {
+						thread.throw_error(pl.error.type("callable", head, atom.indicator));
+					} else if(body !== null && !pl.type.is_callable(body)) {
+						thread.throw_error( pl.error.type("callable", body, atom.indicator));
+					} else if(!pl.type.is_module(thread.session.current_modules[module_id]) || thread.is_public_predicate(head.indicator, module_id)) {
+						if(!pl.type.is_module(thread.session.current_modules[module_id])) {
+							get_module = new Module(module_id, {}, "all", {session: thread.session});
+							thread.session.current_modules[module_id] = get_module;
+						} else {
+							get_module = thread.session.current_modules[module_id];
+						}
+						if(get_module.rules[head.indicator] === undefined)
+							get_module.rules[head.indicator] = [];
+						get_module.public_predicates[head.indicator] = true;
+						get_module.rules[head.indicator].push(new Rule(head, body, true));
+						thread.success(point);
+					} else {
+						thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
 					}
 				}
 			},
@@ -4833,11 +4961,11 @@
 					}
 					if( typeof point.retract === "undefined" ) {
 						if( thread.is_public_predicate( head.indicator ) ) {
-							if( thread.session.rules[head.indicator] !== undefined ) {
+							if( thread.session.current_modules.user.rules[head.indicator] !== undefined ) {
 								var states = [];
-								for( var i = 0; i < thread.session.rules[head.indicator].length; i++ ) {
+								for( var i = 0; i < thread.session.current_modules.user.rules[head.indicator].length; i++ ) {
 									thread.session.renamed_variables = {};
-									var orule = thread.session.rules[head.indicator][i];
+									var orule = thread.session.current_modules.user.rules[head.indicator][i];
 									var rule = orule.rename( thread );
 									if( rule.body === null )
 										rule.body = new Term( "true", [] );
@@ -4902,7 +5030,7 @@
 				} else {
 					var indicator = atom.args[0].args[0].id + "/" + atom.args[0].args[1].value;
 					if( thread.is_public_predicate( indicator ) ) {
-						delete thread.session.rules[indicator];
+						delete thread.session.current_modules.user.rules[indicator];
 						thread.success( point );
 					} else {
 						thread.throw_error( pl.error.permission( "modify", "static_procedure", indicator, atom.indicator ) );
@@ -5413,7 +5541,7 @@
 				if( !pl.type.is_number( op ) ) {
 					thread.throw_error( op );
 				} else {
-					thread.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[0], op], thread.level ) ), point.substitution, point )] );
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[0], op], atom.indicator ) ), point.substitution, point )] );
 				}
 			},
 			
@@ -7255,7 +7383,7 @@
 			var options = options ? options : {};
 			options.session = thread ? thread.session : undefined;
 			if( pl.type.is_error( answer ) ) {
-				return "uncaught exception: " + answer.args[0].toString();
+				return "uncaught exception: " + answer.args[0].toString(options);
 			} else if( answer === false ) {
 				return "false.";
 			} else if( answer === null ) {
