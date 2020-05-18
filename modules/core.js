@@ -1459,14 +1459,15 @@
 		limit = limit === undefined || limit <= 0 ? 1000 : limit;
 		this.rename = 0;
 		this.modules = {};
-		this.modules.user = new Module("user", {}, "all");
-		this.current_modules = {};
-		this.current_modules.user = this.modules.user;
-		this.rules = this.current_modules.user.rules;
+		this.modules.user = new Module("user", {}, "all", {
+			dependencies: ["system"],
+			session: this
+		});
+		this.rules = this.modules.user.rules;
 		this.total_threads = 1;
 		this.renamed_variables = {};
-		this.public_predicates = this.current_modules.user.public_predicates;
-		this.multifile_predicates = this.current_modules.user.multifile_predicates;
+		this.public_predicates = this.modules.user.public_predicates;
+		this.multifile_predicates = this.modules.user.multifile_predicates;
 		this.limit = limit;
 		this.streams = {
 			"user_input": new Stream(
@@ -1541,7 +1542,7 @@
 		this.level = new Term("top_level");
 		this.current_limit = this.session.limit;
 		this.warnings = [];
-		this.__last_module_parsed = this.session.current_modules.user;
+		this.__last_module_parsed = this.session.modules.user;
 		this.__calls = [];
 		this.__goal_expansion = false;
 	}
@@ -1551,21 +1552,27 @@
 		options = options === undefined ? {} : options;
 		options.public_predicates = options.public_predicates === undefined ? {} : options.public_predicates;
 		options.multifile_predicates = options.multifile_predicates === undefined ? {} : options.multifile_predicates;
+		options.meta_predicates = options.meta_predicates === undefined ? {} : options.meta_predicates;
 		options.session = options.session === undefined ? null : options.session;
 		options.dependencies = options.dependencies === undefined ? [] : options.dependencies;
 		this.id = id;
 		this.rules = rules;
 		this.public_predicates = options.public_predicates;
 		this.multifile_predicates = options.multifile_predicates;
+		this.meta_predicates = options.meta_predicates;
 		this.src_predicates = {};
 		this.dependencies = options.dependencies;
 		this.exports = exports;
 		this.is_library = options.session === null;
-		if(id !== "user") {
-			if(options.session)
-				options.session.modules[id] = this;
-			else
-				pl.modules[id] = this;
+		if(options.session) {
+			options.session.modules[id] = this;
+			for(var i = 0; i < options.dependencies.length; i++) {
+				var lib = options.dependencies[i];
+				if(!options.session.modules.hasOwnProperty(lib))
+					options.session.modules[lib] = pl.modules[lib];
+			}
+		} else {
+			pl.modules[id] = this;
 		}
 		if(exports !== "all") {
 			for(var i = 0; i < exports; i++) {
@@ -1589,6 +1596,13 @@
 	// Check if a predicate is multifile
 	Module.prototype.is_multifile_predicate = function( indicator ) {
 		return this.multifile_predicates.hasOwnProperty(indicator) && this.multifile_predicates[indicator] === true;
+	};
+
+	// Check if a predicate is a meta-predicate
+	Module.prototype.is_meta_predicate = function( indicator ) {
+		if(this.meta_predicates.hasOwnProperty(indicator))
+			return this.meta_predicates[indicator];
+		return null;
 	};
 
 
@@ -1770,15 +1784,15 @@
 	// Session
 	Session.prototype.toString = function( options ) {
 		var str = "";
-		for(var prop in this.current_modules) {
-			if(this.current_modules.hasOwnProperty(prop) && this.current_modules[prop].is_library)
+		for(var prop in this.modules) {
+			if(this.modules.hasOwnProperty(prop) && this.modules[prop].is_library)
 				str += ":- use_module(library(" + this.modules[prop] + ")).\n";
 		}
 		str += "\n";
-		for(var key in this.current_modules.user.rules) {
-			if(!this.current_modules.user.rules.hasOwnProperty(key)) continue;
-			for(i = 0; i < this.current_modules.user.rules[key].length; i++) {
-				str += this.current_modules.user.rules[key][i].toString(options);
+		for(var key in this.modules.user.rules) {
+			if(!this.modules.user.rules.hasOwnProperty(key)) continue;
+			for(i = 0; i < this.modules.user.rules[key].length; i++) {
+				str += this.modules.user.rules[key][i].toString(options);
 				str += "\n";
 			}
 		}
@@ -2233,10 +2247,10 @@
 			rule.head = rule.head.args[1];
 		}
 		if(module_id) {
-			get_module = this.session.current_modules[module_id];
+			get_module = this.session.modules[module_id];
 			if(!pl.type.is_module(get_module)) {
 				get_module = new Module(module_id, {}, "all", {session: this.session});
-				this.session.current_modules[module_id] = get_module;
+				this.session.modules[module_id] = get_module;
 			}
 		} else {
 			get_module = this.__last_module_parsed;
@@ -2350,7 +2364,7 @@
 	};
 	Thread.prototype.consult = function( program, options ) {
 		var string = "";
-		this.__last_module_parsed = this.session.current_modules.user;
+		this.__last_module_parsed = this.session.modules.user;
 		// string
 		if( typeof program === "string" ) {
 			string = program;
@@ -2457,7 +2471,7 @@
 	// Check if a predicate is public
 	Session.prototype.is_public_predicate = function(indicator, module_id) {
 		module_id = module_id === undefined ? "user" : module_id;
-		return pl.type.is_module(this.current_modules[module_id]) && this.current_modules[module_id].is_public_predicate(indicator);
+		return pl.type.is_module(this.modules[module_id]) && this.modules[module_id].is_public_predicate(indicator);
 	};
 	Thread.prototype.is_public_predicate = function(indicator, module_id) {
 		return this.session.is_public_predicate(indicator, module_id);
@@ -2466,10 +2480,21 @@
 	// Check if a predicate is multifile
 	Session.prototype.is_multifile_predicate = function(indicator, module_id) {
 		module_id = module_id === undefined ? "user" : module_id;
-		return pl.type.is_module(this.current_modules[module_id]) && this.current_modules[module_id].is_multifile_predicate(indicator);
+		return pl.type.is_module(this.modules[module_id]) && this.modules[module_id].is_multifile_predicate(indicator);
 	};
 	Thread.prototype.is_multifile_predicate = function(indicator, module_id) {
 		return this.session.is_multifile_predicate(indicator, module_id);
+	};
+
+	// Check if a predicate is a meta-predicate
+	Session.prototype.is_meta_predicate = function(indicator, module_id) {
+		module_id = module_id === undefined ? "user" : module_id;
+		if(pl.type.is_module(this.modules[module_id]))
+			return this.modules[module_id].is_meta_predicate(indicator);
+		return null;
+	};
+	Thread.prototype.is_meta_predicate = function(indicator, module_id) {
+		return this.session.is_meta_predicate(indicator, module_id);
 	};
 	
 	// Insert states at the beginning
@@ -2498,28 +2523,47 @@
 		this.prepend( [new State( new Term( "throw", [error] ), new Substitution(), null, null )] );
 	};
 	
-	// Selection rule
-	Session.prototype.get_predicate_module = function( mod, atom ) {
-		return this.thread.get_predicate_module( mod, atom );
+	// Get the module of a predicate
+	Session.prototype.lookup_module = function(atom) {
+		return this.thread.lookup_module(atom);
 	}
-	Thread.prototype.get_predicate_module = function(module_id, atom) {
-		var name = atom.indicator;
-		var mod = module_id === null ? (this.level.found_in_module ? this.level.found_in_module.id : "user") : module_id;
-		if(pl.type.is_module(this.session.current_modules[mod])) {
-			mod = this.session.current_modules[mod];
-			if(mod.rules.hasOwnProperty(name) && (module_id !== null || mod.rules.hasOwnProperty(this.level.indicator) || mod.exports_predicate(name)))
-				return mod;
-		}
-		if(module_id === null) {
-			for(var prop in this.session.current_modules) {
-				if(!this.session.current_modules.hasOwnProperty(prop))
-					continue;
-				mod = this.session.current_modules[prop];
-				if(mod.rules.hasOwnProperty(name) && (mod.rules.hasOwnProperty(this.level.indicator) || mod.exports_predicate(name)))
-					return mod;
-			}
+	Thread.prototype.lookup_module = function(atom) {
+		for(var prop in this.session.modules) {
+			if(!this.session.modules.hasOwnProperty(prop))
+				continue;
+			var get_module = this.session.modules[prop];
+			if(get_module.rules.hasOwnProperty(atom.indicator) && (
+				get_module.exports_predicate(atom.indicator) ||
+				get_module.rules.hasOwnProperty(this.level.indicator) ||
+				atom.context_module === get_module.id))
+					return get_module;
 		}
 		return null;
+	};
+
+	// Expand a meta-predicate
+	Session.prototype.expand_meta_predicate = function(atom, get_module) {
+		return this.thread.expand_meta_predicate(atom, get_module);
+	};
+	Thread.prototype.expand_meta_predicate = function(atom, get_module) {
+		if(!get_module)
+			return;
+		var meta = get_module.is_meta_predicate(atom.indicator);
+		if(!meta)
+			return;
+		for(var i = 0; i < meta.args.length; i++) {
+			if(pl.type.is_integer(meta.args[i]) || pl.type.is_atom(meta.args[i]) && indexOf([":"], meta.args[i].id) !== -1) {
+				if(!pl.type.is_term(atom.args[i]) || atom.args[i].indicator !== ":/2") {
+					atom.args[i] = new Term(":", [new Term(atom.context_module), atom.args[i]]);
+				}
+			} else if(pl.type.is_atom(meta.args[i]) && meta.args[i].id === "^") {
+				if(!pl.type.is_term(atom.args[i]) || atom.args[i].indicator !== ":/2" && atom.args[i].indicator !== "^/2") {
+					atom.args[i] = new Term(":", [new Term(atom.context_module), atom.args[i]]);
+				} else if(atom.args[i].indicator === "^/2" && (!pl.type.is_term(atom.args[i].args[1]) || atom.args[i].args[1].indicator !== ":/2")) {
+					atom.args[i].args[1] = new Term(":", [new Term(atom.context_module), atom.args[i].args[1]]);
+				}
+			}
+		}
 	};
 	
 	// Resolution step
@@ -2537,12 +2581,12 @@
 			this.debugger_states.push(point);
 		if(pl.type.is_term(point.goal)) {
 			var atom = point.goal.select();
-			var mod = null;
+			var context_module = null;
 			var states = [];
 			if(atom !== null) {
 				this.total_steps++;
 				var level = point;
-				while( level.parent !== null && level.parent.goal.search( atom ) )
+				while(level.parent !== null && level.parent.goal.search(atom))
 					level = level.parent;
 				if(level.parent === null) {
 					this.level = new Term("top_level");
@@ -2552,65 +2596,67 @@
 						this.level = this.level.args[1];
 				}
 				if(pl.type.is_term(atom) && atom.indicator === ":/2") {
-					mod = atom.args[0];
+					context_module = atom.args[0];
 					atom = atom.args[1];
-					atom.from_module = mod;
-					if(!pl.type.is_atom(mod)) {
-						this.throw_error(pl.error.type("module", mod, this.level.indicator));
+					if(!pl.type.is_atom(context_module)) {
+						this.throw_error(pl.error.type("module", context_module, this.level.indicator));
 						return;
 					}
-					mod = mod.id;
+					context_module = context_module.id;
+					atom.context_module = context_module;
 				}
-				if(
-					(mod === null || atom.indicator === "listing/0" || atom.indicator === "listing/1")
-					&& pl.type.is_builtin(atom)
-				) {
-					this.__call_indicator = atom.indicator;
-					asyn = pl.predicate[atom.indicator](this, point, atom);
-				} else {
-					var get_module = this.get_predicate_module(mod, atom);
-					atom.found_in_module = get_module;
-					var get_rules = get_module === null ? null : get_module.rules[atom.indicator];
-					if(get_rules === null) {
-						if( !this.session.current_modules.user.rules.hasOwnProperty( atom.indicator ) ) {
-							if( this.get_flag( "unknown" ).id === "error" ) {
-								this.throw_error( pl.error.existence( "procedure", atom.indicator, this.level.indicator ) );
-							} else if( this.get_flag( "unknown" ).id === "warning" ) {
-								this.throw_warning( "unknown procedure " + atom.indicator + " (from " + this.level.indicator + ")" );
-							}
+				this.__call_indicator = atom.indicator;
+				var get_module = this.lookup_module(atom);
+				if(atom.context_module === undefined || atom.context_module === null) {
+					if(this.level.context_module)
+						atom.context_module = this.level.context_module;
+					else
+						atom.context_module = pl.type.is_module(get_module) ? get_module.id : "user";
+				}
+				if(atom.context_module === "system")
+					atom.context_module = "user";
+				this.expand_meta_predicate(atom, get_module);
+				var get_rules = get_module === null ? null : get_module.rules[atom.indicator];
+				if(get_rules === null) {
+					if(!this.session.modules.user.rules.hasOwnProperty(atom.indicator)) {
+						if(this.get_flag("unknown").id === "error") {
+							this.throw_error( pl.error.existence( "procedure", atom.indicator, this.level.indicator));
+						} else if(this.get_flag("unknown").id === "warning") {
+							this.throw_warning("unknown procedure " + atom.indicator + " (from " + this.level.indicator + ")");
 						}
-					} else if(get_rules instanceof Function) {
-						asyn = get_rules(this, point, atom);
-					} else {
-						// Goal expansion
-						if( this.__goal_expansion && atom.indicator === "goal_expansion/2" )
-							get_rules = get_rules.concat(pl.predicate["goal_expansion/2"]);
-						for( var _rule in get_rules ) {
-							if(!get_rules.hasOwnProperty(_rule)) continue;
-							var rule = get_rules[_rule];
-							this.session.renamed_variables = {};
-							rule = rule.rename( this );
-							var occurs_check = this.get_flag( "occurs_check" ).indicator === "true/0";
-							var state = new State();
-							var mgu = pl.unify( atom, rule.head, occurs_check );
-							if( mgu !== null ) {
-								state.goal = point.goal.replace( rule.body );
-								if( state.goal !== null ) {
-									state.goal = state.goal.apply( mgu );
-								}
-								state.substitution = point.substitution.apply( mgu );
-								state.parent = point;
-								states.push( state );
-							}
-						}
-						this.prepend( states );
 					}
+				} else if(get_rules instanceof Function) {
+					asyn = get_rules(this, point, atom);
+				} else {
+					// Goal expansion
+					if(this.__goal_expansion && atom.indicator === "goal_expansion/2")
+						get_rules = get_rules.concat(pl.builtin.rules["goal_expansion/2"]);
+					for(var _rule in get_rules) {
+						if(!get_rules.hasOwnProperty(_rule))
+							continue;
+						var rule = get_rules[_rule];
+						this.session.renamed_variables = {};
+						rule = rule.rename( this );
+						var occurs_check = this.get_flag("occurs_check").indicator === "true/0";
+						var state = new State();
+						var mgu = pl.unify( atom, rule.head, occurs_check );
+						if(mgu !== null) {
+							state.goal = point.goal.replace( rule.body );
+							if( state.goal !== null ) {
+								state.goal = state.goal.apply(mgu);
+							}
+							state.substitution = point.substitution.apply(mgu);
+							state.parent = point;
+							states.push( state );
+						}
+					}
+					this.prepend(states);
 				}
 			}
-		} else if( pl.type.is_variable( point.goal ) ) {
-			this.throw_error( pl.error.instantiation( this.level.indicator ) );
+		} else if(pl.type.is_variable(point.goal)) {
+			this.throw_error(pl.error.instantiation(this.level.indicator));
 		} else {
-			this.throw_error( pl.error.type( "callable", point.goal, this.level.indicator ) );
+			this.throw_error(pl.error.type("callable", point.goal, this.level.indicator));
 		}
 		return asyn;
 	};
@@ -2709,7 +2755,7 @@
 				body2 = body2.apply( point.substitution );
 			unfolded.push( new Rule( head2, body2 ) );
 		}
-		var rules = this.current_modules.user.rules[head.indicator];
+		var rules = this.modules.user.rules[head.indicator];
 		var index = indexOf( rules, rule );
 		if( unfolded.length > 0 && index !== -1 ) {
 			rules.splice.apply( rules, [index, 1].concat(unfolded) );
@@ -2899,9 +2945,9 @@
 	// Sessions
 	Session.prototype.compile = function() {
 		var str, obj = [], rules;
-		for( var _indicator in this.current_modules.user.rules ) {
-			if(!this.current_modules.user.rules.hasOwnProperty(_indicator)) continue;
-			var indicator = this.current_modules.user.rules[_indicator];
+		for( var _indicator in this.modules.user.rules ) {
+			if(!this.modules.user.rules.hasOwnProperty(_indicator)) continue;
+			var indicator = this.modules.user.rules[_indicator];
 			rules = [];
 			str = "\"" + _indicator + "\": [";
 			for(var i = 0; i < indicator.length; i++) {
@@ -3326,7 +3372,7 @@
 			
 			// Is a built-in predicate
 			is_builtin: function( obj ) {
-				return obj instanceof Term && pl.predicate[obj.indicator] !== undefined && obj.indicator !== "goal_expansion/2";
+				return obj instanceof Term && pl.builtin.rules.hasOwnProperty(obj.indicator) && obj.indicator !== "goal_expansion/2";
 			},
 			
 			// Is an error
@@ -3447,6 +3493,12 @@
 					obj.indicator === "multifile/0" ||
 					obj.indicator === "meta_predicate/1"
 				);
+			},
+
+			// Is a meta-argument specifier
+			is_meta_argument_specifier: function(obj) {
+				return pl.type.is_integer(obj) && obj.value >= 0 ||
+					pl.type.is_atom(obj) && indexOf(["+", "-", "?", "*", "^", ":", "//"], obj.id) !== -1;
 			}
 			
 		},
@@ -3733,7 +3785,26 @@
 				} else if( !pl.type.is_integer( indicator.args[1] ) ) {
 					thread.throw_warning( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
-					thread.session.multifile_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
+					thread.__last_module_parsed.multifile_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
+				}
+			},
+
+			// meta_predicate/1
+			"meta_predicate/1": function(thread, atom) {
+				var head = atom.args[0];
+				if( pl.type.is_variable(head) ) {
+					thread.throw_warning(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_callable(head)) {
+					thread.throw_warning(pl.error.type("callable", head, atom.indicator));
+				} else {
+					for(var i = 0; i < head.args.length; i++) {
+						var arg = head.args[i];
+						if(!pl.type.is_meta_argument_specifier(arg)) {
+							thread.throw_warning(pl.error.type("meta_argument_specifier", arg, atom.indicator));
+							return;
+						}
+					}
+					thread.__last_module_parsed.meta_predicates[head.indicator] = head;
 				}
 			},
 			
@@ -3765,7 +3836,7 @@
 				} else if(!pl.type.is_list(exports)) {
 					thread.throw_warning(pl.error.type("list", exports, atom.indicator));
 				} else {
-					if(!pl.type.is_module(thread.session.current_modules[module_id.indicator])) {
+					if(!pl.type.is_module(thread.session.modules[module_id.indicator])) {
 						var pointer = exports;
 						var indicators = [];
 						while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
@@ -3785,7 +3856,7 @@
 						var new_module = new Module(module_id.id, {}, indicators, {
 							session: thread.session
 						});
-						thread.session.current_modules[module_id.id] = new_module;
+						thread.session.modules[module_id.id] = new_module;
 						thread.__last_module_parsed = new_module;
 					} else {
 						thread.throw_warning(pl.error.permission("create", "module", module_id, atom.indicator));
@@ -3808,8 +3879,8 @@
 					var name = module_id.id;
 					var mod = library ? pl.modules[name] : thread.session.modules[name];
 					if(pl.type.is_module(mod)) {
-						if(!thread.session.current_modules.hasOwnProperty(name)) {
-							thread.session.current_modules[name] = mod;
+						if(!thread.session.modules.hasOwnProperty(name)) {
+							thread.session.modules[name] = mod;
 							for(var i = 0; i < mod.dependencies.length; i++) {
 								var term = new Term("use_module",
 									[new Term("library", [
@@ -3901,3284 +3972,6 @@
 				}
 			}
 			
-		},
-		
-		// Built-in predicates
-		predicate: {
-
-			// TERM AND GOAL EXPANSION
-
-			"goal_expansion/2": [
-				new Rule(new Term("goal_expansion", [new Term(",", [new Var("X"),new Var("Y")]),new Term(",", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
-				new Rule(new Term("goal_expansion", [new Term(";", [new Var("X"),new Var("Y")]),new Term(";", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
-				new Rule(new Term("goal_expansion", [new Term("->", [new Var("X"),new Var("Y")]),new Term("->", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
-				new Rule(new Term("goal_expansion", [new Term("catch", [new Var("X"),new Var("Y"),new Var("Z")]),new Term("catch", [new Var("X_"),new Var("Y"),new Var("Z_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Z"),new Var("Z_")]),new Term("=", [new Var("Z_"),new Var("Z")])])]),new Term(",", [new Term("=", [new Var("X_"),new Var("X")]),new Term("goal_expansion", [new Var("Z"),new Var("Z_")])])])),
-				new Rule(new Term("goal_expansion", [new Term("\\+", [new Var("X")]),new Term("\\+", [new Var("X_")])]), new Term(",", [new Term("nonvar", [new Var("X")]),new Term("goal_expansion", [new Var("X"),new Var("X_")])])),
-				new Rule(new Term("goal_expansion", [new Term("once", [new Var("X")]),new Term("once", [new Var("X_")])]), new Term(",", [new Term("nonvar", [new Var("X")]),new Term("goal_expansion", [new Var("X"),new Var("X_")])])),
-				new Rule(new Term("goal_expansion", [new Term("findall", [new Var("X"),new Var("Y"),new Var("Z")]),new Term("findall", [new Var("X"),new Var("Y_"),new Var("Z")])]), new Term("goal_expansion", [new Var("Y"),new Var("Y_")])),
-				new Rule(new Term("goal_expansion", [new Term("setof", [new Var("X"),new Var("Y"),new Var("Z")]),new Term("findall", [new Var("X"),new Var("Y_"),new Var("Z")])]), new Term("goal_expansion", [new Var("Y"),new Var("Y_")])),
-				new Rule(new Term("goal_expansion", [new Term("bagof", [new Var("X"),new Var("Y"),new Var("Z")]),new Term("findall", [new Var("X"),new Var("Y_"),new Var("Z")])]), new Term("goal_expansion", [new Var("Y"),new Var("Y_")])),
-				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X")]),new Term("call", [new Var("X_")])]), new Term(",", [new Term("nonvar", [new Var("X")]),new Term("goal_expansion", [new Var("X"),new Var("X_")])])),
-				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term("[]", [])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
-				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term("[]", [])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
-				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term("[]", [])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
-				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term("[]", [])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
-				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term("[]", [])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
-				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5"),new Var("A6")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term(".", [new Var("A6"),new Term("[]", [])])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
-				new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5"),new Var("A6"),new Var("A7")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term(".", [new Var("A6"),new Term(".", [new Var("A7"),new Term("[]", [])])])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])]))
-			],
-
-
-
-			// ATTRIBUTED VARIABLES
-			
-			//put_attr/3
-			"put_attr/3": function( thread, point, atom ) {
-				var variable = atom.args[0], module = atom.args[1], value = atom.args[2];
-				if( !pl.type.is_variable(variable) ) {
-					thread.throw_error( pl.error.type( "variable", variable, atom.indicator ) );
-				} else if( !pl.type.is_atom(module) ) {
-					thread.throw_error( pl.error.type( "atom", module, atom.indicator ) );
-				} else {
-					var subs = point.substitution.set_attribute( variable.id, module, value );
-					thread.prepend( [new State( point.goal.replace(null), subs, point )] );
-				}
-			},
-
-			// get_attr/3
-			"get_attr/3": function( thread, point, atom ) {
-				var variable = atom.args[0], module = atom.args[1], value = atom.args[2];
-				if( !pl.type.is_variable(variable) ) {
-					thread.throw_error( pl.error.type( "variable", variable, atom.indicator ) );
-				} else if( !pl.type.is_atom(module) ) {
-					thread.throw_error( pl.error.type( "atom", module, atom.indicator ) );
-				} else {
-					var attr = point.substitution.get_attribute( variable.id, module );
-					if( attr ) {
-						thread.prepend( [new State(
-							point.goal.replace( new Term("=", [value, attr]) ),
-							point.substitution,
-							point
-						)] );
-					}
-				}
-			},
-
-
-			
-			// INPUT AND OUTPUT
-			
-			// op/3
-			"op/3": function( thread, point, atom ) {
-				if( pl.directive["op/3"]( thread, atom ) )
-					thread.success( point );
-			},
-			
-			// current_op/3
-			"current_op/3": function( thread, point, atom ) {
-				var priority = atom.args[0], specifier = atom.args[1], operator = atom.args[2];
-				var points = [];
-				for( var p in thread.session.__operators )
-					for( var o in thread.session.__operators[p] )
-						for( var i = 0; i < thread.session.__operators[p][o].length; i++ )
-							points.push( new State(
-								point.goal.replace(
-									new Term( ",", [
-										new Term( "=", [new Num( p, false ), priority] ),
-										new Term( ",", [
-											new Term( "=", [new Term( thread.session.__operators[p][o][i], [] ), specifier] ),
-											new Term( "=", [new Term( o, [] ), operator] )
-										] )
-									] )
-								),
-								point.substitution,
-								point
-							) );
-				thread.prepend( points );
-			},
-		
-
-
-			// LOGIC AND CONTROL STRUCTURES
-		
-			// ;/2 (disjunction)
-			";/2": function( thread, point, atom ) {
-				var left = atom.args[0], right = atom.args[1];
-				if( pl.type.is_term( left ) && left.indicator === "->/2" ) {
-					var cond = left.args[0], then = left.args[1], otherwise = right;
-					var goal_fst = point.goal.replace( new Term( ",", [cond, new Term( ",", [new Term( "!" ), then] )] ) );
-					var goal_snd = point.goal.replace( new Term( ",", [new Term( "!" ), otherwise] ) );
-					thread.prepend( [
-						new State( goal_fst, point.substitution, point ),
-						new State( goal_snd, point.substitution, point )
-					] );
-				} else {
-					thread.prepend([
-						new State( point.goal.replace( left ), point.substitution, point ),
-						new State( point.goal.replace( right ), point.substitution, point )
-					]);
-				}
-			},
-			
-			// !/0 (cut)
-			"!/0": function( thread, point, atom ) {
-				var parent_cut, last_cut, states = [];
-				parent_cut = point;
-				last_cut = null;
-				while( parent_cut.parent !== null && parent_cut.parent.goal.search( atom ) ) {
-					last_cut = parent_cut;
-					parent_cut = parent_cut.parent;
-					if(parent_cut.goal !== null) {
-						var selected = parent_cut.goal.select();
-						if( selected && selected.id === "call" && selected.search(atom) ) {
-							parent_cut = last_cut;
-							break;
-						}
-					}
-				}
-				for( var i = thread.points.length-1; i >= 0; i-- ) {
-					var state = thread.points[i];
-					var node = state.parent;
-					while( node !== null && node !== parent_cut.parent ) {
-						node = node.parent;
-					}
-					if( node === null && node !== parent_cut.parent )
-						states.push( state );
-				}
-				thread.points = states.reverse();
-				thread.success( point );
-			},
-			
-			// \+ (negation)
-			"\\+/1": function( thread, point, atom ) {
-				var goal = atom.args[0];
-				if( pl.type.is_variable( goal ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_callable( goal ) ) {
-					thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
-				} else {
-					// TRANSPARENT VERSION OF THE NEGATION
-					/*var neg_thread;
-					if(point.negation_thread) {
-						neg_thread = point.negation_thread;
-					} else {
-						neg_thread = new Thread( thread.session );
-						neg_thread.add_goal( goal );
-						point.negation_thread = neg_thread;
-					}
-					neg_thread.answer( function( answer ) {
-						if(answer === false) {
-							thread.success( point );
-						} else if(pl.type.is_error( answer )) {
-							thread.throw_error( answer.args[0] );
-						} else if(answer === null) {
-							thread.prepend( [point] );
-							thread.current_limit = 0;
-						}
-						thread.again( answer !== null );
-					} );
-					return true;*/
-					
-					// '\+'(X) :- call(X), !, fail.
-					// '\+'(_).
-					thread.prepend( [
-						new State( point.goal.replace( new Term( ",", [new Term( ",", [ new Term( "call", [goal] ), new Term( "!", [] ) ] ), new Term( "fail", [] ) ] ) ), point.substitution, point ),
-						new State( point.goal.replace( null ), point.substitution, point )
-					] );
-				}
-			},
-			
-			// ->/2 (implication)
-			"->/2": function( thread, point, atom ) {
-				var cond = atom.args[0], then = atom.args[1];
-				var goal = point.goal.replace( new Term( ",", [cond, new Term( ",", [new Term( "!" ), then] )] ) );
-				thread.prepend( [new State( goal, point.substitution, point )] );
-			},
-			
-			// fail/0
-			"fail/0": function( _1, _2, _3 ) {},
-			
-			// false/0
-			"false/0": function( _1, _2, _3 ) {},
-			
-			// true/0
-			"true/0": function( thread, point, _ ) {
-				thread.success( point );
-			},
-			
-			// call/1..8
-			"call/1": callN(1),
-			"call/2": callN(2),
-			"call/3": callN(3),
-			"call/4": callN(4),
-			"call/5": callN(5),
-			"call/6": callN(6),
-			"call/7": callN(7),
-			"call/8": callN(8),
-			
-			// once/1
-			"once/1": function( thread, point, atom ) {
-				var goal = atom.args[0];
-				thread.prepend( [new State( point.goal.replace( new Term( ",", [new Term( "call", [goal] ), new Term( "!", [] )] ) ), point.substitution, point )] );
-			},
-			
-			// forall/2
-			"forall/2": function( thread, point, atom ) {
-				var generate = atom.args[0], test = atom.args[1];
-				thread.prepend( [new State( point.goal.replace( new Term( "\\+", [new Term( ",", [new Term( "call", [generate] ), new Term( "\\+", [new Term( "call", [test] )] )] )] ) ), point.substitution, point )] );
-			},
-			
-			// repeat/0
-			"repeat/0": function( thread, point, _ ) {
-				thread.prepend( [new State( point.goal.replace( null ), point.substitution, point ), point] );
-			},
-			
-			// EXCEPTIONS
-			
-			// throw/1
-			"throw/1": function( thread, point, atom ) {
-				if( pl.type.is_variable( atom.args[0] ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else {
-					thread.throw_error( atom.args[0] );
-				}
-			},
-			
-			// catch/3
-			"catch/3": function( thread, point, atom ) {
-				var points = thread.points;
-				thread.points = [];
-				thread.prepend( [new State( atom.args[0], point.substitution, point )] );
-				var format_success = thread.session.format_success;
-				var format_error = thread.session.format_error;
-				thread.session.format_success = function(x) { return x.substitution; };
-				thread.session.format_error = function(x) { return x.goal; };
-				var callback = function( answer ) {
-					var call_points = thread.points;
-					thread.points = points;
-					thread.session.format_success = format_success;
-					thread.session.format_error = format_error;
-					if( pl.type.is_error( answer ) ) {
-						var states = [];
-						for( var i = thread.points.length-1 ; i >= 0; i-- ) {
-							var state = thread.points[i];
-							var node = state.parent;
-							while( node !== null && node !== point.parent ) {
-								node = node.parent;
-							}
-							if( node === null && node !== point.parent )
-								states.push( state );
-						}
-						thread.points = states;
-						var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
-						var state = new State();
-						var mgu = pl.unify( answer.args[0], atom.args[1], occurs_check );
-						if( mgu !== null ) {
-							state.substitution = point.substitution.apply( mgu );
-							state.goal = point.goal.replace( atom.args[2] ).apply( mgu );
-							state.parent = point;
-							thread.prepend( [state] );
-						} else {
-							thread.throw_error( answer.args[0] );
-						}
-					} else if( answer !== false ) {
-						var answer_state = answer === null ? [] : [new State(
-							point.goal.apply( answer ).replace( null ),
-							point.substitution.apply( answer ),
-							point
-						)];
-						var filter_points = [];
-						for( var i = call_points.length-1; i >= 0; i-- ) {
-							filter_points.push( call_points[i] );
-							var selected = call_points[i].goal !== null ? call_points[i].goal.select() : null;
-							if( pl.type.is_term( selected ) && selected.indicator === "!/0" )
-								break;
-						}
-						var catch_points = map( filter_points, function( state ) {
-							if( state.goal === null )
-								state.goal = new Term( "true", [] );
-							state = new State(
-								point.goal.replace( new Term( "catch", [state.goal, atom.args[1], atom.args[2]] ) ),
-								point.substitution.apply( state.substitution ),
-								state.parent
-							);
-							state.exclude = atom.args[0].variables();
-							return state;
-						} ).reverse();
-						thread.prepend( catch_points );
-						thread.prepend( answer_state );
-						if( answer === null ) {
-							this.current_limit = 0;
-							thread.__calls.shift()( null );
-						}
-					}
-				};
-				thread.__calls.unshift( callback );
-			},
-			
-			// UNIFICATION
-			
-			// =/2 (unification)
-			"=/2": function( thread, point, atom ) {
-				var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
-				var state = new State();
-				var mgu = pl.unify( atom.args[0], atom.args[1], occurs_check );
-				if( mgu !== null ) {
-					state.goal = point.goal.apply( mgu ).replace( null );
-					state.substitution = point.substitution.apply( mgu );
-					state.parent = point;
-					thread.prepend( [state] );
-				}
-			},
-			
-			// unify_with_occurs_check/2
-			"unify_with_occurs_check/2": function( thread, point, atom ) {
-				var state = new State();
-				var mgu = pl.unify( atom.args[0], atom.args[1], true );
-				if( mgu !== null ) {
-					state.goal = point.goal.apply( mgu ).replace( null );
-					state.substitution = point.substitution.apply( mgu );
-					state.parent = point;
-					thread.prepend( [state] );
-				}
-			},
-			
-			// \=/2
-			"\\=/2": function( thread, point, atom ) {
-				var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
-				var mgu = pl.unify( atom.args[0], atom.args[1], occurs_check );
-				if( mgu === null ) {
-					thread.success( point );
-				}
-			},
-			
-			// subsumes_term/2
-			"subsumes_term/2": function( thread, point, atom ) {
-				var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
-				var mgu = pl.unify( atom.args[1], atom.args[0], occurs_check );
-				if( mgu !== null && atom.args[1].apply( mgu ).equals( atom.args[1] ) ) {
-					thread.success( point );
-				}
-			},
-			
-			// ALL SOLUTIONS
-
-			// findall/3
-			"findall/3": function(thread, point, atom) {
-				var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
-				var tail = new Term("[]", []);
-				thread.prepend([new State(
-					point.goal.replace(new Term("findall", [template, goal, instances, tail])),
-					point.substitution,
-					point
-				)]);
-			},
-
-			// findall/4
-			"findall/4": function(thread, point, atom) {
-				var template = atom.args[0], goal = atom.args[1], instances = atom.args[2], tail = atom.args[3];
-				if( pl.type.is_variable( goal ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_callable( goal ) ) {
-					thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
-				} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
-					thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
-				} else {
-					var variable = thread.next_free_variable();
-					var newGoal = new Term( ",", [goal, new Term( "=", [variable, template] )] );
-					var nthread = new Thread(thread.session);
-					nthread.debugger = thread.debugger;
-					nthread.format_success = function(state) { return state.substitution; };
-					nthread.format_error = function(state) { return state.goal; };
-					nthread.add_goal( newGoal, true, point );
-					nthread.head_point().parent = point;
-					var answers = [];
-					var callback = function( answer ) {
-						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							answers.push( answer.links[variable.id] );
-							nthread.answer(callback);
-						} else {
-							var reset_limit = true;
-							if( pl.type.is_error( answer ) ) {
-								thread.throw_error( answer.args[0] );
-							} else if( nthread.current_limit > 0 ) {
-								var list = arrayToList(answers, tail);
-								thread.prepend( [new State(
-									point.goal.replace( new Term( "=", [instances, list] ) ),
-									point.substitution,
-									point
-								)] );
-							} else {
-								thread.prepend( [point] );
-								thread.current_limit = 0;
-								reset_limit = false;
-							}
-							if(reset_limit && nthread.debugger)
-								thread.debugger_states = thread.debugger_states.concat(nthread.debugger_states);
-							thread.again(reset_limit);
-						}
-					};
-					nthread.answer(callback);
-					return true;
-				}
-			},
-			
-			// bagof/3
-			"bagof/3": function( thread, point, atom ) {
-				var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
-				if( pl.type.is_variable( goal ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_callable( goal ) ) {
-					thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
-				} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
-					thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
-				} else {
-					var variable = thread.next_free_variable();
-					var template_vars;
-					if( goal.indicator === "^/2" ) {
-						template_vars = goal.args[0].variables();
-						goal = goal.args[1];
-					} else {
-						template_vars = [];
-					}
-					template_vars = template_vars.concat( template.variables() );
-					var free_vars = goal.variables().filter( function( v ){
-						return indexOf( template_vars, v ) === -1;
-					} );
-					var list_vars = new Term( "[]" );
-					for( var i = free_vars.length - 1; i >= 0; i-- ) {
-						list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
-					}
-					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
-					var nthread = new Thread(thread.session);
-					nthread.debugger = thread.debugger;
-					nthread.format_success = function(state) { return state.substitution; };
-					nthread.format_error = function(state) { return state.goal; };
-					nthread.add_goal( newGoal, true, point );
-					nthread.head_point().parent = point;
-					var answers = [];
-					var callback = function( answer ) {
-						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							var match = false;
-							var arg_vars = answer.links[variable.id].args[0];
-							var arg_template = answer.links[variable.id].args[1];
-							for( var _elem in answers ) {
-								if(!answers.hasOwnProperty(_elem)) continue;
-								var elem = answers[_elem];
-								if( elem.variables.equals( arg_vars ) ) {
-									elem.answers.push( arg_template );
-									match = true;
-									break;
-								}
-							}
-							if( !match )
-								answers.push( {variables: arg_vars, answers: [arg_template]} );
-							nthread.answer(callback);
-						} else {
-							reset_limit = true;
-							if( pl.type.is_error( answer ) ) {
-								thread.throw_error( answer.args[0] );
-							} else if( thread.current_limit > 0 ) {
-								var states = [];
-								for( var i = 0; i < answers.length; i++ ) {
-									answer = answers[i].answers;
-									var list = arrayToList(answer);
-									states.push( new State(
-										point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
-										point.substitution,
-										point
-									) );
-								}
-								thread.prepend( states );
-							} else {
-								thread.prepend( [point] );
-								thread.current_limit = 0;
-								reset_limit = false;
-							}
-							if(reset_limit && nthread.debugger)
-								thread.debugger_states = thread.debugger_states.concat(nthread.debugger_states);
-							thread.again(reset_limit);
-						}
-					};
-					nthread.answer(callback);
-					return true;
-				}
-			},
-
-			// setof/3
-			"setof/3": function( thread, point, atom ) {
-				var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
-				if( pl.type.is_variable( goal ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_callable( goal ) ) {
-					thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
-				} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
-					thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
-				} else {
-					var variable = thread.next_free_variable();
-					var template_vars;
-					if( goal.indicator === "^/2" ) {
-						template_vars = goal.args[0].variables();
-						goal = goal.args[1];
-					} else {
-						template_vars = [];
-					}
-					template_vars = template_vars.concat( template.variables() );
-					var free_vars = goal.variables().filter( function( v ){
-						return indexOf( template_vars, v ) === -1;
-					} );
-					var list_vars = new Term( "[]" );
-					for( var i = free_vars.length - 1; i >= 0; i-- ) {
-						list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
-					}
-					var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
-					var nthread = new Thread(thread.session);
-					nthread.debugger = thread.debugger;
-					nthread.format_success = function(state) { return state.substitution; };
-					nthread.format_error = function(state) { return state.goal; };
-					nthread.add_goal( newGoal, true, point );
-					nthread.head_point().parent = point;
-					var answers = [];
-					var callback = function( answer ) {
-						if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-							var match = false;
-							var arg_vars = answer.links[variable.id].args[0];
-							var arg_template = answer.links[variable.id].args[1];
-							for( var _elem in answers ) {
-								if(!answers.hasOwnProperty(_elem)) continue;
-								var elem = answers[_elem];
-								if( elem.variables.equals( arg_vars ) ) {
-									elem.answers.push( arg_template );
-									match = true;
-									break;
-								}
-							}
-							if( !match )
-								answers.push( {variables: arg_vars, answers: [arg_template]} );
-							nthread.answer(callback);
-						} else {
-							reset_limit = true;
-							if( pl.type.is_error( answer ) ) {
-								thread.throw_error( answer.args[0] );
-							} else if( thread.current_limit > 0 ) {
-								var states = [];
-								for( var i = 0; i < answers.length; i++ ) {
-									answer = answers[i].answers.sort( pl.compare );
-									var list = arrayToList(answer);
-									states.push( new State(
-										point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
-										point.substitution,
-										point
-									) );
-								}
-								thread.prepend( states );
-							} else {
-								thread.prepend( [point] );
-								thread.current_limit = 0;
-								reset_limit = false;
-							}
-							if(reset_limit && nthread.debugger)
-								thread.debugger_states = thread.debugger_states.concat(nthread.debugger_states);
-							thread.again(reset_limit);
-						}
-					};
-					nthread.answer(callback);
-					return true;
-				}
-			},
-			
-			// TERM CREATION AND DECOMPOSITION
-			
-			// functor/3
-			"functor/3": function( thread, point, atom ) {
-				var subs;
-				var term = atom.args[0], name = atom.args[1], arity = atom.args[2];
-				if( pl.type.is_variable( term ) && (pl.type.is_variable( name ) || pl.type.is_variable( arity )) ) {
-					thread.throw_error( pl.error.instantiation( "functor/3" ) );
-				} else if( !pl.type.is_variable( arity ) && !pl.type.is_integer( arity ) ) {
-					thread.throw_error( pl.error.type( "integer", atom.args[2], "functor/3" ) );
-				} else if( !pl.type.is_variable( name ) && !pl.type.is_atomic( name ) ) {
-					thread.throw_error( pl.error.type( "atomic", atom.args[1], "functor/3" ) );
-				} else if( pl.type.is_integer( name ) && pl.type.is_integer( arity ) && arity.value !== 0 ) {
-					thread.throw_error( pl.error.type( "atom", atom.args[1], "functor/3" ) );
-				} else if( pl.type.is_variable( term ) ) {
-					if( atom.args[2].value >= 0 ) {
-						var args = [];
-						for( var i = 0; i < arity.value; i++ )
-							args.push( thread.next_free_variable() );
-						var functor = pl.type.is_integer( name ) ? name : new Term( name.id, args );
-						thread.prepend( [new State( point.goal.replace( new Term( "=", [term, functor] ) ), point.substitution, point )] );
-					}
-				} else {
-					var id = pl.type.is_integer( term ) ? term : new Term( term.id, [] );
-					var length = pl.type.is_integer( term ) ? new Num( 0, false ) : new Num( term.args.length, false );
-					var goal = new Term( ",", [new Term( "=", [id, name] ), new Term( "=", [length, arity] )] );
-					thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
-				}
-			},
-			
-			// arg/3
-			"arg/3": function( thread, point, atom ) {
-				if( pl.type.is_variable( atom.args[0] ) || pl.type.is_variable( atom.args[1] ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( atom.args[0].value < 0 ) {
-					thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[0], atom.indicator ) );
-				} else if( !pl.type.is_compound( atom.args[1] ) ) {
-					thread.throw_error( pl.error.type( "compound", atom.args[1], atom.indicator ) );
-				} else {
-					var n = atom.args[0].value;
-					if( n > 0 && n <= atom.args[1].args.length ) {
-						var goal = new Term( "=", [atom.args[1].args[n-1], atom.args[2]] );
-						thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
-					}
-				}
-			},
-			
-			// =../2 (univ)
-			"=../2": function( thread, point, atom ) {
-				var list;
-				if( pl.type.is_variable( atom.args[0] ) && (pl.type.is_variable( atom.args[1] )
-				|| pl.type.is_non_empty_list( atom.args[1] ) && pl.type.is_variable( atom.args[1].args[0] )) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_fully_list( atom.args[1] ) ) {
-					thread.throw_error( pl.error.type( "list", atom.args[1], atom.indicator ) );
-				} else if( !pl.type.is_variable( atom.args[0] ) ) {
-					if( pl.type.is_atomic( atom.args[0] ) ) {
-						list = new Term( ".", [atom.args[0], new Term( "[]" )] );
-					} else {
-						list = new Term( "[]" );
-						for( var i = atom.args[0].args.length - 1; i >= 0; i-- ) {
-							list = new Term( ".", [atom.args[0].args[i], list] );
-						}
-						list = new Term( ".", [new Term( atom.args[0].id ), list] );
-					}
-					thread.prepend( [new State( point.goal.replace( new Term( "=", [list, atom.args[1]] ) ), point.substitution, point )] );
-				} else if( !pl.type.is_variable( atom.args[1] ) ) {
-					var args = [];
-					list = atom.args[1].args[1];
-					while( list.indicator === "./2" ) {
-						args.push( list.args[0] );
-						list = list.args[1];
-					}
-					if( pl.type.is_variable( atom.args[0] ) && pl.type.is_variable( list ) ) {
-						thread.throw_error( pl.error.instantiation( atom.indicator ) );
-					} else if( args.length === 0 && pl.type.is_compound( atom.args[1].args[0] ) ) {
-						thread.throw_error( pl.error.type( "atomic", atom.args[1].args[0], atom.indicator ) );
-					} else if( args.length > 0 && (pl.type.is_compound( atom.args[1].args[0] ) || pl.type.is_number( atom.args[1].args[0] )) ) {
-						thread.throw_error( pl.error.type( "atom", atom.args[1].args[0], atom.indicator ) );
-					} else {
-						if( args.length === 0 ) {
-							thread.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[1].args[0], atom.args[0]], point ) ), point.substitution, point )] );
-						} else {
-							thread.prepend( [new State( point.goal.replace( new Term( "=", [new Term( atom.args[1].args[0].id, args ), atom.args[0]] ) ), point.substitution, point )] );
-						}
-					}
-				}
-			},
-			
-			// copy_term/2
-			"copy_term/2": function( thread, point, atom ) {
-				var renamed = atom.args[0].rename( thread );
-				thread.prepend( [new State( point.goal.replace( new Term( "=", [renamed, atom.args[1]] ) ), point.substitution, point.parent )] );
-			},
-			
-			// term_variables/2
-			"term_variables/2": function( thread, point, atom ) {
-				var term = atom.args[0], vars = atom.args[1];
-				if( !pl.type.is_fully_list( vars ) ) {
-					thread.throw_error( pl.error.type( "list", vars, atom.indicator ) );
-				} else {
-					var list = arrayToList( map( nub( term.variables() ), function(v) {
-						return new Var(v);
-					} ) );
-					thread.prepend( [new State( point.goal.replace( new Term( "=", [vars, list] ) ), point.substitution, point )] );
-				}
-			},
-
-			// numbervars/3
-			"numbervars/3": function(thread, point, atom) {
-				var term = atom.args[0], start = atom.args[1], end = atom.args[2];
-				if(pl.type.is_variable(start)) {
-					thread.throw_error(pl.error.instantiation(atom.indicator));
-				} else if(!pl.type.is_integer(start)) {
-					thread.throw_error(pl.error.type("integer", start, atom.indicator));
-				} else if(!pl.type.is_variable(end) && !pl.type.is_integer(end)) {
-					thread.throw_error(pl.error.type("integer", end, atom.indicator));
-				} else if(start.value < 0) {
-					thread.throw_error(pl.error.domain("not_less_than_zero", start, atom.indicator));
-				} else {
-					var variables = nub(term.variables());
-					var value = start.value;
-					var unif_body = new Term("true");
-					for(var i = 0; i < variables.length; i++) {
-						unif_body = new Term(",", [
-							new Term("=", [
-								new Var(variables[i]),
-								new Term("$VAR", [new Num(value, false)])]),
-								unif_body]);
-						value++;
-					}
-					var unif_end = new Term("=", [end, new Num(value, false)]);
-					if(pl.type.is_variable(end) || end.value === value) {
-						thread.prepend([new State(
-							point.goal.replace(new Term(",", [unif_body, unif_end])),
-							point.substitution,
-							point
-						)]);
-					}
-				}
-			},
-			
-			// CLAUSE RETRIEVAL AND INFORMATION
-			
-			// clause/2
-			"clause/2": function(thread, point, atom) {
-				var head = atom.args[0], body = atom.args[1];
-				var module_id;
-				if(pl.type.is_term(head) && head.indicator === ":/2") {
-					if(!pl.type.is_atom(head.args[0])) {
-						thread.throw_error(pl.error.type("module", head.args[0], atom.indicator));
-						return;
-					}
-					module_id = head.args[0].id;
-					head = head.args[1];
-				} else {
-					module_id = "user";
-				}
-				var get_module = thread.session.current_modules[module_id];
-				if(pl.type.is_variable(head)) {
-					thread.throw_error(pl.error.instantiation(atom.indicator));
-				} else if(!pl.type.is_callable(head)) {
-					thread.throw_error(pl.error.type("callable", head, atom.indicator));
-				} else if(!pl.type.is_variable(body) && !pl.type.is_callable(body)) {
-					thread.throw_error(pl.error.type("callable", body, atom.indicator));
-				} else if(pl.type.is_module(get_module) && get_module.rules[head.indicator]) {
-					if(thread.is_public_predicate(atom.args[0].indicator, module_id)) {
-						var states = [];
-						for( var _rule in get_module.rules[head.indicator] ) {
-							if(!get_module.rules[head.indicator].hasOwnProperty(_rule))
-								continue;
-							var rule = get_module.rules[head.indicator][_rule];
-							thread.session.renamed_variables = {};
-							rule = rule.rename(thread);
-							if(rule.body === null)
-								rule.body = new Term("true");
-							var goal = new Term(",", [
-								new Term("=", [rule.head, head]),
-								new Term("=", [rule.body, body])
-							]);
-							states.push(new State(point.goal.replace(goal), point.substitution, point));
-						}
-						thread.prepend(states);
-					} else {
-						thread.throw_error(pl.error.permission("access", "private_procedure", atom.args[0].indicator, atom.indicator));
-					}
-				}
-			},
-			
-			// current_predicate/1
-			"current_predicate/1": function(thread, point, atom) {
-				var indicator = atom.args[0];
-				var module_id;
-				if(pl.type.is_term(indicator) && indicator.indicator === ":/2") {
-					if(!pl.type.is_atom(indicator.args[0])) {
-						thread.throw_error(pl.error.type("module", indicator.args[0], atom.indicator));
-						return;
-					}
-					module_id = indicator.args[0].id;
-					indicator = indicator.args[1];
-				} else {
-					module_id = "user";
-				}
-				if(!pl.type.is_variable(indicator) && (!pl.type.is_compound(indicator) || indicator.indicator !== "//2")) {
-					thread.throw_error(pl.error.type( "predicate_indicator", indicator, atom.indicator));
-				} else if(!pl.type.is_variable( indicator ) && !pl.type.is_variable(indicator.args[0]) && !pl.type.is_atom(indicator.args[0])) {
-					thread.throw_error(pl.error.type( "atom", indicator.args[0], atom.indicator));
-				} else if(!pl.type.is_variable(indicator) && !pl.type.is_variable(indicator.args[1]) && !pl.type.is_integer(indicator.args[1])) {
-					thread.throw_error(pl.error.type("integer", indicator.args[1], atom.indicator));
-				} else {
-					var states = [];
-					var get_module = thread.session.current_modules[module_id];
-					if(pl.type.is_module(get_module)) {
-						for(var prop in get_module.rules) {
-							if(!get_module.rules.hasOwnProperty(prop))
-								continue;
-							var predicate = str_indicator(prop);
-							var goal = new Term("=", [predicate, indicator]);
-							states.push(new State(point.goal.replace(goal), point.substitution, point));
-						}
-						thread.prepend(states);
-					}
-				}
-			},
-
-			// predicate_property/2
-			"predicate_property/2": function(thread, point, atom) {
-				var head = atom.args[0], property = atom.args[1];
-				var module_id;
-				if(pl.type.is_term(head) && head.indicator === ":/2") {
-					if(!pl.type.is_atom(head.args[0])) {
-						thread.throw_error(pl.error.type("module", head.args[0], atom.indicator));
-						return;
-					}
-					module_id = head.args[0].id;
-					head = head.args[1];
-				}
-				if(!pl.type.is_variable(head) && !pl.type.is_callable(head)) {
-					thread.throw_error(pl.error.type("callable", head, atom.indicator));
-				} else if(!pl.type.is_variable(property) && !pl.type.is_predicate_property(property)) {
-					thread.throw_error(pl.error.domain("predicate_property", property, atom.indicator));
-				} else {
-					var get_module = module_id ? thread.session.current_modules[module_id] : thread.session.current_modules.user;
-					var points = [];
-					// all predicates
-					if(pl.type.is_variable(head)) {
-						// built-in predicates (built_in + static + native_code)
-						if(!module_id) {
-							for(var prop in pl.predicate) {
-								var indicator = str_indicator(prop);
-								var unif_head = indicator.args[0];
-								for(var i = 0; i < indicator.args[1].value; i++)
-									unif_head.args.push(thread.next_free_variable());
-								var current_properties = ["static", "built_in", "native_code"];
-								// all predicates, all properties
-								if(pl.type.is_variable(property)) {
-									for(var i = 0; i < current_properties.length; i++) {
-										points.push(new State(
-											point.goal.replace(new Term(",", [
-												new Term("=", [head, unif_head]),
-												new Term("=", [property, new Term(current_properties[i])])
-											])),
-											point.substitution,
-											point
-										));
-									}
-								// all predicates, one property
-								} else {
-									if(indexOf(current_properties, property.id) !== -1) {
-										points.push(new State(
-											point.goal.replace(new Term("=", [head, unif_head])),
-											point.substitution,
-											point
-										));
-									}
-								}
-							}
-						}
-						// user-defined predicates
-						if(pl.type.is_module(get_module)) {
-							for(var prop in get_module.rules) {
-								if(!get_module.rules.hasOwnProperty(prop))
-									continue;
-								var indicator = str_indicator(prop);
-								var unif_head = indicator.args[0];
-								for(var i = 0; i < indicator.args[1].value; i++)
-									unif_head.args.push(thread.next_free_variable());
-								var current_properties = [];
-								if(thread.is_public_predicate(prop, module_id))
-									current_properties.push("dynamic");
-								else
-									current_properties.push("static");
-								if(get_module.rules[prop] instanceof Function)
-									current_properties.push("native_code");
-								if(thread.is_multifile_predicate(prop, module_id))
-									current_properties.push("multifile");
-								// all predicates, all properties
-								if(pl.type.is_variable(property)) {
-									for(var i = 0; i < current_properties.length; i++) {
-										points.push(new State(
-											point.goal.replace(new Term(",", [
-												new Term("=", [head, unif_head]),
-												new Term("=", [property, new Term(current_properties[i])])
-											])),
-											point.substitution,
-											point
-										));
-									}
-								// all predicates, one property
-								} else {
-									if(indexOf(current_properties, property.id) !== -1) {
-										points.push(new State(
-											point.goal.replace(new Term("=", [head, unif_head])),
-											point.substitution,
-											point
-										));
-									}
-								}
-							}
-						}
-					// one predicate
-					} else {
-						var builtin = !module_id && pl.type.is_builtin(head);
-						var predicate = builtin ? pl.predicate[head.indicator] : get_module.rules[head.indicator];
-						if(predicate) {
-							var current_properties;
-							if(builtin) {
-								current_properties = ["static", "built_in", "native_code"];
-							} else {
-								current_properties = [];
-								if(thread.is_public_predicate(head.indicator, module_id))
-									current_properties.push("dynamic");
-								else
-									current_properties.push("static");
-								if(predicate instanceof Function)
-									current_properties.push("native_code");
-								if(thread.is_multifile_predicate(head.indicator, module_id))
-									current_properties.push("multifile");
-							}
-							// one predicate, all properties
-							if(pl.type.is_variable(property)) {
-								for(var i = 0; i < current_properties.length; i++) {
-									points.push(new State(
-										point.goal.replace(new Term("=", [property, new Term(current_properties[i])])),
-										point.substitution,
-										point
-									));
-								}
-							// one predicate, one property
-							} else {
-								if(indexOf(current_properties, property.id) !== -1) {
-									points.push(new State(
-										point.goal.replace(null),
-										point.substitution,
-										point
-									));
-								}
-							}
-						}
-					}
-					thread.prepend(points);
-				}
-			},
-
-			// listing/0
-			"listing/0": function( thread, point, atom ) {
-				var from_module = atom.from_module ? atom.from_module : "user";
-				var rules = {};
-				if(pl.type.is_module(thread.session.current_modules[from_module])) {
-					rules = thread.session.current_modules[from_module].rules;
-				}
-				var str = "";
-				for(var indicator in rules) {
-					if(!rules.hasOwnProperty(indicator)) continue;
-					var predicate = rules[indicator];
-					str += "% " + indicator + "\n";
-					if(predicate instanceof Array) {
-						for(var i = 0; i < predicate.length; i++)
-							str += predicate[i].toString( {session: thread.session} ) + "\n";
-					} else {
-						str += "/*\n" + predicate.toString() + "\n*/";
-					}
-					str += "\n";
-				}
-				thread.prepend( [new State(
-					point.goal.replace(new Term("write", [new Term(str, [])])),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// listing/1
-			"listing/1": function( thread, point, atom ) {
-				var indicator = atom.args[0];
-				if(pl.type.is_variable(indicator)) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if(!pl.type.is_predicate_indicator(indicator)) {
-					thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
-				} else {
-					var from_module = atom.from_module ? atom.from_module : "user";
-					var rules = {};
-					if(pl.type.is_module(thread.session.current_modules[from_module])) {
-						rules = thread.session.current_modules[from_module].rules;
-					}
-					var str = "";
-					var str_indicator = indicator.args[0].id + "/" + indicator.args[1].value;
-					if(rules.hasOwnProperty(str_indicator)) {
-						var predicate = rules[str_indicator];
-						if(predicate instanceof Array) {
-							for(var i = 0; i < predicate.length; i++)
-								str += predicate[i].toString( {session: thread.session} ) + "\n";
-						} else {
-							str += "/*\n" + predicate.toString() + "\n*/";
-						}
-						str += "\n";
-					}
-					thread.prepend( [new State(
-						point.goal.replace(new Term("write", [new Term(str, [])])),
-						point.substitution,
-						point
-					)] );
-				}
-			},
-			
-			// CLAUSE CREATION AND DESTRUCTION
-			
-			// asserta/1
-			"asserta/1": function(thread, point, atom) {
-				var clause = atom.args[0];
-				if(pl.type.is_variable(clause)) {
-					thread.throw_error(pl.error.instantiation(atom.indicator));
-				} else if(!pl.type.is_callable(clause)) {
-					thread.throw_error(pl.error.type("callable", clause, atom.indicator));
-				} else {
-					var head, body, module_id, get_module;
-					if(clause.indicator === ":-/2") {
-						head = clause.args[0];
-						body = body_conversion(clause.args[1]);
-					} else {
-						head = clause;
-						body = null;
-					}
-					if(head.indicator === ":/2") {
-						module_id = head.args[0];
-						head = head.args[1];
-						if(!pl.type.is_atom(module_id)) {
-							thread.throw_error(pl.error.type("module", module_id, atom.indicator));
-							return;
-						}
-						module_id = module_id.id;
-					} else {
-						module_id = "user";
-					}
-					if(!pl.type.is_callable(head)) {
-						thread.throw_error(pl.error.type("callable", head, atom.indicator));
-					} else if(body !== null && !pl.type.is_callable(body)) {
-						thread.throw_error( pl.error.type("callable", body, atom.indicator));
-					} else if(!pl.type.is_module(thread.session.current_modules[module_id]) || thread.is_public_predicate(head.indicator, module_id)) {
-						if(!pl.type.is_module(thread.session.current_modules[module_id])) {
-							get_module = new Module(module_id, {}, "all", {session: thread.session});
-							thread.session.current_modules[module_id] = get_module;
-						} else {
-							get_module = thread.session.current_modules[module_id];
-						}
-						if(get_module.rules[head.indicator] === undefined)
-							get_module.rules[head.indicator] = [];
-						get_module.public_predicates[head.indicator] = true;
-						get_module.rules[head.indicator] = [new Rule(head, body, true)].concat(get_module.rules[head.indicator]);
-						thread.success(point);
-					} else {
-						thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
-					}
-				}
-			},
-			
-			// assertz/1
-			"assertz/1": function(thread, point, atom) {
-				var clause = atom.args[0];
-				if(pl.type.is_variable(clause)) {
-					thread.throw_error(pl.error.instantiation(atom.indicator));
-				} else if(!pl.type.is_callable(clause)) {
-					thread.throw_error(pl.error.type("callable", clause, atom.indicator));
-				} else {
-					var head, body, module_id, get_module;
-					if(clause.indicator === ":-/2") {
-						head = clause.args[0];
-						body = body_conversion(clause.args[1]);
-					} else {
-						head = clause;
-						body = null;
-					}
-					if(head.indicator === ":/2") {
-						module_id = head.args[0];
-						head = head.args[1];
-						if(!pl.type.is_atom(module_id)) {
-							thread.throw_error(pl.error.type("module", module_id, atom.indicator));
-							return;
-						}
-						module_id = module_id.id;
-					} else {
-						module_id = "user";
-					}
-					if(!pl.type.is_callable(head)) {
-						thread.throw_error(pl.error.type("callable", head, atom.indicator));
-					} else if(body !== null && !pl.type.is_callable(body)) {
-						thread.throw_error( pl.error.type("callable", body, atom.indicator));
-					} else if(!pl.type.is_module(thread.session.current_modules[module_id]) || thread.is_public_predicate(head.indicator, module_id)) {
-						if(!pl.type.is_module(thread.session.current_modules[module_id])) {
-							get_module = new Module(module_id, {}, "all", {session: thread.session});
-							thread.session.current_modules[module_id] = get_module;
-						} else {
-							get_module = thread.session.current_modules[module_id];
-						}
-						if(get_module.rules[head.indicator] === undefined)
-							get_module.rules[head.indicator] = [];
-						get_module.public_predicates[head.indicator] = true;
-						get_module.rules[head.indicator].push(new Rule(head, body, true));
-						thread.success(point);
-					} else {
-						thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
-					}
-				}
-			},
-			
-			// retract/1
-			"retract/1": function(thread, point, atom) {
-				var clause = atom.args[0];
-				if(pl.type.is_variable(clause)) {
-					thread.throw_error(pl.error.instantiation(atom.indicator));
-				} else if(!pl.type.is_callable(clause)) {
-					thread.throw_error(pl.error.type("callable", clause, atom.indicator));
-				} else {
-					var head, body, module_atom, module_id;
-					if(clause.indicator === ":-/2") {
-						head = clause.args[0];
-						body = clause.args[1];
-					} else {
-						head = clause;
-						body = new Term("true");
-					}
-					if(head.indicator === ":/2") {
-						module_atom = head.args[0];
-						head = head.args[1];
-						if(!pl.type.is_atom(module_atom)) {
-							thread.throw_error(pl.error.type("module", module_atom, atom.indicator));
-							return;
-						}
-					} else {
-						module_atom = new Term("user");
-					}
-					module_id = module_atom.id;
-					var get_module = thread.session.current_modules[module_id];
-					if(!pl.type.is_module(get_module))
-						return;
-					if(!point.retract) {
-						if(thread.is_public_predicate(head.indicator, module_id)) {
-							if(get_module.rules[head.indicator] !== undefined) {
-								var states = [];
-								for(var i = 0; i < get_module.rules[head.indicator].length; i++) {
-									thread.session.renamed_variables = {};
-									var orule = get_module.rules[head.indicator][i];
-									var rule = orule.rename(thread);
-									if(rule.body === null)
-										rule.body = new Term("true", []);
-									var occurs_check = thread.get_flag("occurs_check").indicator === "true/0";
-									var mgu = pl.unify(new Term(",", [head, body]), new Term(",", [rule.head, rule.body]), occurs_check);
-									if(mgu !== null) {
-										var state = new State(
-											point.goal.replace(new Term(",", [
-												new Term("retract", [new Term(":-", [new Term(":", [module_atom, head]), body])]),
-												new Term(",", [
-													new Term("=", [head, rule.head]),
-													new Term("=", [body, rule.body])
-												] )
-											])), point.substitution, point);
-										state.retract = orule;
-										states.push(state);
-									}
-								}
-								thread.prepend(states);
-							}
-						} else {
-							thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
-						}
-					} else {
-						retract(thread, point, head.indicator, point.retract, get_module);
-					}
-				}
-			},
-			
-			// retractall/1
-			"retractall/1": function(thread, point, atom) {
-				var head = atom.args[0];
-				if(pl.type.is_variable(head)) {
-					thread.throw_error(pl.error.instantiation(atom.indicator));
-				} else if(!pl.type.is_callable(head)) {
-					thread.throw_error(pl.error.type("callable", head, atom.indicator));
-				} else {
-					thread.prepend([
-						new State(point.goal.replace(new Term(",", [
-							new Term("retract", [new pl.type.Term(":-", [head, new Var("_")])]),
-							new Term("fail", [])
-						])), point.substitution, point ),
-						new State(point.goal.replace(null), point.substitution, point)
-					]);
-				}
-			},
-
-			// abolish/1
-			"abolish/1": function(thread, point, atom) {
-				var predicate = atom.args[0];
-				var module_id;
-				if(pl.type.is_term(predicate) && predicate.indicator === ":/2") {
-					if(!pl.type.is_atom(predicate.args[0])) {
-						thread.throw_error(pl.error.type("module", predicate.args[0], atom.indicator));
-						return;
-					}
-					module_id = predicate.args[0].id;
-					predicate = predicate.args[1];
-				} else {
-					module_id = "user";
-				}
-				if(pl.type.is_variable(predicate) || pl.type.is_term(predicate) && predicate.indicator === "//2"
-				&& (pl.type.is_variable(predicate.args[0]) || pl.type.is_variable(predicate.args[1]))) {
-					thread.throw_error(pl.error.instantiation(atom.indicator));
-				} else if(!pl.type.is_term(predicate) || predicate.indicator !== "//2") {
-					thread.throw_error(pl.error.type("predicate_indicator", predicate, atom.indicator));
-				} else if(!pl.type.is_atom(predicate.args[0])) {
-					thread.throw_error(pl.error.type("atom", predicate.args[0], atom.indicator));
-				} else if(!pl.type.is_integer(predicate.args[1])) {
-					thread.throw_error(pl.error.type("integer", predicate.args[1], atom.indicator));
-				} else if(predicate.args[1].value < 0) {
-					thread.throw_error(pl.error.domain("not_less_than_zero", predicate.args[1], atom.indicator));
-				} else if(pl.type.is_number(thread.get_flag("max_arity")) && predicate.args[1].value > thread.get_flag("max_arity").value) {
-					thread.throw_error(pl.error.representation("max_arity", atom.indicator));
-				} else {
-					var get_module = thread.session.current_modules[module_id];
-					if(pl.type.is_module(get_module)) {
-						var indicator = predicate.args[0].id + "/" + predicate.args[1].value;
-						if(thread.is_public_predicate(indicator, module_id)) {
-							delete get_module.rules[indicator];
-							delete get_module.public_predicates[indicator];
-							delete get_module.multifile_predicates[indicator];
-							thread.success(point);
-						} else {
-							thread.throw_error(pl.error.permission("modify", "static_procedure", atom.args[0], atom.indicator));
-						}
-					} else {
-						thread.success(point);
-					}
-				}
-			},
-			
-			// ATOM PROCESSING
-			
-			// atom_length/2
-			"atom_length/2": function( thread, point, atom ) {
-				if( pl.type.is_variable( atom.args[0] ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_atom( atom.args[0] ) ) {
-					thread.throw_error( pl.error.type( "atom", atom.args[0], atom.indicator ) );
-				} else if( !pl.type.is_variable( atom.args[1] ) && !pl.type.is_integer( atom.args[1] ) ) {
-					thread.throw_error( pl.error.type( "integer", atom.args[1], atom.indicator ) );
-				} else if( pl.type.is_integer( atom.args[1] ) && atom.args[1].value < 0 ) {
-					thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[1], atom.indicator ) );
-				} else {
-					var length = new Num( stringLength(atom.args[0].id), false );
-					thread.prepend( [new State( point.goal.replace( new Term( "=", [length, atom.args[1]] ) ), point.substitution, point )] );
-				}
-			},
-			
-			// atom_concat/3
-			"atom_concat/3": function( thread, point, atom ) {
-				var str, goal, start = atom.args[0], end = atom.args[1], whole = atom.args[2];
-				if( pl.type.is_variable( whole ) && (pl.type.is_variable( start ) || pl.type.is_variable( end )) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( start ) && !pl.type.is_atom( start ) ) {
-					thread.throw_error( pl.error.type( "atom", start, atom.indicator ) );
-				} else if( !pl.type.is_variable( end ) && !pl.type.is_atom( end ) ) {
-					thread.throw_error( pl.error.type( "atom", end, atom.indicator ) );
-				} else if( !pl.type.is_variable( whole ) && !pl.type.is_atom( whole ) ) {
-					thread.throw_error( pl.error.type( "atom", whole, atom.indicator ) );
-				} else {
-					var v1 = pl.type.is_variable( start );
-					var v2 = pl.type.is_variable( end );
-					//var v3 = pl.type.is_variable( whole );
-					if( !v1 && !v2 ) {
-						goal = new Term( "=", [whole, new Term( start.id + end.id )] );
-						thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
-					} else if( v1 && !v2 ) {
-						str = whole.id.substr( 0, whole.id.length - end.id.length );
-						if( str + end.id === whole.id ) {
-							goal = new Term( "=", [start, new Term( str )] );
-							thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
-						}
-					} else if( v2 && !v1 ) {
-						str = whole.id.substr( start.id.length );
-						if( start.id + str === whole.id ) {
-							goal = new Term( "=", [end, new Term( str )] );
-							thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
-						}
-					} else {
-						var states = [];
-						for( var i = 0; i <= whole.id.length; i++ ) {
-							var atom1 = new Term( whole.id.substr( 0, i ) );
-							var atom2 = new Term( whole.id.substr( i ) );
-							goal = new Term( ",", [new Term( "=", [atom1, start] ), new Term( "=", [atom2, end] )] );
-							states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
-						}
-						thread.prepend( states );
-					}
-				}
-			},
-			
-			// sub_atom/5
-			"sub_atom/5": function( thread, point, atom ) {
-				var i, atom1 = atom.args[0], before = atom.args[1], length = atom.args[2], after = atom.args[3], subatom = atom.args[4];
-				if( pl.type.is_variable( atom1 ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( before ) && !pl.type.is_integer( before ) ) {
-					thread.throw_error( pl.error.type( "integer", before, atom.indicator ) );
-				} else if( !pl.type.is_variable( length ) && !pl.type.is_integer( length ) ) {
-					thread.throw_error( pl.error.type( "integer", length, atom.indicator ) );
-				} else if( !pl.type.is_variable( after ) && !pl.type.is_integer( after ) ) {
-					thread.throw_error( pl.error.type( "integer", after, atom.indicator ) );
-				} else if( pl.type.is_integer( before ) && before.value < 0 ) {
-					thread.throw_error( pl.error.domain( "not_less_than_zero", before, atom.indicator ) );
-				} else if( pl.type.is_integer( length ) && length.value < 0 ) {
-					thread.throw_error( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
-				} else if( pl.type.is_integer( after ) && after.value < 0 ) {
-					thread.throw_error( pl.error.domain( "not_less_than_zero", after, atom.indicator ) );
-				} else {
-					var bs = [], ls = [], as = [];
-					if( pl.type.is_variable( before ) ) {
-						for( i = 0; i <= atom1.id.length; i++ ) {
-							bs.push( i );
-						}
-					} else {
-						bs.push( before.value );
-					}
-					if( pl.type.is_variable( length ) ) {
-						for( i = 0; i <= atom1.id.length; i++ ) {
-							ls.push( i );
-						}
-					} else {
-						ls.push( length.value );
-					}
-					if( pl.type.is_variable( after ) ) {
-						for( i = 0; i <= atom1.id.length; i++ ) {
-							as.push( i );
-						}
-					} else {
-						as.push( after.value );
-					}
-					var states = [];
-					for( var _i in bs ) {
-						if(!bs.hasOwnProperty(_i)) continue;
-						i = bs[_i];
-						for( var _j in ls ) {
-							if(!ls.hasOwnProperty(_j)) continue;
-							var j = ls[_j];
-							var k = atom1.id.length - i - j;
-							if( indexOf( as, k ) !== -1 ) {
-							if( i+j+k === atom1.id.length ) {
-									var str = atom1.id.substr( i, j );
-									if( atom1.id === atom1.id.substr( 0, i ) + str + atom1.id.substr( i+j, k ) ) {
-										var pl1 = new Term( "=", [new Term( str ), subatom] );
-										var pl2 = new Term( "=", [before, new Num( i )] );
-										var pl3 = new Term( "=", [length, new Num( j )] );
-										var pl4 = new Term( "=", [after, new Num( k )] );
-										var goal = new Term( ",", [ new Term( ",", [ new Term( ",", [pl2, pl3] ), pl4] ), pl1] );
-										states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
-									}
-								}
-							}
-						}
-					}
-					thread.prepend( states );
-				}
-			},
-			
-			// atom_chars/2
-			"atom_chars/2": function( thread, point, atom ) {
-				var atom1 = atom.args[0], list = atom.args[1];
-				if( pl.type.is_variable( atom1 ) && pl.type.is_variable( list ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( atom1 ) && !pl.type.is_atom( atom1 ) ) {
-					thread.throw_error( pl.error.type( "atom", atom1, atom.indicator ) );
-				} else {
-					if( !pl.type.is_variable( atom1 ) ) {
-						var list1 = new Term( "[]" );
-						var unilen = stringLength(atom1.id);
-						for( var i = unilen-1; i >= 0; i-- ) {
-							list1 = new Term( ".", [new Term( atom1.id.charAt( i ) ), list1] );
-						}
-						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
-					} else {			
-						var pointer = list;
-						var v = pl.type.is_variable( atom1 );
-						var str = "";
-						while( pointer.indicator === "./2" ) {
-							if( !pl.type.is_character( pointer.args[0] ) ) {
-								if( pl.type.is_variable( pointer.args[0] ) && v ) {
-									thread.throw_error( pl.error.instantiation( atom.indicator ) );
-									return;
-								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-									thread.throw_error( pl.error.type( "character", pointer.args[0], atom.indicator ) );
-									return;
-								}
-							} else {
-								str += pointer.args[0].id;
-							}
-							pointer = pointer.args[1];
-						}
-						if( pl.type.is_variable( pointer ) && v ) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-						} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-							thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
-						} else {
-							thread.prepend( [new State( point.goal.replace( new Term( "=", [new Term( str ), atom1] ) ), point.substitution, point )] );
-						}
-					}
-				}
-			},
-			
-			// atom_codes/2
-			"atom_codes/2": function( thread, point, atom ) {
-				var atom1 = atom.args[0], list = atom.args[1];
-				if( pl.type.is_variable( atom1 ) && pl.type.is_variable( list ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( atom1 ) && !pl.type.is_atom( atom1 ) ) {
-					thread.throw_error( pl.error.type( "atom", atom1, atom.indicator ) );
-				} else {
-					if( !pl.type.is_variable( atom1 ) ) {
-						var list1 = new Term( "[]" );
-						var unilen = stringLength(atom1.id);
-						for( var i = unilen-1; i >= 0; i-- ) {
-							list1 = new Term( ".", [new Num( codePointAt(atom1.id,i), false ), list1] );
-						}
-						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
-					} else {			
-						var pointer = list;
-						var v = pl.type.is_variable( atom1 );
-						var str = "";
-						while( pointer.indicator === "./2" ) {
-							if( !pl.type.is_character_code( pointer.args[0] ) ) {
-								if( pl.type.is_variable( pointer.args[0] ) && v ) {
-									thread.throw_error( pl.error.instantiation( atom.indicator ) );
-									return;
-								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-									thread.throw_error( pl.error.representation( "character_code", atom.indicator ) );
-									return;
-								}
-							} else {
-								str += fromCodePoint( pointer.args[0].value );
-							}
-							pointer = pointer.args[1];
-						}
-						if( pl.type.is_variable( pointer ) && v ) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-						} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-							thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
-						} else {
-							thread.prepend( [new State( point.goal.replace( new Term( "=", [new Term( str ), atom1] ) ), point.substitution, point )] );
-						}
-					}
-				}
-			},
-			
-			// char_code/2
-			"char_code/2": function( thread, point, atom ) {
-				var char = atom.args[0], code = atom.args[1];
-				if( pl.type.is_variable( char ) && pl.type.is_variable( code ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
-					thread.throw_error( pl.error.type( "character", char, atom.indicator ) );
-				} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
-					thread.throw_error( pl.error.type( "integer", code, atom.indicator ) );
-				} else if( !pl.type.is_variable( code ) && !pl.type.is_character_code( code ) ) {
-					thread.throw_error( pl.error.representation( "character_code", atom.indicator ) );
-				} else {
-					if( pl.type.is_variable( code ) ) {
-						var code1 = new Num( codePointAt(char.id,0 ), false );
-						thread.prepend( [new State( point.goal.replace( new Term( "=", [code1, code] ) ), point.substitution, point )] );
-					} else {
-						var char1 = new Term( fromCodePoint( code.value ) );
-						thread.prepend( [new State( point.goal.replace( new Term( "=", [char1, char] ) ), point.substitution, point )] );
-					}
-				}
-			},
-			
-			// number_chars/2
-			"number_chars/2": function( thread, point, atom ) {
-				var str, num = atom.args[0], list = atom.args[1];
-				if( pl.type.is_variable( num ) && pl.type.is_variable( list ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
-					thread.throw_error( pl.error.type( "number", num, atom.indicator ) );
-				} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
-					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
-				} else {
-					var isvar = pl.type.is_variable( num );
-					if( !pl.type.is_variable( list ) ) {	
-						var pointer = list;
-						var total = true;
-						str = "";
-						while( pointer.indicator === "./2" ) {
-							if( !pl.type.is_character( pointer.args[0] ) ) {
-								if( pl.type.is_variable( pointer.args[0] ) ) {
-									total = false;
-								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-									thread.throw_error( pl.error.type( "character", pointer.args[0], atom.indicator ) );
-									return;
-								}
-							} else {
-								str += pointer.args[0].id;
-							}
-							pointer = pointer.args[1];
-						}
-						total = total && pl.type.is_empty_list( pointer );
-						if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-							thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
-							return;
-						}
-						if( !total && isvar ) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-							return;
-						} else if( total ) {
-							if( pl.type.is_variable( pointer ) && isvar ) {
-								thread.throw_error( pl.error.instantiation( atom.indicator ) );
-								return;
-							} else {
-								var expr = thread.parse( str );
-								var num2 = expr.value;
-								if( !pl.type.is_number( num2 ) || expr.tokens[expr.tokens.length-1].space ) {
-									thread.throw_error( pl.error.syntax_by_predicate( "parseable_number", atom.indicator ) );
-								} else {
-									thread.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
-								}
-								return;
-							}
-						}
-					}
-					if( !isvar ) {
-						str = num.toString();
-						var list2 = new Term( "[]" );
-						for( var i = str.length - 1; i >= 0; i-- ) {
-							list2 = new Term( ".", [ new Term( str.charAt( i ) ), list2 ] );
-						}
-						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
-					}
-				}
-			},
-			
-			// number_codes/2
-			"number_codes/2": function( thread, point, atom ) {
-				var str, num = atom.args[0], list = atom.args[1];
-				if( pl.type.is_variable( num ) && pl.type.is_variable( list ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
-					thread.throw_error( pl.error.type( "number", num, atom.indicator ) );
-				} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
-					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
-				} else {
-					var isvar = pl.type.is_variable( num );
-					if( !pl.type.is_variable( list ) ) {	
-						var pointer = list;
-						var total = true;
-						str = "";
-						while( pointer.indicator === "./2" ) {
-							if( !pl.type.is_character_code( pointer.args[0] ) ) {
-								if( pl.type.is_variable( pointer.args[0] ) ) {
-									total = false;
-								} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-									thread.throw_error( pl.error.type( "character_code", pointer.args[0], atom.indicator ) );
-									return;
-								}
-							} else {
-								str += fromCodePoint( pointer.args[0].value );
-							}
-							pointer = pointer.args[1];
-						}
-						total = total && pl.type.is_empty_list( pointer );
-						if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
-							thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
-							return;
-						}
-						if( !total && isvar ) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-							return;
-						} else if( total ) {
-							if( pl.type.is_variable( pointer ) && isvar ) {
-								thread.throw_error( pl.error.instantiation( atom.indicator ) );
-								return;
-							} else {
-								var expr = thread.parse( str );
-								var num2 = expr.value;
-								if( !pl.type.is_number( num2 ) || expr.tokens[expr.tokens.length-1].space ) {
-									thread.throw_error( pl.error.syntax_by_predicate( "parseable_number", atom.indicator ) );
-								} else {
-									thread.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
-								}
-								return;
-							}
-						}
-					}
-					if( !isvar ) {
-						str = num.toString();
-						var list2 = new Term( "[]" );
-						for( var i = str.length - 1; i >= 0; i-- ) {
-							list2 = new Term( ".", [ new Num( codePointAt(str,i), false ), list2 ] );
-						}
-						thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
-					}
-				}
-			},
-			
-			// upcase_atom/2
-			"upcase_atom/2": function( thread, point, atom ) {
-				var original = atom.args[0], upcase = atom.args[1];
-				if( pl.type.is_variable( original ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_atom( original ) ) {
-					thread.throw_error( pl.error.type( "atom", original, atom.indicator ) );
-				} else if( !pl.type.is_variable( upcase ) && !pl.type.is_atom( upcase ) ) {
-					thread.throw_error( pl.error.type( "atom", upcase, atom.indicator ) );
-				} else {
-					thread.prepend( [new State( point.goal.replace( new Term( "=", [upcase, new Term( original.id.toUpperCase(), [] )] ) ), point.substitution, point )] );
-				}
-			},
-			
-			// downcase_atom/2
-			"downcase_atom/2": function( thread, point, atom ) {
-				var original = atom.args[0], downcase = atom.args[1];
-				if( pl.type.is_variable( original ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_atom( original ) ) {
-					thread.throw_error( pl.error.type( "atom", original, atom.indicator ) );
-				} else if( !pl.type.is_variable( downcase ) && !pl.type.is_atom( downcase ) ) {
-					thread.throw_error( pl.error.type( "atom", downcase, atom.indicator ) );
-				} else {
-					thread.prepend( [new State( point.goal.replace( new Term( "=", [downcase, new Term( original.id.toLowerCase(), [] )] ) ), point.substitution, point )] );
-				}
-			},
-			
-			// atomic_list_concat/2
-			"atomic_list_concat/2": function( thread, point, atom ) {
-				var list = atom.args[0], concat = atom.args[1];
-				thread.prepend( [new State( point.goal.replace( new Term( "atomic_list_concat", [list, new Term( "", [] ), concat] ) ), point.substitution, point )] );
-			},
-			
-			// atomic_list_concat/3
-			"atomic_list_concat/3": function( thread, point, atom ) {
-				var list = atom.args[0], separator = atom.args[1], concat = atom.args[2];
-				if( pl.type.is_variable( separator ) || pl.type.is_variable( list ) && pl.type.is_variable( concat ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
-					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
-				} else if( !pl.type.is_variable( concat ) && !pl.type.is_atom( concat ) ) {
-					thread.throw_error( pl.error.type( "atom", concat, atom.indicator ) );
-				} else {
-					if( !pl.type.is_variable( concat ) ) {
-						var atomic = arrayToList( map(
-							concat.id.split( separator.id ),
-							function( id ) {
-								return new Term( id, [] );
-							}
-						) );
-						thread.prepend( [new State( point.goal.replace( new Term( "=", [atomic, list] ) ), point.substitution, point )] );
-					} else {
-						var id = "";
-						var pointer = list;
-						while( pl.type.is_term( pointer ) && pointer.indicator === "./2" ) {
-							if( !pl.type.is_atom( pointer.args[0] ) && !pl.type.is_number( pointer.args[0] ) ) {
-								thread.throw_error( pl.error.type( "atomic", pointer.args[0], atom.indicator ) );
-								return;
-							}
-							if( id !== "" )
-								id += separator.id;
-							if( pl.type.is_atom( pointer.args[0] ) )
-								id += pointer.args[0].id;
-							else
-								id += "" + pointer.args[0].value;
-							pointer = pointer.args[1];
-						}
-						id = new Term( id, [] );
-						if( pl.type.is_variable( pointer ) ) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-						} else if( !pl.type.is_term( pointer ) || pointer.indicator !== "[]/0" ) {
-							thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
-						} else {
-							thread.prepend( [new State( point.goal.replace( new Term( "=", [id, concat] ) ), point.substitution, point )] );
-						}
-					}
-				}
-			},
-			
-			// TERM COMPARISON
-			
-			"@=</2": function( thread, point, atom ) {
-				if( pl.compare( atom.args[0], atom.args[1] ) <= 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			"==/2": function( thread, point, atom ) {
-				if( pl.compare( atom.args[0], atom.args[1] ) === 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			"\\==/2": function( thread, point, atom ) {
-				if( pl.compare( atom.args[0], atom.args[1] ) !== 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			"@</2": function( thread, point, atom ) {
-				if( pl.compare( atom.args[0], atom.args[1] ) < 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			"@>/2": function( thread, point, atom ) {
-				if( pl.compare( atom.args[0], atom.args[1] ) > 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			"@>=/2": function( thread, point, atom ) {
-				if( pl.compare( atom.args[0], atom.args[1] ) >= 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			"compare/3": function( thread, point, atom ) {
-				var order = atom.args[0], left = atom.args[1], right = atom.args[2];
-				if( !pl.type.is_variable( order ) && !pl.type.is_atom( order ) ) {
-					thread.throw_error( pl.error.type( "atom", order, atom.indicator ) );
-				} else if( pl.type.is_atom( order ) && ["<", ">", "="].indexOf( order.id ) === -1 ) {
-					thread.throw_error( pl.type.domain( "order", order, atom.indicator ) );
-				} else {
-					var compare = pl.compare( left, right );
-					compare = compare === 0 ? "=" : (compare === -1 ? "<" : ">");
-					thread.prepend( [new State( point.goal.replace( new Term( "=", [order, new Term( compare, [] )] ) ), point.substitution, point )] );
-				}
-			},
-			
-			// EVALUATION
-			
-			// is/2
-			"is/2": function( thread, point, atom ) {
-				var op = atom.args[1].interpret( thread );
-				if( !pl.type.is_number( op ) ) {
-					thread.throw_error( op );
-				} else {
-					thread.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[0], op], atom.indicator ) ), point.substitution, point )] );
-				}
-			},
-			
-			// between/3
-			"between/3": function( thread, point, atom ) {
-				var lower = atom.args[0], upper = atom.args[1], bet = atom.args[2];
-				if( pl.type.is_variable( lower ) || pl.type.is_variable( upper ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_integer( lower ) ) {
-					thread.throw_error( pl.error.type( "integer", lower, atom.indicator ) );
-				} else if( !pl.type.is_integer( upper ) ) {
-					thread.throw_error( pl.error.type( "integer", upper, atom.indicator ) );
-				} else if( !pl.type.is_variable( bet ) && !pl.type.is_integer( bet ) ) {
-					thread.throw_error( pl.error.type( "integer", bet, atom.indicator ) );
-				} else {
-					if( pl.type.is_variable( bet ) ) {
-						var states = [new State( point.goal.replace( new Term( "=", [bet, lower] ) ), point.substitution, point )];
-						if( lower.value < upper.value )
-							states.push( new State( point.goal.replace( new Term( "between", [new Num( lower.value+1, false ), upper, bet] ) ), point.substitution, point ) );
-						thread.prepend( states );
-					} else if( lower.value <= bet.value && upper.value >= bet.value ) {
-						thread.success( point );
-					}
-				}
-			},
-			
-			// succ/2
-			"succ/2": function( thread, point, atom ) {
-				var n = atom.args[0], m = atom.args[1];
-				if( pl.type.is_variable( n ) && pl.type.is_variable( m ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( n ) && !pl.type.is_integer( n ) ) {
-					thread.throw_error( pl.error.type( "integer", n, atom.indicator ) );
-				} else if( !pl.type.is_variable( m ) && !pl.type.is_integer( m ) ) {
-					thread.throw_error( pl.error.type( "integer", m, atom.indicator ) );
-				} else if( !pl.type.is_variable( n ) && n.value < 0 ) {
-					thread.throw_error( pl.error.domain( "not_less_than_zero", n, atom.indicator ) );
-				} else if( !pl.type.is_variable( m ) && m.value < 0 ) {
-					thread.throw_error( pl.error.domain( "not_less_than_zero", m, atom.indicator ) );
-				} else {
-					if( pl.type.is_variable( m ) || m.value > 0 ) {
-						if( pl.type.is_variable( n ) ) {
-							thread.prepend( [new State( point.goal.replace( new Term( "=", [n, new Num( m.value-1, false )] ) ), point.substitution, point )] );
-						} else {
-							thread.prepend( [new State( point.goal.replace( new Term( "=", [m, new Num( n.value+1, false )] ) ), point.substitution, point )] );
-						}
-					}
-				}
-			},
-			
-			// =:=/2
-			"=:=/2": function( thread, point, atom ) {
-				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
-				if( pl.type.is_term( cmp ) ) {
-					thread.throw_error( cmp );
-				} else if( cmp === 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			// =\=/2
-			"=\\=/2": function( thread, point, atom ) {
-				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
-				if( pl.type.is_term( cmp ) ) {
-					thread.throw_error( cmp );
-				} else if( cmp !== 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			// </2
-			"</2": function( thread, point, atom ) {
-				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
-				if( pl.type.is_term( cmp ) ) {
-					thread.throw_error( cmp );
-				} else if( cmp < 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			// =</2
-			"=</2": function( thread, point, atom ) {
-				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
-				if( pl.type.is_term( cmp ) ) {
-					thread.throw_error( cmp );
-				} else if( cmp <= 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			// >/2
-			">/2": function( thread, point, atom ) {
-				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
-				if( pl.type.is_term( cmp ) ) {
-					thread.throw_error( cmp );
-				} else if( cmp > 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			// >=/2
-			">=/2": function( thread, point, atom ) {
-				var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
-				if( pl.type.is_term( cmp ) ) {
-					thread.throw_error( cmp );
-				} else if( cmp >= 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			// TYPE TEST
-			
-			// var/1
-			"var/1": function( thread, point, atom ) {
-				if( pl.type.is_variable( atom.args[0] ) ) {
-					thread.success( point );
-				}
-			},
-			
-			// atom/1
-			"atom/1": function( thread, point, atom ) {
-				if( pl.type.is_atom( atom.args[0] ) ) {
-					thread.success( point );
-				}
-			},
-			
-			// atomic/1
-			"atomic/1": function( thread, point, atom ) {
-				if( pl.type.is_atomic( atom.args[0] ) ) {
-					thread.success( point );
-				}
-			},
-			
-			// compound/1
-			"compound/1": function( thread, point, atom ) {
-				if( pl.type.is_compound( atom.args[0] ) ) {
-					thread.success( point );
-				}
-			},
-			
-			// integer/1
-			"integer/1": function( thread, point, atom ) {
-				if( pl.type.is_integer( atom.args[0] ) ) {
-					thread.success( point );
-				}
-			},
-			
-			// float/1
-			"float/1": function( thread, point, atom ) {
-				if( pl.type.is_float( atom.args[0] ) ) {
-					thread.success( point );
-				}
-			},
-			
-			// number/1
-			"number/1": function( thread, point, atom ) {
-				if( pl.type.is_number( atom.args[0] ) ) {
-					thread.success( point );
-				}
-			},
-			
-			// nonvar/1
-			"nonvar/1": function( thread, point, atom ) {
-				if( !pl.type.is_variable( atom.args[0] ) ) {
-					thread.success( point );
-				}
-			},
-			
-			// ground/1
-			"ground/1": function( thread, point, atom ) {
-				if( atom.variables().length === 0 ) {
-					thread.success( point );
-				}
-			},
-			
-			// acyclic_term/1
-			"acyclic_term/1": function( thread, point, atom ) {
-				var test = point.substitution.apply( point.substitution );
-				var variables = atom.args[0].variables();
-				for( var i = 0; i < variables.length; i++ )
-					if( point.substitution.links[variables[i]] !== undefined && !point.substitution.links[variables[i]].equals( test.links[variables[i]] ) )
-						return;
-				thread.success( point );
-			},
-			
-			// callable/1
-			"callable/1": function( thread, point, atom ) {
-				if( pl.type.is_callable( atom.args[0] ) ) {
-					thread.success( point );
-				}
-			},
-
-			// is_list/1
-			"is_list/1": function( thread, point, atom ) {
-				var list = atom.args[0];
-				while( pl.type.is_term( list ) && list.indicator === "./2" )
-					list = list.args[1];
-				if( pl.type.is_term( list ) && list.indicator === "[]/0" )
-					thread.success( point );
-			},
-
-
-
-			// STREAM SELECTION AND CONTROL
-
-			// current_input/1
-			"current_input/1": function( thread, point, atom ) {
-				var stream = atom.args[0];
-				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain("stream", stream, atom.indicator) );
-				} else {
-					if( pl.type.is_atom( stream ) && thread.get_stream_by_alias( stream.id ) )
-						stream = thread.get_stream_by_alias( stream.id );
-					thread.prepend( [new State(
-						point.goal.replace(new Term("=", [stream, thread.get_current_input()])),
-						point.substitution,
-						point)
-					] );
-				}
-			},
-
-			// current_output/1
-			"current_output/1": function( thread, point, atom ) {
-				var stream = atom.args[0];
-				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain("stream_or_alias", stream, atom.indicator) );
-				} else {
-					if( pl.type.is_atom( stream ) && thread.get_stream_by_alias( stream.id ) )
-						stream = thread.get_stream_by_alias( stream.id );
-					thread.prepend( [new State(
-						point.goal.replace(new Term("=", [stream, thread.get_current_output()])),
-						point.substitution,
-						point)
-					] );
-				}
-			},
-
-			// set_input/1
-			"set_input/1": function( thread, point, atom ) {
-				var input = atom.args[0];
-				var stream = pl.type.is_stream( input ) ? input : thread.get_stream_by_alias( input.id );
-				if( pl.type.is_variable( input ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( input ) && !pl.type.is_stream( input ) && !pl.type.is_atom( input ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", input, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) ) {
-					thread.throw_error( pl.error.existence( "stream", input, atom.indicator ) );
-				} else if( stream.output === true ) {
-					thread.throw_error( pl.error.permission( "input", "stream", input, atom.indicator ) );
-				} else {
-					thread.set_current_input( stream );
-					thread.success( point );
-				}
-			},
-
-			// set_output/1
-			"set_output/1": function( thread, point, atom ) {
-				var output = atom.args[0];
-				var stream = pl.type.is_stream( output ) ? output : thread.get_stream_by_alias( output.id );
-				if( pl.type.is_variable( output ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( output ) && !pl.type.is_stream( output ) && !pl.type.is_atom( output ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", output, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) ) {
-					thread.throw_error( pl.error.existence( "stream", output, atom.indicator ) );
-				} else if( stream.input === true ) {
-					thread.throw_error( pl.error.permission( "output", "stream", output, atom.indicator ) );
-				} else {
-					thread.set_current_output( stream );
-					thread.success( point );
-				}
-			},
-
-			// open/3
-			"open/3": function( thread, point, atom ) {
-				var dest = atom.args[0], mode = atom.args[1], stream = atom.args[2];
-				thread.prepend( [new State(
-					point.goal.replace(new Term("open", [dest, mode, stream, new Term("[]", [])])),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// open/4
-			"open/4": function( thread, point, atom ) {
-				var dest = atom.args[0], mode = atom.args[1], stream = atom.args[2], options = atom.args[3];
-				if( pl.type.is_variable( dest ) || pl.type.is_variable( mode ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( mode ) && !pl.type.is_atom( mode ) ) {
-					thread.throw_error( pl.error.type( "atom", mode, atom.indicator ) );
-				} else if( !pl.type.is_list( options ) ) {
-					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) ) {
-					thread.throw_error( pl.error.type( "variable", stream, atom.indicator ) );
-				} else if( !pl.type.is_atom( dest ) && !pl.type.is_streamable( dest ) ) {
-					thread.throw_error( pl.error.domain( "source_sink", dest, atom.indicator ) );
-				} else if( !pl.type.is_io_mode( mode ) ) {
-					thread.throw_error( pl.error.domain( "io_mode", mode, atom.indicator ) );
-				} else {
-					var obj_options = {};
-					var pointer = options;
-					var property;
-					while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
-						property = pointer.args[0];
-						if( pl.type.is_variable( property ) ) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-							return;
-						} else if( !pl.type.is_stream_option( property ) ) {
-							thread.throw_error( pl.error.domain( "stream_option", property, atom.indicator ) );
-							return;
-						}
-						obj_options[property.id] = property.args[0].id;
-						pointer = pointer.args[1];
-					}
-					if( pointer.indicator !== "[]/0" ) {
-						if( pl.type.is_variable( pointer ) )
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-						else
-							thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
-						return;
-					} else {
-						var alias = obj_options["alias"];
-						if( alias && thread.get_stream_by_alias(alias) ) {
-							thread.throw_error( pl.error.permission( "open", "source_sink", new Term("alias", [new Term(alias, [])]), atom.indicator ) );
-							return;
-						}
-						if( !obj_options["type"] )
-							obj_options["type"] = "text";
-						var file;
-						if( pl.type.is_atom( dest ) )
-							file = thread.file_system_open( dest.id, obj_options["type"], mode.id );
-						else
-							file = dest.stream( obj_options["type"], mode.id );
-						if( file === false ) {
-							thread.throw_error( pl.error.permission( "open", "source_sink", dest, atom.indicator ) );
-							return;
-						} else if( file === null ) {
-							thread.throw_error( pl.error.existence( "source_sink", dest, atom.indicator ) );
-							return;
-						}
-						var newstream = new Stream(
-							file, mode.id,
-							obj_options["alias"],
-							obj_options["type"],
-							obj_options["reposition"] === "true",
-							obj_options["eof_action"] );
-						if( alias )
-							thread.session.streams[alias] = newstream;
-						else
-							thread.session.streams[newstream.id] = newstream;
-						thread.prepend( [new State(
-							point.goal.replace( new Term( "=", [stream, newstream] ) ),
-							point.substitution,
-							point
-						)] );
-					}
-				}
-			},
-
-			// close/1
-			"close/1": function( thread, point, atom ) {
-				var stream = atom.args[0];
-				thread.prepend( [new State(
-					point.goal.replace(new Term("close", [stream, new Term("[]", [])])),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// close/2
-			"close/2": function( thread, point, atom ) {
-				var stream = atom.args[0], options = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) || pl.type.is_variable( options ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_list( options ) ) {
-					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else {
-					// Get options
-					var obj_options = {};
-					var pointer = options;
-					var property;
-					while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
-						property = pointer.args[0];
-						if( pl.type.is_variable( property ) ) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-							return;
-						} else if( !pl.type.is_close_option( property ) ) {
-							thread.throw_error( pl.error.domain( "close_option", property, atom.indicator ) );
-							return;
-						}
-						obj_options[property.id] = property.args[0].id === "true";
-						pointer = pointer.args[1];
-					}
-					if( pointer.indicator !== "[]/0" ) {
-						if( pl.type.is_variable( pointer ) )
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-						else
-							thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
-						return;
-					} else {
-						if( stream2 === thread.session.standard_input || stream2 === thread.session.standard_output ) {
-							thread.success( point );
-							return;
-						} else if( stream2 === thread.session.current_input ) {
-							thread.session.current_input = thread.session.standard_input;
-						} else if( stream2 === thread.session.current_output ) {
-							thread.session.current_output = thread.session.current_output;
-						}
-						if( stream2.alias !== null )
-							delete thread.session.streams[stream2.alias];
-						else
-							delete thread.session.streams[stream2.id];
-						if( stream2.output )
-							stream2.stream.flush();
-						var closed = stream2.stream.close();
-						stream2.stream = null;
-						if( obj_options.force === true || closed === true ) {
-							thread.success( point );
-						}
-					}
-				}
-			},
-
-			// flush_output/0
-			"flush_output/0": function( thread, point, atom ) {
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("flush_output", [new Var("S")])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// flush_output/1
-			"flush_output/1": function( thread, point, atom ) {
-				var stream = atom.args[0];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream.input === true ) {
-					thread.throw_error( pl.error.permission( "output", "stream", output, atom.indicator ) );
-				} else {
-					stream2.stream.flush();
-					thread.success( point );
-				}
-			},
-
-			// stream_property/2
-			"stream_property/2": function( thread, point, atom ) {
-				var stream = atom.args[0], property = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) && (!pl.type.is_stream( stream2 ) || stream2.stream === null) ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( !pl.type.is_variable( property ) && !pl.type.is_stream_property( property ) ) {
-					thread.throw_error( pl.error.domain( "stream_property", property, atom.indicator ) );
-				} else {
-					var streams = [];
-					var states = [];
-					if( !pl.type.is_variable( stream ) )
-						streams.push( stream2 );
-					else
-						for( var key in thread.session.streams )
-							streams.push( thread.session.streams[key] );
-					for( var i = 0; i < streams.length; i++ ) {
-						var properties = [];
-						if( streams[i].filename )
-							properties.push( new Term( "file_name", [new Term(streams[i].file_name, [])] ) );
-						properties.push( new Term( "mode", [new Term(streams[i].mode, [])] ) );
-						properties.push( new Term( streams[i].input ? "input" : "output", [] ) );
-						if( streams[i].alias )
-							properties.push( new Term( "alias", [new Term(streams[i].alias, [])] ) );
-						properties.push( new Term( "position", [
-							typeof streams[i].position === "number" ?
-								new Num( streams[i].position, false ) :
-								new Term( streams[i].position, [] )
-						] ) );
-						properties.push( new Term( "end_of_stream", [new Term(
-							streams[i].position === "end_of_stream" ? "at" :
-							streams[i].position === "past_end_of_stream" ? "past" :
-							"not", [])] ) );
-						properties.push( new Term( "eof_action", [new Term(streams[i].eof_action, [])] ) );
-						properties.push( new Term( "reposition", [new Term(streams[i].reposition ? "true" : "false", [])] ) );
-						properties.push( new Term( "type", [new Term(streams[i].type, [])] ) );
-						for( var j = 0; j < properties.length; j++ ) {
-							states.push( new State(
-								point.goal.replace( new Term( ",", [
-									new Term("=", [pl.type.is_variable( stream ) ? stream : stream2, streams[i]]),
-									new Term("=", [property, properties[j]])]) ),
-								point.substitution,
-								point
-							) );
-						}
-					}
-					thread.prepend( states );
-				}
-			},
-
-			// at_end_of_stream/0
-			"at_end_of_stream/0": function( thread, point, atom ) {
-				thread.prepend( [new State(
-					point.goal.replace(
-						new Term(",", [new Term("current_input", [new Var("S")]),new Term(",", [
-							new Term("stream_property", [new Var("S"),new Term("end_of_stream", [new Var("E")])]),
-							new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),
-							new Term("at", [])]),new Term("=", [new Var("E"),new Term("past", [])])])])])])
-					),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// at_end_of_stream/1
-			"at_end_of_stream/1": function( thread, point, atom ) {
-				var stream = atom.args[0];
-				thread.prepend( [new State(
-					point.goal.replace(
-						new Term(",", [new Term("stream_property", [stream,new Term("end_of_stream", [new Var("E")])]),
-						new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),new Term("at", [])]),
-						new Term("=", [new Var("E"),new Term("past", [])])])])])
-					),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// set_stream_position/2
-			"set_stream_position/2": function( thread, point, atom ) {
-				var stream = atom.args[0], position = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) || pl.type.is_variable( position ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream_position( position ) ) {
-					thread.throw_error( pl.error.domain( "stream_position", position, atom.indicator ) );
-				} else if( stream2.reposition === false ) {
-					thread.throw_error( pl.error.permission( "reposition", "stream", stream, atom.indicator ) );
-				} else {
-					if( pl.type.is_integer( position ) )
-						stream2.position = position.value;
-					else
-						stream2.position = position.id;
-					thread.success( point );
-				}
-			},
-
-
-
-			//  CHARACTER INPUT OUTPUT
-			
-			// get_char/1
-			"get_char/1": function( thread, point, atom ) {
-				var char = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_char", [new Var("S"),char])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// get_char/2
-			"get_char/2": function( thread, point, atom ) {
-				var stream = atom.args[0], char = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
-					thread.throw_error( pl.error.type( "in_character", char, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.output ) {
-					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "binary" ) {
-					thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
-				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
-					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
-				} else {
-					var stream_char;
-					if( stream2.position === "end_of_stream" ) {
-						stream_char = "end_of_file";
-						stream2.position = "past_end_of_stream";
-					} else {
-						stream_char = stream2.stream.get( 1, stream2.position );
-						if( stream_char === null ) {
-							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
-							return;
-						}
-						stream2.position++;
-					}
-					thread.prepend( [new State(
-						point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
-						point.substitution,
-						point
-					)] );
-				}
-			},
-
-			// get_code/1
-			"get_code/1": function( thread, point, atom ) {
-				var code = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_code", [new Var("S"),code])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// get_code/2
-			"get_code/2": function( thread, point, atom ) {
-				var stream = atom.args[0], code = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
-					thread.throw_error( pl.error.type( "integer", char, atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.output ) {
-					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "binary" ) {
-					thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
-				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
-					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
-				} else {
-					var stream_code;
-					if( stream2.position === "end_of_stream" ) {
-						stream_code = -1;
-						stream2.position = "past_end_of_stream";
-					} else {
-						stream_code = stream2.stream.get( 1, stream2.position );
-						if( stream_code === null ) {
-							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
-							return;
-						}
-						stream_code = codePointAt( stream_code, 0 );
-						stream2.position++;
-					}
-					thread.prepend( [new State(
-						point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
-						point.substitution,
-						point
-					)] );
-				}
-			},
-
-			// peek_char/1
-			"peek_char/1": function( thread, point, atom ) {
-				var char = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_char", [new Var("S"),char])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// peek_char/2
-			"peek_char/2": function( thread, point, atom ) {
-				var stream = atom.args[0], char = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
-					thread.throw_error( pl.error.type( "in_character", char, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.output ) {
-					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "binary" ) {
-					thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
-				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
-					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
-				} else {
-					var stream_char;
-					if( stream2.position === "end_of_stream" ) {
-						stream_char = "end_of_file";
-						stream2.position = "past_end_of_stream";
-					} else {
-						stream_char = stream2.stream.get( 1, stream2.position );
-						if( stream_char === null ) {
-							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
-							return;
-						}
-					}
-					thread.prepend( [new State(
-						point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
-						point.substitution,
-						point
-					)] );
-				}
-			},
-
-			// peek_code/1
-			"peek_code/1": function( thread, point, atom ) {
-				var code = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_code", [new Var("S"),code])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// peek_code/2
-			"peek_code/2": function( thread, point, atom ) {
-				var stream = atom.args[0], code = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
-					thread.throw_error( pl.error.type( "integer", char, atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.output ) {
-					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "binary" ) {
-					thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
-				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
-					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
-				} else {
-					var stream_code;
-					if( stream2.position === "end_of_stream" ) {
-						stream_code = -1;
-						stream2.position = "past_end_of_stream";
-					} else {
-						stream_code = stream2.stream.get( 1, stream2.position );
-						if( stream_code === null ) {
-							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
-							return;
-						}
-						stream_code = codePointAt( stream_code, 0 );
-					}
-					thread.prepend( [new State(
-						point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
-						point.substitution,
-						point
-					)] );
-				}
-			},
-
-			// put_char/1
-			"put_char/1": function( thread, point, atom ) {
-				var char = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"),char])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// put_char/2
-			"put_char/2": function( thread, point, atom ) {
-				var stream = atom.args[0], char = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) || pl.type.is_variable( char ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_character( char ) ) {
-					thread.throw_error( pl.error.type( "character", char, atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.input ) {
-					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "binary" ) {
-					thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
-				} else {
-					if( stream2.stream.put( char.id, stream2.position ) ) {
-						if(typeof stream2.position === "number")
-							stream2.position++;
-						thread.success( point );
-					}
-				}
-			},
-
-			// put_code/1
-			"put_code/1": function( thread, point, atom ) {
-				var code = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_code", [new Var("S"),code])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// put_code/2
-			"put_code/2": function( thread, point, atom ) {
-				var stream = atom.args[0], code = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) || pl.type.is_variable( code ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_integer( code ) ) {
-					thread.throw_error( pl.error.type( "integer", code, atom.indicator ) );
-				} else if( !pl.type.is_character_code( code ) ) {
-					thread.throw_error( pl.error.representation( "character_code", atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.input ) {
-					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "binary" ) {
-					thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
-				} else {
-					if( stream2.stream.put_char( fromCodePoint( code.value ), stream2.position ) ) {
-						if(typeof stream2.position === "number")
-							stream2.position++;
-						thread.success( point );
-					}
-				}
-			},
-
-			// nl/0
-			"nl/0": function( thread, point, atom ) {
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"), new Term("\n", [])])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// nl/1
-			"nl/1": function( thread, point, atom ) {
-				var stream = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term("put_char", [stream, new Term("\n", [])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-
-
-			// BYTE INPUT/OUTPUT
-
-			// get_byte/1
-			"get_byte/1": function( thread, point, atom ) {
-				var byte = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_byte", [new Var("S"),byte])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// get_byte/2
-			"get_byte/2": function( thread, point, atom ) {
-				var stream = atom.args[0], byte = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( byte ) && !pl.type.is_byte( byte ) ) {
-					thread.throw_error( pl.error.type( "in_byte", char, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.output ) {
-					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "text" ) {
-					thread.throw_error( pl.error.permission( "input", "text_stream", stream, atom.indicator ) );
-				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
-					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
-				} else {
-					var stream_byte;
-					if( stream2.position === "end_of_stream" ) {
-						stream_byte = "end_of_file";
-						stream2.position = "past_end_of_stream";
-					} else {
-						stream_byte = stream2.stream.get_byte( stream2.position );
-						if( stream_byte === null ) {
-							thread.throw_error( pl.error.representation( "byte", atom.indicator ) );
-							return;
-						}
-						stream2.position++;
-					}
-					thread.prepend( [new State(
-						point.goal.replace( new Term( "=", [new Num(stream_byte,false), byte] ) ),
-						point.substitution,
-						point
-					)] );
-				}
-			},
-			
-			// peek_byte/1
-			"peek_byte/1": function( thread, point, atom ) {
-				var byte = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_byte", [new Var("S"),byte])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// peek_byte/2
-			"peek_byte/2": function( thread, point, atom ) {
-				var stream = atom.args[0], byte = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_variable( byte ) && !pl.type.is_byte( byte ) ) {
-					thread.throw_error( pl.error.type( "in_byte", char, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.output ) {
-					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "text" ) {
-					thread.throw_error( pl.error.permission( "input", "text_stream", stream, atom.indicator ) );
-				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
-					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
-				} else {
-					var stream_byte;
-					if( stream2.position === "end_of_stream" ) {
-						stream_byte = "end_of_file";
-						stream2.position = "past_end_of_stream";
-					} else {
-						stream_byte = stream2.stream.get_byte( stream2.position );
-						if( stream_byte === null ) {
-							thread.throw_error( pl.error.representation( "byte", atom.indicator ) );
-							return;
-						}
-					}
-					thread.prepend( [new State(
-						point.goal.replace( new Term( "=", [new Num(stream_byte,false), byte] ) ),
-						point.substitution,
-						point
-					)] );
-				}
-			},
-
-			// put_byte/1
-			"put_byte/1": function( thread, point, atom ) {
-				var byte = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_byte", [new Var("S"),byte])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// put_byte/2
-			"put_byte/2": function( thread, point, atom ) {
-				var stream = atom.args[0], byte = atom.args[1];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) || pl.type.is_variable( byte ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_byte( byte ) ) {
-					thread.throw_error( pl.error.type( "byte", byte, atom.indicator ) );
-				} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.input ) {
-					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "text" ) {
-					thread.throw_error( pl.error.permission( "output", "text_stream", stream, atom.indicator ) );
-				} else {
-					if( stream2.stream.put_byte( byte.value, stream2.position ) ) {
-						if(typeof stream2.position === "number")
-							stream2.position++;
-						thread.success( point );
-					}
-				}
-			},
-
-
-
-			// TERM INPUT/OUTPUT
-
-			// read/1
-			"read/1": function( thread, point, atom ) {
-				var term = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),term,new Term("[]",[])])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// read/2
-			"read/2": function( thread, point, atom ) {
-				var stream = atom.args[0], term = atom.args[1];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term("read_term", [stream,term,new Term("[]",[])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// read_term/2
-			"read_term/2": function( thread, point, atom ) {
-				var term = atom.args[0], options = atom.args[1];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),term,options])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// read_term/3
-			"read_term/3": function( thread, point, atom ) {
-				var stream = atom.args[0], term = atom.args[1], options = atom.args[2];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) || pl.type.is_variable( options ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_list( options ) ) {
-					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.output ) {
-					thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "binary" ) {
-					thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
-				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
-					thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
-				} else {
-					// Get options
-					var obj_options = {};
-					var pointer = options;
-					var property;
-					while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
-						property = pointer.args[0];
-						if( pl.type.is_variable( property ) ) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-							return;
-						} else if( !pl.type.is_read_option( property ) ) {
-							thread.throw_error( pl.error.domain( "read_option", property, atom.indicator ) );
-							return;
-						}
-						obj_options[property.id] = property.args[0];
-						pointer = pointer.args[1];
-					}
-					if( pointer.indicator !== "[]/0" ) {
-						if( pl.type.is_variable( pointer ) )
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-						else
-							thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
-						return;
-					} else {
-						var char, tokenizer, expr;
-						var text = "";
-						var tokens = [];
-						var last_token = null;
-						// Get term
-						while( last_token === null || last_token.name !== "atom" || last_token.value !== "." ||
-							(expr.type === ERROR && pl.flatten_error(new Term("throw",[expr.value])).found === "token_not_found") ) {
-							char = stream2.stream.get( 1, stream2.position );
-							if( char === null ) {
-								thread.throw_error( pl.error.representation( "character", atom.indicator ) );
-								return;
-							}
-							if( char === "end_of_file" || char === "past_end_of_file" ) {
-								if( expr )
-									thread.throw_error( pl.error.syntax( tokens[expr.len-1], ". or expression expected", false ) );
-								else
-									thread.throw_error( pl.error.syntax( null, "token not found", true ) );
-								return;
-							}
-							stream2.position++;
-							text += char;
-							tokenizer = new Tokenizer( thread );
-							tokenizer.new_text( text );
-							tokens = tokenizer.get_tokens();
-							last_token = tokens !== null && tokens.length > 0 ? tokens[tokens.length-1] : null;
-							if( tokens === null )
-								continue;
-							expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
-						}
-						// Succeed analyzing term
-						if( expr.type === SUCCESS && expr.len === tokens.length-1 && last_token.value === "." ) {
-							expr = expr.value.rename( thread );
-							var eq = new Term( "=", [term, expr] );
-							// Variables
-							if( obj_options.variables ) {
-								var vars = arrayToList( map( nub( expr.variables() ), function(v) { return new Var(v); } ) );
-								eq = new Term( ",", [eq, new Term( "=", [obj_options.variables, vars] )] )
-							}
-							// Variable names
-							if( obj_options.variable_names ) {
-								var vars = arrayToList( map( nub( expr.variables() ), function(v) {
-									var prop;
-									for( prop in thread.session.renamed_variables ) {
-										if( thread.session.renamed_variables.hasOwnProperty( prop ) ) {
-											if( thread.session.renamed_variables[ prop ] === v )
-												break;
-										}
-									}
-									return new Term( "=", [new Term( prop, []), new Var(v)] );
-								} ) );
-								eq = new Term( ",", [eq, new Term( "=", [obj_options.variable_names, vars] )] )
-							}
-							// Singletons
-							if( obj_options.singletons ) {
-								var vars = arrayToList( map( new Rule( expr, null ).singleton_variables(), function(v) {
-									var prop;
-									for( prop in thread.session.renamed_variables ) {
-										if( thread.session.renamed_variables.hasOwnProperty( prop ) ) {
-											if( thread.session.renamed_variables[ prop ] === v )
-												break;
-										}
-									}
-									return new Term( "=", [new Term( prop, []), new Var(v)] );
-								} ) );
-								eq = new Term( ",", [eq, new Term( "=", [obj_options.singletons, vars] )] )
-							}
-							thread.prepend( [new State( point.goal.replace( eq ), point.substitution, point )] );
-						// Failed analyzing term
-						} else {
-							if( expr.type === SUCCESS )
-								thread.throw_error( pl.error.syntax( tokens[expr.len], "unexpected token", false ) );
-							else
-								thread.throw_error( expr.value );
-						}
-					}
-				}
-			},
-
-			// write/1
-			"write/1": function( thread, point, atom ) {
-				var term = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("write", [new Var("S"),term])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-			
-			// write/2
-			"write/2": function( thread, point, atom ) {
-				var stream = atom.args[0], term = atom.args[1];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term("write_term", [stream, term,
-						new Term(".", [new Term("quoted", [new Term("false", [])]),
-							new Term(".", [new Term("ignore_ops", [new Term("false")]),
-								new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-			
-			// writeq/1
-			"writeq/1": function( thread, point, atom ) {
-				var term = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("writeq", [new Var("S"),term])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-			
-			// writeq/2
-			"writeq/2": function( thread, point, atom ) {
-				var stream = atom.args[0], term = atom.args[1];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term("write_term", [stream, term,
-						new Term(".", [new Term("quoted", [new Term("true", [])]),
-							new Term(".", [new Term("ignore_ops", [new Term("false")]),
-								new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-			
-			// write_canonical/1
-			"write_canonical/1": function( thread, point, atom ) {
-				var term = atom.args[0];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("write_canonical", [new Var("S"),term])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-			
-			// write_canonical/2
-			"write_canonical/2": function( thread, point, atom ) {
-				var stream = atom.args[0], term = atom.args[1];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term("write_term", [stream, term,
-						new Term(".", [new Term("quoted", [new Term("true", [])]),
-							new Term(".", [new Term("ignore_ops", [new Term("true")]),
-								new Term(".", [new Term("numbervars", [new Term("false")]), new Term("[]",[])])])])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-
-			// write_term/2
-			"write_term/2": function( thread, point, atom ) {
-				var term = atom.args[0], options = atom.args[1];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("write_term", [new Var("S"),term,options])]) ),
-					point.substitution,
-					point
-				)] );
-			},
-			
-			// write_term/3
-			"write_term/3": function( thread, point, atom ) {
-				var stream = atom.args[0], term = atom.args[1], options = atom.args[2];
-				var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-				if( pl.type.is_variable( stream ) || pl.type.is_variable( options ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_list( options ) ) {
-					thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-					thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
-				} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
-					thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-				} else if( stream2.input ) {
-					thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
-				} else if( stream2.type === "binary" ) {
-					thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
-				} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
-					thread.throw_error( pl.error.permission( "output", "past_end_of_stream", stream, atom.indicator ) );
-				} else {
-					// Get options
-					var obj_options = {};
-					var pointer = options;
-					var property;
-					while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
-						property = pointer.args[0];
-						if( pl.type.is_variable( property ) ) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-							return;
-						} else if( !pl.type.is_write_option( property ) ) {
-							thread.throw_error( pl.error.domain( "write_option", property, atom.indicator ) );
-							return;
-						}
-						obj_options[property.id] = property.args[0].id === "true";
-						pointer = pointer.args[1];
-					}
-					if( pointer.indicator !== "[]/0" ) {
-						if( pl.type.is_variable( pointer ) )
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-						else
-							thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
-						return;
-					} else {
-						obj_options.session = thread.session;
-						var text = term.toString( obj_options );
-						stream2.stream.put( text, stream2.position );
-						if( typeof stream2.position === "number" )
-							stream2.position += text.length;
-						thread.success( point );
-					}
-				}
-			},
-
-			// write_to_chars/2
-			"write_to_chars/2": function(thread, point, atom) {
-				var chars = atom.args[0], term = atom.args[1];
-				thread.prepend([new State( 
-					point.goal.replace( new Term("write_term_to_chars", [chars, term,
-						new Term(".", [new Term("quoted", [new Term("false", [])]),
-							new Term(".", [new Term("ignore_ops", [new Term("false")]),
-								new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
-					point.substitution,
-					point
-				)]);
-			},
-
-			// writeq_to_chars/2
-			"writeq_to_chars/2": function(thread, point, atom) {
-				var chars = atom.args[0], term = atom.args[1];
-				thread.prepend([new State( 
-					point.goal.replace(new Term("write_term_to_chars", [chars, term,
-						new Term(".", [new Term("quoted", [new Term("true", [])]),
-							new Term(".", [new Term("ignore_ops", [new Term("false")]),
-								new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
-					point.substitution,
-					point
-				)]);
-			},
-
-			// write_canonical_to_chars/2
-			"write_canonical_to_chars/2": function(thread, point, atom) {
-				var chars = atom.args[0], term = atom.args[1];
-				thread.prepend( [new State( 
-					point.goal.replace( new Term("write_term_to_chars", [chars, term,
-						new Term(".", [new Term("quoted", [new Term("true", [])]),
-							new Term(".", [new Term("ignore_ops", [new Term("true")]),
-								new Term(".", [new Term("numbervars", [new Term("false")]), new Term("[]",[])])])])]) ),
-					point.substitution,
-					point
-				)]);
-			},
-
-			// write_term_to_chars/3
-			"write_term_to_chars/3": function(thread, point, atom) {
-				var chars = atom.args[0], term = atom.args[1], options = atom.args[2];
-				if(!pl.type.is_variable(chars) && !pl.type.is_list(chars)) {
-					thread.throw_error(pl.error.type("list", chars, atom.indicator));
-				} else if(pl.type.is_variable(options)) {
-					thread.throw_error(pl.error.instantiation(atom.indicator));
-				} else {
-					// check chars
-					if(!pl.type.is_variable(chars)) {
-						var pointer = chars;
-						while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
-							var char = pointer.args[0];
-							if(!pl.type.is_character(char)) {
-								thread.throw_error(pl.error.type("character", char, atom.indicator));
-								return;
-							}
-							pointer = pointer.args[1];
-						}
-						if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
-							thread.throw_error(pl.error.type("list", chars, atom.indicator));
-							return;
-						}
-					}
-					// get options
-					var obj_options = {};
-					var pointer = options;
-					var property;
-					while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
-						property = pointer.args[0];
-						if(pl.type.is_variable(property)) {
-							thread.throw_error( pl.error.instantiation( atom.indicator ) );
-							return;
-						} else if(!pl.type.is_write_option(property)) {
-							thread.throw_error( pl.error.domain("write_option", property, atom.indicator));
-							return;
-						}
-						obj_options[property.id] = property.args[0].id === "true";
-						pointer = pointer.args[1];
-					}
-					if(pointer.indicator !== "[]/0") {
-						if(pl.type.is_variable(pointer))
-							thread.throw_error(pl.error.instantiation(atom.indicator));
-						else
-							thread.throw_error(pl.error.type("list", options, atom.indicator));
-						return;
-					} else {
-						obj_options.session = thread.session;
-						var text = term.toString( obj_options );
-						var list = new Term("[]", []);
-						for(var i = stringLength(text)-1; i >= 0; i--)
-							list = new Term(".", [new Term(fromCodePoint(codePointAt(text, i)), []), list]);
-						thread.prepend([new State(
-							point.goal.replace(new Term("=", [chars, list])),
-							point.substitution,
-							point
-						)]);
-					}
-				}
-			},
-
-
-			
-			// IMPLEMENTATION DEFINED HOOKS
-			
-			// halt/0
-			"halt/0": function( thread, point, _ ) {
-				if( thread.get_flag("nodejs").indicator === "true/0" )
-					process.exit();
-				thread.points = [];
-			},
-			
-			// halt/1
-			"halt/1": function( thread, point, atom ) {
-				var int = atom.args[0];
-				if( pl.type.is_variable( int ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_integer( int ) ) {
-					thread.throw_error( pl.error.type( "integer", int, atom.indicator ) );
-				} else {
-					if( thread.get_flag("nodejs").indicator === "true/0" )
-						process.exit(int.value);
-					thread.points = [];
-				}
-			},
-			
-			// current_prolog_flag/2
-			"current_prolog_flag/2": function( thread, point, atom ) {
-				var flag = atom.args[0], value = atom.args[1];
-				if( !pl.type.is_variable( flag ) && !pl.type.is_atom( flag ) ) {
-					thread.throw_error( pl.error.type( "atom", flag, atom.indicator ) );
-				} else if( !pl.type.is_variable( flag ) && !pl.type.is_flag( flag ) ) {
-					thread.throw_error( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
-				} else {
-					var states = [];
-					for( var name in pl.flag ) {
-						if(!pl.flag.hasOwnProperty(name)) continue;
-						var goal = new Term( ",", [new Term( "=", [new Term( name ), flag] ), new Term( "=", [thread.get_flag(name), value] )] );
-						states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
-					}
-					thread.prepend( states );
-				}
-			},
-			
-			// set_prolog_flag/2
-			"set_prolog_flag/2": function( thread, point, atom ) {
-				var flag = atom.args[0], value = atom.args[1];
-				if( pl.type.is_variable( flag ) || pl.type.is_variable( value ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_atom( flag ) ) {
-					thread.throw_error( pl.error.type( "atom", flag, atom.indicator ) );
-				} else if( !pl.type.is_flag( flag ) ) {
-					thread.throw_error( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
-				} else if( !pl.type.is_value_flag( flag, value ) ) {
-					thread.throw_error( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
-				} else if( !pl.type.is_modifiable_flag( flag ) ) {
-					thread.throw_error( pl.error.permission( "modify", "flag", flag ) );
-				} else {
-					thread.session.flag[flag.id] = value;
-					thread.success( point );
-				}
-			},
-
-
-
-			// LOAD PROLOG SOURCE FILES
-
-			// consult/1
-			"consult/1": function( thread, point, atom ) {
-				var src = atom.args[0];
-				if(pl.type.is_variable(src)) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if(!pl.type.is_atom(src)) {
-					thread.throw_error( pl.error.type( "atom", src, atom.indicator ) );
-				} else {
-					if(thread.consult( src.id ))
-						thread.success(point);
-				}
-			},
-
-
-
-			// TIME AND DATES
-
-			// get_time/1
-			"get_time/1": function( thread, point, atom ) {
-				var time = atom.args[0];
-				if(!pl.type.is_variable(time) && !pl.type.is_number(time)) {
-					thread.throw_error( pl.error.type( "number", time, atom.indicator ) );
-				} else {
-					var current = new Num(Date.now(), true);
-					thread.prepend( [new State(
-						point.goal.replace( new Term( "=", [time, current] ) ), 
-						point.substitution,
-						point
-					)] );
-				}
-			},
-
-
-
-			// GRAMMARS
-
-			// phrase/3
-			"phrase/3": function( thread, point, atom ) {
-				var grbody = atom.args[0], s0 = atom.args[1], s = atom.args[2];
-				if( pl.type.is_variable( grbody ) ) {
-					thread.throw_error( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_callable( grbody ) ) {
-					thread.throw_error( pl.error.type( "callable", grbody, atom.indicator ) );
-				} else {
-					var goal = body_to_dcg( grbody.clone(), s0, thread );
-					if(goal !== null) {
-						thread.prepend( [new State(
-							point.goal.replace( new Term( ",", [goal.value, new Term("=", [goal.variable, s])] ) ), 
-							point.substitution,
-							point
-						)] );
-					}
-				}
-			},
-
-			// phrase/2
-			"phrase/2": function( thread, point, atom ) {
-				var grbody = atom.args[0], s0 = atom.args[1];
-				thread.prepend( [new State(
-					point.goal.replace( new Term( "phrase", [grbody, s0, new Term("[]", [])] ) ), 
-					point.substitution,
-					point
-				)] );
-			},
-
-
-
-			// TAU PROLOG INFORMATION
-
-			// version/0
-			"version/0": function( thread, point, atom ) {
-				var msg = "Welcome to Tau Prolog version " + version.major + "." + version.minor + "." + version.patch + "\n";
-				msg += "Tau Prolog comes with ABSOLUTELY NO WARRANTY. This is free software.\n";
-				msg += "Please run ?- license. for legal details.\n";
-				msg += "For online help and background, visit http:/tau-prolog.org";
-				thread.prepend( [new State(
-					point.goal.replace( new Term( "write", [new Term( msg, [] )] ) ), 
-					point.substitution,
-					point
-				)] );
-			},
-
-			// license/0
-			"license/0": function( thread, point, atom ) {
-				var msg = "Tau Prolog. A Prolog interpreter in JavaScript.\n";
-				msg += "Copyright (C) 2017 - 2020 José Antonio Riaza Valverde\n\n";
-				msg += "Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\n";
-				msg += "1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\n";
-				msg += "2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.\n";
-				msg += "3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.\n\n";
-				msg += "THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\n";
-				msg += "You should have received a copy of the BSD 3-Clause License along with this program. If not, see https://opensource.org/licenses/BSD-3-Clause";
-				thread.prepend( [new State(
-					point.goal.replace( new Term( "write", [new Term( msg, [] )] ) ), 
-					point.substitution,
-					point
-				)] );
-			}
-
 		},
 		
 		// Flags
@@ -7590,6 +4383,3338 @@
 		}
 		
 	};
+
+	// Built-in predicates
+	pl.builtin = new Module("system", {
+
+		// TERM AND GOAL EXPANSION
+
+		// goal_expansion/2
+		"goal_expansion/2": [
+			new Rule(new Term("goal_expansion", [new Term(",", [new Var("X"),new Var("Y")]),new Term(",", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
+			new Rule(new Term("goal_expansion", [new Term(";", [new Var("X"),new Var("Y")]),new Term(";", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
+			new Rule(new Term("goal_expansion", [new Term("->", [new Var("X"),new Var("Y")]),new Term("->", [new Var("X_"),new Var("Y_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Y"),new Var("Y_")]),new Term("=", [new Var("Y_"),new Var("Y")])])]),new Term(",", [new Term("=", [new Var("X"),new Var("X_")]),new Term("goal_expansion", [new Var("Y"),new Var("Y_")])])])),
+			new Rule(new Term("goal_expansion", [new Term("catch", [new Var("X"),new Var("Y"),new Var("Z")]),new Term("catch", [new Var("X_"),new Var("Y"),new Var("Z_")])]), new Term(";", [new Term(",", [new Term("goal_expansion", [new Var("X"),new Var("X_")]),new Term(";", [new Term("goal_expansion", [new Var("Z"),new Var("Z_")]),new Term("=", [new Var("Z_"),new Var("Z")])])]),new Term(",", [new Term("=", [new Var("X_"),new Var("X")]),new Term("goal_expansion", [new Var("Z"),new Var("Z_")])])])),
+			new Rule(new Term("goal_expansion", [new Term("\\+", [new Var("X")]),new Term("\\+", [new Var("X_")])]), new Term(",", [new Term("nonvar", [new Var("X")]),new Term("goal_expansion", [new Var("X"),new Var("X_")])])),
+			new Rule(new Term("goal_expansion", [new Term("once", [new Var("X")]),new Term("once", [new Var("X_")])]), new Term(",", [new Term("nonvar", [new Var("X")]),new Term("goal_expansion", [new Var("X"),new Var("X_")])])),
+			new Rule(new Term("goal_expansion", [new Term("findall", [new Var("X"),new Var("Y"),new Var("Z")]),new Term("findall", [new Var("X"),new Var("Y_"),new Var("Z")])]), new Term("goal_expansion", [new Var("Y"),new Var("Y_")])),
+			new Rule(new Term("goal_expansion", [new Term("setof", [new Var("X"),new Var("Y"),new Var("Z")]),new Term("findall", [new Var("X"),new Var("Y_"),new Var("Z")])]), new Term("goal_expansion", [new Var("Y"),new Var("Y_")])),
+			new Rule(new Term("goal_expansion", [new Term("bagof", [new Var("X"),new Var("Y"),new Var("Z")]),new Term("findall", [new Var("X"),new Var("Y_"),new Var("Z")])]), new Term("goal_expansion", [new Var("Y"),new Var("Y_")])),
+			new Rule(new Term("goal_expansion", [new Term("call", [new Var("X")]),new Term("call", [new Var("X_")])]), new Term(",", [new Term("nonvar", [new Var("X")]),new Term("goal_expansion", [new Var("X"),new Var("X_")])])),
+			new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term("[]", [])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+			new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term("[]", [])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+			new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term("[]", [])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+			new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term("[]", [])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+			new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term("[]", [])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+			new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5"),new Var("A6")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term(".", [new Var("A6"),new Term("[]", [])])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])])),
+			new Rule(new Term("goal_expansion", [new Term("call", [new Var("X"),new Var("A1"),new Var("A2"),new Var("A3"),new Var("A4"),new Var("A5"),new Var("A6"),new Var("A7")]),new Term("call", [new Var("F_")])]), new Term(",", [new Term("=..", [new Var("F"),new Term(".", [new Var("X"),new Term(".", [new Var("A1"),new Term(".", [new Var("A2"),new Term(".", [new Var("A3"),new Term(".", [new Var("A4"),new Term(".", [new Var("A5"),new Term(".", [new Var("A6"),new Term(".", [new Var("A7"),new Term("[]", [])])])])])])])])])]),new Term("goal_expansion", [new Var("F"),new Var("F_")])]))
+		],
+
+
+
+		// ATTRIBUTED VARIABLES
+		
+		//put_attr/3
+		"put_attr/3": function( thread, point, atom ) {
+			var variable = atom.args[0], module = atom.args[1], value = atom.args[2];
+			if( !pl.type.is_variable(variable) ) {
+				thread.throw_error( pl.error.type( "variable", variable, atom.indicator ) );
+			} else if( !pl.type.is_atom(module) ) {
+				thread.throw_error( pl.error.type( "atom", module, atom.indicator ) );
+			} else {
+				var subs = point.substitution.set_attribute( variable.id, module, value );
+				thread.prepend( [new State( point.goal.replace(null), subs, point )] );
+			}
+		},
+
+		// get_attr/3
+		"get_attr/3": function( thread, point, atom ) {
+			var variable = atom.args[0], module = atom.args[1], value = atom.args[2];
+			if( !pl.type.is_variable(variable) ) {
+				thread.throw_error( pl.error.type( "variable", variable, atom.indicator ) );
+			} else if( !pl.type.is_atom(module) ) {
+				thread.throw_error( pl.error.type( "atom", module, atom.indicator ) );
+			} else {
+				var attr = point.substitution.get_attribute( variable.id, module );
+				if( attr ) {
+					thread.prepend( [new State(
+						point.goal.replace( new Term("=", [value, attr]) ),
+						point.substitution,
+						point
+					)] );
+				}
+			}
+		},
+
+
+		
+		// INPUT AND OUTPUT
+		
+		// op/3
+		"op/3": function( thread, point, atom ) {
+			if( pl.directive["op/3"]( thread, atom ) )
+				thread.success( point );
+		},
+		
+		// current_op/3
+		"current_op/3": function( thread, point, atom ) {
+			var priority = atom.args[0], specifier = atom.args[1], operator = atom.args[2];
+			var points = [];
+			for( var p in thread.session.__operators )
+				for( var o in thread.session.__operators[p] )
+					for( var i = 0; i < thread.session.__operators[p][o].length; i++ )
+						points.push( new State(
+							point.goal.replace(
+								new Term( ",", [
+									new Term( "=", [new Num( p, false ), priority] ),
+									new Term( ",", [
+										new Term( "=", [new Term( thread.session.__operators[p][o][i], [] ), specifier] ),
+										new Term( "=", [new Term( o, [] ), operator] )
+									] )
+								] )
+							),
+							point.substitution,
+							point
+						) );
+			thread.prepend( points );
+		},
+	
+
+
+		// LOGIC AND CONTROL STRUCTURES
+	
+		// ;/2 (disjunction)
+		";/2": function( thread, point, atom ) {
+			var left = atom.args[0], right = atom.args[1];
+			if( pl.type.is_term( left ) && left.indicator === "->/2" ) {
+				var cond = left.args[0], then = left.args[1], otherwise = right;
+				var goal_fst = point.goal.replace( new Term( ",", [cond, new Term( ",", [new Term( "!" ), then] )] ) );
+				var goal_snd = point.goal.replace( new Term( ",", [new Term( "!" ), otherwise] ) );
+				thread.prepend( [
+					new State( goal_fst, point.substitution, point ),
+					new State( goal_snd, point.substitution, point )
+				] );
+			} else {
+				thread.prepend([
+					new State( point.goal.replace( left ), point.substitution, point ),
+					new State( point.goal.replace( right ), point.substitution, point )
+				]);
+			}
+		},
+		
+		// !/0 (cut)
+		"!/0": function( thread, point, atom ) {
+			var parent_cut, last_cut, states = [];
+			parent_cut = point;
+			last_cut = null;
+			while( parent_cut.parent !== null && parent_cut.parent.goal.search( atom ) ) {
+				last_cut = parent_cut;
+				parent_cut = parent_cut.parent;
+				if(parent_cut.goal !== null) {
+					var selected = parent_cut.goal.select();
+					if( selected && selected.id === "call" && selected.search(atom) ) {
+						parent_cut = last_cut;
+						break;
+					}
+				}
+			}
+			for( var i = thread.points.length-1; i >= 0; i-- ) {
+				var state = thread.points[i];
+				var node = state.parent;
+				while( node !== null && node !== parent_cut.parent ) {
+					node = node.parent;
+				}
+				if( node === null && node !== parent_cut.parent )
+					states.push( state );
+			}
+			thread.points = states.reverse();
+			thread.success( point );
+		},
+		
+		// \+ (negation)
+		"\\+/1": function( thread, point, atom ) {
+			var goal = atom.args[0];
+			if( pl.type.is_variable( goal ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_callable( goal ) ) {
+				thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
+			} else {
+				// TRANSPARENT VERSION OF THE NEGATION
+				/*var neg_thread;
+				if(point.negation_thread) {
+					neg_thread = point.negation_thread;
+				} else {
+					neg_thread = new Thread( thread.session );
+					neg_thread.add_goal( goal );
+					point.negation_thread = neg_thread;
+				}
+				neg_thread.answer( function( answer ) {
+					if(answer === false) {
+						thread.success( point );
+					} else if(pl.type.is_error( answer )) {
+						thread.throw_error( answer.args[0] );
+					} else if(answer === null) {
+						thread.prepend( [point] );
+						thread.current_limit = 0;
+					}
+					thread.again( answer !== null );
+				} );
+				return true;*/
+				
+				// '\+'(X) :- call(X), !, fail.
+				// '\+'(_).
+				thread.prepend( [
+					new State( point.goal.replace( new Term( ",", [new Term( ",", [ new Term( "call", [goal] ), new Term( "!", [] ) ] ), new Term( "fail", [] ) ] ) ), point.substitution, point ),
+					new State( point.goal.replace( null ), point.substitution, point )
+				] );
+			}
+		},
+		
+		// ->/2 (implication)
+		"->/2": function( thread, point, atom ) {
+			var cond = atom.args[0], then = atom.args[1];
+			var goal = point.goal.replace( new Term( ",", [cond, new Term( ",", [new Term( "!" ), then] )] ) );
+			thread.prepend( [new State( goal, point.substitution, point )] );
+		},
+		
+		// fail/0
+		"fail/0": function( _1, _2, _3 ) {},
+		
+		// false/0
+		"false/0": function( _1, _2, _3 ) {},
+		
+		// true/0
+		"true/0": function( thread, point, _ ) {
+			thread.success( point );
+		},
+		
+		// call/1..8
+		"call/1": callN(1),
+		"call/2": callN(2),
+		"call/3": callN(3),
+		"call/4": callN(4),
+		"call/5": callN(5),
+		"call/6": callN(6),
+		"call/7": callN(7),
+		"call/8": callN(8),
+		
+		// once/1
+		"once/1": function( thread, point, atom ) {
+			var goal = atom.args[0];
+			thread.prepend( [new State( point.goal.replace( new Term( ",", [new Term( "call", [goal] ), new Term( "!", [] )] ) ), point.substitution, point )] );
+		},
+		
+		// forall/2
+		"forall/2": function( thread, point, atom ) {
+			var generate = atom.args[0], test = atom.args[1];
+			thread.prepend( [new State( point.goal.replace( new Term( "\\+", [new Term( ",", [new Term( "call", [generate] ), new Term( "\\+", [new Term( "call", [test] )] )] )] ) ), point.substitution, point )] );
+		},
+		
+		// repeat/0
+		"repeat/0": function( thread, point, _ ) {
+			thread.prepend( [new State( point.goal.replace( null ), point.substitution, point ), point] );
+		},
+		
+		// EXCEPTIONS
+		
+		// throw/1
+		"throw/1": function( thread, point, atom ) {
+			if( pl.type.is_variable( atom.args[0] ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else {
+				thread.throw_error( atom.args[0] );
+			}
+		},
+		
+		// catch/3
+		"catch/3": function( thread, point, atom ) {
+			var points = thread.points;
+			thread.points = [];
+			thread.prepend( [new State( atom.args[0], point.substitution, point )] );
+			var format_success = thread.session.format_success;
+			var format_error = thread.session.format_error;
+			thread.session.format_success = function(x) { return x.substitution; };
+			thread.session.format_error = function(x) { return x.goal; };
+			var callback = function( answer ) {
+				var call_points = thread.points;
+				thread.points = points;
+				thread.session.format_success = format_success;
+				thread.session.format_error = format_error;
+				if( pl.type.is_error( answer ) ) {
+					var states = [];
+					for( var i = thread.points.length-1 ; i >= 0; i-- ) {
+						var state = thread.points[i];
+						var node = state.parent;
+						while( node !== null && node !== point.parent ) {
+							node = node.parent;
+						}
+						if( node === null && node !== point.parent )
+							states.push( state );
+					}
+					thread.points = states;
+					var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
+					var state = new State();
+					var mgu = pl.unify( answer.args[0], atom.args[1], occurs_check );
+					if( mgu !== null ) {
+						state.substitution = point.substitution.apply( mgu );
+						state.goal = point.goal.replace( atom.args[2] ).apply( mgu );
+						state.parent = point;
+						thread.prepend( [state] );
+					} else {
+						thread.throw_error( answer.args[0] );
+					}
+				} else if( answer !== false ) {
+					var answer_state = answer === null ? [] : [new State(
+						point.goal.apply( answer ).replace( null ),
+						point.substitution.apply( answer ),
+						point
+					)];
+					var filter_points = [];
+					for( var i = call_points.length-1; i >= 0; i-- ) {
+						filter_points.push( call_points[i] );
+						var selected = call_points[i].goal !== null ? call_points[i].goal.select() : null;
+						if( pl.type.is_term( selected ) && selected.indicator === "!/0" )
+							break;
+					}
+					var catch_points = map( filter_points, function( state ) {
+						if( state.goal === null )
+							state.goal = new Term( "true", [] );
+						state = new State(
+							point.goal.replace( new Term( "catch", [state.goal, atom.args[1], atom.args[2]] ) ),
+							point.substitution.apply( state.substitution ),
+							state.parent
+						);
+						state.exclude = atom.args[0].variables();
+						return state;
+					} ).reverse();
+					thread.prepend( catch_points );
+					thread.prepend( answer_state );
+					if( answer === null ) {
+						this.current_limit = 0;
+						thread.__calls.shift()( null );
+					}
+				}
+			};
+			thread.__calls.unshift( callback );
+		},
+		
+		// UNIFICATION
+		
+		// =/2 (unification)
+		"=/2": function( thread, point, atom ) {
+			var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
+			var state = new State();
+			var mgu = pl.unify( atom.args[0], atom.args[1], occurs_check );
+			if( mgu !== null ) {
+				state.goal = point.goal.apply( mgu ).replace( null );
+				state.substitution = point.substitution.apply( mgu );
+				state.parent = point;
+				thread.prepend( [state] );
+			}
+		},
+		
+		// unify_with_occurs_check/2
+		"unify_with_occurs_check/2": function( thread, point, atom ) {
+			var state = new State();
+			var mgu = pl.unify( atom.args[0], atom.args[1], true );
+			if( mgu !== null ) {
+				state.goal = point.goal.apply( mgu ).replace( null );
+				state.substitution = point.substitution.apply( mgu );
+				state.parent = point;
+				thread.prepend( [state] );
+			}
+		},
+		
+		// \=/2
+		"\\=/2": function( thread, point, atom ) {
+			var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
+			var mgu = pl.unify( atom.args[0], atom.args[1], occurs_check );
+			if( mgu === null ) {
+				thread.success( point );
+			}
+		},
+		
+		// subsumes_term/2
+		"subsumes_term/2": function( thread, point, atom ) {
+			var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
+			var mgu = pl.unify( atom.args[1], atom.args[0], occurs_check );
+			if( mgu !== null && atom.args[1].apply( mgu ).equals( atom.args[1] ) ) {
+				thread.success( point );
+			}
+		},
+		
+		// ALL SOLUTIONS
+
+		// findall/3
+		"findall/3": function(thread, point, atom) {
+			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
+			var tail = new Term("[]", []);
+			thread.prepend([new State(
+				point.goal.replace(new Term("findall", [template, goal, instances, tail])),
+				point.substitution,
+				point
+			)]);
+		},
+
+		// findall/4
+		"findall/4": function(thread, point, atom) {
+			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2], tail = atom.args[3];
+			if( pl.type.is_variable( goal ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_callable( goal ) ) {
+				thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
+			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
+				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
+			} else {
+				var variable = thread.next_free_variable();
+				var newGoal = new Term( ",", [goal, new Term( "=", [variable, template] )] );
+				var nthread = new Thread(thread.session);
+				nthread.debugger = thread.debugger;
+				nthread.format_success = function(state) { return state.substitution; };
+				nthread.format_error = function(state) { return state.goal; };
+				nthread.add_goal( newGoal, true, point );
+				nthread.head_point().parent = point;
+				var answers = [];
+				var callback = function( answer ) {
+					if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
+						answers.push( answer.links[variable.id] );
+						nthread.answer(callback);
+					} else {
+						var reset_limit = true;
+						if( pl.type.is_error( answer ) ) {
+							thread.throw_error( answer.args[0] );
+						} else if( nthread.current_limit > 0 ) {
+							var list = arrayToList(answers, tail);
+							thread.prepend( [new State(
+								point.goal.replace( new Term( "=", [instances, list] ) ),
+								point.substitution,
+								point
+							)] );
+						} else {
+							thread.prepend( [point] );
+							thread.current_limit = 0;
+							reset_limit = false;
+						}
+						if(reset_limit && nthread.debugger)
+							thread.debugger_states = thread.debugger_states.concat(nthread.debugger_states);
+						thread.again(reset_limit);
+					}
+				};
+				nthread.answer(callback);
+				return true;
+			}
+		},
+		
+		// bagof/3
+		"bagof/3": function( thread, point, atom ) {
+			var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
+			if( pl.type.is_variable( goal ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_callable( goal ) ) {
+				thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
+			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
+				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
+			} else {
+				var variable = thread.next_free_variable();
+				var template_vars;
+				if( goal.indicator === "^/2" ) {
+					template_vars = goal.args[0].variables();
+					goal = goal.args[1];
+				} else {
+					template_vars = [];
+				}
+				template_vars = template_vars.concat( template.variables() );
+				var free_vars = goal.variables().filter( function( v ){
+					return indexOf( template_vars, v ) === -1;
+				} );
+				var list_vars = new Term( "[]" );
+				for( var i = free_vars.length - 1; i >= 0; i-- ) {
+					list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
+				}
+				var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
+				var nthread = new Thread(thread.session);
+				nthread.debugger = thread.debugger;
+				nthread.format_success = function(state) { return state.substitution; };
+				nthread.format_error = function(state) { return state.goal; };
+				nthread.add_goal( newGoal, true, point );
+				nthread.head_point().parent = point;
+				var answers = [];
+				var callback = function( answer ) {
+					if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
+						var match = false;
+						var arg_vars = answer.links[variable.id].args[0];
+						var arg_template = answer.links[variable.id].args[1];
+						for( var _elem in answers ) {
+							if(!answers.hasOwnProperty(_elem)) continue;
+							var elem = answers[_elem];
+							if( elem.variables.equals( arg_vars ) ) {
+								elem.answers.push( arg_template );
+								match = true;
+								break;
+							}
+						}
+						if( !match )
+							answers.push( {variables: arg_vars, answers: [arg_template]} );
+						nthread.answer(callback);
+					} else {
+						reset_limit = true;
+						if( pl.type.is_error( answer ) ) {
+							thread.throw_error( answer.args[0] );
+						} else if( thread.current_limit > 0 ) {
+							var states = [];
+							for( var i = 0; i < answers.length; i++ ) {
+								answer = answers[i].answers;
+								var list = arrayToList(answer);
+								states.push( new State(
+									point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
+									point.substitution,
+									point
+								) );
+							}
+							thread.prepend( states );
+						} else {
+							thread.prepend( [point] );
+							thread.current_limit = 0;
+							reset_limit = false;
+						}
+						if(reset_limit && nthread.debugger)
+							thread.debugger_states = thread.debugger_states.concat(nthread.debugger_states);
+						thread.again(reset_limit);
+					}
+				};
+				nthread.answer(callback);
+				return true;
+			}
+		},
+
+		// setof/3
+		"setof/3": function( thread, point, atom ) {
+			var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
+			if( pl.type.is_variable( goal ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_callable( goal ) ) {
+				thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
+			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
+				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
+			} else {
+				var variable = thread.next_free_variable();
+				var template_vars;
+				if( goal.indicator === "^/2" ) {
+					template_vars = goal.args[0].variables();
+					goal = goal.args[1];
+				} else {
+					template_vars = [];
+				}
+				template_vars = template_vars.concat( template.variables() );
+				var free_vars = goal.variables().filter( function( v ){
+					return indexOf( template_vars, v ) === -1;
+				} );
+				var list_vars = new Term( "[]" );
+				for( var i = free_vars.length - 1; i >= 0; i-- ) {
+					list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
+				}
+				var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
+				var nthread = new Thread(thread.session);
+				nthread.debugger = thread.debugger;
+				nthread.format_success = function(state) { return state.substitution; };
+				nthread.format_error = function(state) { return state.goal; };
+				nthread.add_goal( newGoal, true, point );
+				nthread.head_point().parent = point;
+				var answers = [];
+				var callback = function( answer ) {
+					if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
+						var match = false;
+						var arg_vars = answer.links[variable.id].args[0];
+						var arg_template = answer.links[variable.id].args[1];
+						for( var _elem in answers ) {
+							if(!answers.hasOwnProperty(_elem)) continue;
+							var elem = answers[_elem];
+							if( elem.variables.equals( arg_vars ) ) {
+								elem.answers.push( arg_template );
+								match = true;
+								break;
+							}
+						}
+						if( !match )
+							answers.push( {variables: arg_vars, answers: [arg_template]} );
+						nthread.answer(callback);
+					} else {
+						reset_limit = true;
+						if( pl.type.is_error( answer ) ) {
+							thread.throw_error( answer.args[0] );
+						} else if( thread.current_limit > 0 ) {
+							var states = [];
+							for( var i = 0; i < answers.length; i++ ) {
+								answer = answers[i].answers.sort( pl.compare );
+								var list = arrayToList(answer);
+								states.push( new State(
+									point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
+									point.substitution,
+									point
+								) );
+							}
+							thread.prepend( states );
+						} else {
+							thread.prepend( [point] );
+							thread.current_limit = 0;
+							reset_limit = false;
+						}
+						if(reset_limit && nthread.debugger)
+							thread.debugger_states = thread.debugger_states.concat(nthread.debugger_states);
+						thread.again(reset_limit);
+					}
+				};
+				nthread.answer(callback);
+				return true;
+			}
+		},
+		
+		// TERM CREATION AND DECOMPOSITION
+		
+		// functor/3
+		"functor/3": function( thread, point, atom ) {
+			var subs;
+			var term = atom.args[0], name = atom.args[1], arity = atom.args[2];
+			if( pl.type.is_variable( term ) && (pl.type.is_variable( name ) || pl.type.is_variable( arity )) ) {
+				thread.throw_error( pl.error.instantiation( "functor/3" ) );
+			} else if( !pl.type.is_variable( arity ) && !pl.type.is_integer( arity ) ) {
+				thread.throw_error( pl.error.type( "integer", atom.args[2], "functor/3" ) );
+			} else if( !pl.type.is_variable( name ) && !pl.type.is_atomic( name ) ) {
+				thread.throw_error( pl.error.type( "atomic", atom.args[1], "functor/3" ) );
+			} else if( pl.type.is_integer( name ) && pl.type.is_integer( arity ) && arity.value !== 0 ) {
+				thread.throw_error( pl.error.type( "atom", atom.args[1], "functor/3" ) );
+			} else if( pl.type.is_variable( term ) ) {
+				if( atom.args[2].value >= 0 ) {
+					var args = [];
+					for( var i = 0; i < arity.value; i++ )
+						args.push( thread.next_free_variable() );
+					var functor = pl.type.is_integer( name ) ? name : new Term( name.id, args );
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [term, functor] ) ), point.substitution, point )] );
+				}
+			} else {
+				var id = pl.type.is_integer( term ) ? term : new Term( term.id, [] );
+				var length = pl.type.is_integer( term ) ? new Num( 0, false ) : new Num( term.args.length, false );
+				var goal = new Term( ",", [new Term( "=", [id, name] ), new Term( "=", [length, arity] )] );
+				thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+			}
+		},
+		
+		// arg/3
+		"arg/3": function( thread, point, atom ) {
+			if( pl.type.is_variable( atom.args[0] ) || pl.type.is_variable( atom.args[1] ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( atom.args[0].value < 0 ) {
+				thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[0], atom.indicator ) );
+			} else if( !pl.type.is_compound( atom.args[1] ) ) {
+				thread.throw_error( pl.error.type( "compound", atom.args[1], atom.indicator ) );
+			} else {
+				var n = atom.args[0].value;
+				if( n > 0 && n <= atom.args[1].args.length ) {
+					var goal = new Term( "=", [atom.args[1].args[n-1], atom.args[2]] );
+					thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+				}
+			}
+		},
+		
+		// =../2 (univ)
+		"=../2": function( thread, point, atom ) {
+			var list;
+			if( pl.type.is_variable( atom.args[0] ) && (pl.type.is_variable( atom.args[1] )
+			|| pl.type.is_non_empty_list( atom.args[1] ) && pl.type.is_variable( atom.args[1].args[0] )) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_fully_list( atom.args[1] ) ) {
+				thread.throw_error( pl.error.type( "list", atom.args[1], atom.indicator ) );
+			} else if( !pl.type.is_variable( atom.args[0] ) ) {
+				if( pl.type.is_atomic( atom.args[0] ) ) {
+					list = new Term( ".", [atom.args[0], new Term( "[]" )] );
+				} else {
+					list = new Term( "[]" );
+					for( var i = atom.args[0].args.length - 1; i >= 0; i-- ) {
+						list = new Term( ".", [atom.args[0].args[i], list] );
+					}
+					list = new Term( ".", [new Term( atom.args[0].id ), list] );
+				}
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [list, atom.args[1]] ) ), point.substitution, point )] );
+			} else if( !pl.type.is_variable( atom.args[1] ) ) {
+				var args = [];
+				list = atom.args[1].args[1];
+				while( list.indicator === "./2" ) {
+					args.push( list.args[0] );
+					list = list.args[1];
+				}
+				if( pl.type.is_variable( atom.args[0] ) && pl.type.is_variable( list ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( args.length === 0 && pl.type.is_compound( atom.args[1].args[0] ) ) {
+					thread.throw_error( pl.error.type( "atomic", atom.args[1].args[0], atom.indicator ) );
+				} else if( args.length > 0 && (pl.type.is_compound( atom.args[1].args[0] ) || pl.type.is_number( atom.args[1].args[0] )) ) {
+					thread.throw_error( pl.error.type( "atom", atom.args[1].args[0], atom.indicator ) );
+				} else {
+					if( args.length === 0 ) {
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[1].args[0], atom.args[0]], point ) ), point.substitution, point )] );
+					} else {
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [new Term( atom.args[1].args[0].id, args ), atom.args[0]] ) ), point.substitution, point )] );
+					}
+				}
+			}
+		},
+		
+		// copy_term/2
+		"copy_term/2": function( thread, point, atom ) {
+			var renamed = atom.args[0].rename( thread );
+			thread.prepend( [new State( point.goal.replace( new Term( "=", [renamed, atom.args[1]] ) ), point.substitution, point.parent )] );
+		},
+		
+		// term_variables/2
+		"term_variables/2": function( thread, point, atom ) {
+			var term = atom.args[0], vars = atom.args[1];
+			if( !pl.type.is_fully_list( vars ) ) {
+				thread.throw_error( pl.error.type( "list", vars, atom.indicator ) );
+			} else {
+				var list = arrayToList( map( nub( term.variables() ), function(v) {
+					return new Var(v);
+				} ) );
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [vars, list] ) ), point.substitution, point )] );
+			}
+		},
+
+		// numbervars/3
+		"numbervars/3": function(thread, point, atom) {
+			var term = atom.args[0], start = atom.args[1], end = atom.args[2];
+			if(pl.type.is_variable(start)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_integer(start)) {
+				thread.throw_error(pl.error.type("integer", start, atom.indicator));
+			} else if(!pl.type.is_variable(end) && !pl.type.is_integer(end)) {
+				thread.throw_error(pl.error.type("integer", end, atom.indicator));
+			} else if(start.value < 0) {
+				thread.throw_error(pl.error.domain("not_less_than_zero", start, atom.indicator));
+			} else {
+				var variables = nub(term.variables());
+				var value = start.value;
+				var unif_body = new Term("true");
+				for(var i = 0; i < variables.length; i++) {
+					unif_body = new Term(",", [
+						new Term("=", [
+							new Var(variables[i]),
+							new Term("$VAR", [new Num(value, false)])]),
+							unif_body]);
+					value++;
+				}
+				var unif_end = new Term("=", [end, new Num(value, false)]);
+				if(pl.type.is_variable(end) || end.value === value) {
+					thread.prepend([new State(
+						point.goal.replace(new Term(",", [unif_body, unif_end])),
+						point.substitution,
+						point
+					)]);
+				}
+			}
+		},
+		
+		// CLAUSE RETRIEVAL AND INFORMATION
+		
+		// clause/2
+		"clause/2": function(thread, point, atom) {
+			var head = atom.args[0], body = atom.args[1];
+			var module_id = "user";
+			if(pl.type.is_term(head) && head.indicator === ":/2") {
+				if(!pl.type.is_atom(head.args[0])) {
+					thread.throw_error(pl.error.type("module", head.args[0], atom.indicator));
+					return;
+				}
+				module_id = head.args[0].id;
+				head = head.args[1];
+			}
+			var get_module = thread.session.modules[module_id];
+			if(pl.type.is_variable(head)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(head)) {
+				thread.throw_error(pl.error.type("callable", head, atom.indicator));
+			} else if(!pl.type.is_variable(body) && !pl.type.is_callable(body)) {
+				thread.throw_error(pl.error.type("callable", body, atom.indicator));
+			} else if(pl.type.is_module(get_module) && get_module.rules[head.indicator]) {
+				if(get_module.is_public_predicate(head.indicator)) {
+					var states = [];
+					for(var i = 0; i < get_module.rules[head.indicator].length; i++) {
+						var rule = get_module.rules[head.indicator][i];
+						thread.session.renamed_variables = {};
+						rule = rule.rename(thread);
+						if(rule.body === null)
+							rule.body = new Term("true");
+						var goal = new Term(",", [
+							new Term("=", [rule.head, head]),
+							new Term("=", [rule.body, body])
+						]);
+						states.push(new State(point.goal.replace(goal), point.substitution, point));
+					}
+					thread.prepend(states);
+				} else {
+					thread.throw_error(pl.error.permission("access", "private_procedure", head.indicator, atom.indicator));
+				}
+			}
+		},
+		
+		// current_predicate/1
+		"current_predicate/1": function(thread, point, atom) {
+			var indicator = atom.args[0];
+			var module_id;
+			if(pl.type.is_term(indicator) && indicator.indicator === ":/2") {
+				if(!pl.type.is_atom(indicator.args[0])) {
+					thread.throw_error(pl.error.type("module", indicator.args[0], atom.indicator));
+					return;
+				}
+				module_id = indicator.args[0].id;
+				indicator = indicator.args[1];
+			} else {
+				module_id = "user";
+			}
+			if(!pl.type.is_variable(indicator) && (!pl.type.is_compound(indicator) || indicator.indicator !== "//2")) {
+				thread.throw_error(pl.error.type( "predicate_indicator", indicator, atom.indicator));
+			} else if(!pl.type.is_variable( indicator ) && !pl.type.is_variable(indicator.args[0]) && !pl.type.is_atom(indicator.args[0])) {
+				thread.throw_error(pl.error.type( "atom", indicator.args[0], atom.indicator));
+			} else if(!pl.type.is_variable(indicator) && !pl.type.is_variable(indicator.args[1]) && !pl.type.is_integer(indicator.args[1])) {
+				thread.throw_error(pl.error.type("integer", indicator.args[1], atom.indicator));
+			} else {
+				var states = [];
+				var get_module = thread.session.modules[module_id];
+				if(pl.type.is_module(get_module)) {
+					for(var prop in get_module.rules) {
+						if(!get_module.rules.hasOwnProperty(prop))
+							continue;
+						var predicate = str_indicator(prop);
+						var goal = new Term("=", [predicate, indicator]);
+						states.push(new State(point.goal.replace(goal), point.substitution, point));
+					}
+					thread.prepend(states);
+				}
+			}
+		},
+
+		// predicate_property/2
+		"predicate_property/2": function(thread, point, atom) {
+			var head = atom.args[0], property = atom.args[1];
+			var module_id;
+			if(pl.type.is_term(head) && head.indicator === ":/2") {
+				if(!pl.type.is_atom(head.args[0])) {
+					thread.throw_error(pl.error.type("module", head.args[0], atom.indicator));
+					return;
+				}
+				module_id = head.args[0].id;
+				head = head.args[1];
+			}
+			if(!pl.type.is_variable(head) && !pl.type.is_callable(head)) {
+				thread.throw_error(pl.error.type("callable", head, atom.indicator));
+			} else if(!pl.type.is_variable(property) && !pl.type.is_predicate_property(property)) {
+				thread.throw_error(pl.error.domain("predicate_property", property, atom.indicator));
+			} else {
+				var get_module = module_id ? thread.session.modules[module_id] : thread.session.modules.user;
+				var points = [];
+				// all predicates
+				if(pl.type.is_variable(head)) {
+					// built-in predicates (built_in + static + native_code)
+					if(!module_id) {
+						for(var prop in pl.builtin.rules) {
+							if(!pl.builtin.rules.hasOwnProperty(prop))
+								continue;
+							var indicator = str_indicator(prop);
+							var unif_head = indicator.args[0];
+							for(var i = 0; i < indicator.args[1].value; i++)
+								unif_head.args.push(thread.next_free_variable());
+							var current_properties = ["static", "built_in", "native_code"];
+							// all predicates, all properties
+							if(pl.type.is_variable(property)) {
+								for(var i = 0; i < current_properties.length; i++) {
+									points.push(new State(
+										point.goal.replace(new Term(",", [
+											new Term("=", [head, unif_head]),
+											new Term("=", [property, new Term(current_properties[i])])
+										])),
+										point.substitution,
+										point
+									));
+								}
+							// all predicates, one property
+							} else {
+								if(indexOf(current_properties, property.id) !== -1) {
+									points.push(new State(
+										point.goal.replace(new Term("=", [head, unif_head])),
+										point.substitution,
+										point
+									));
+								}
+							}
+						}
+					}
+					// user-defined predicates
+					if(pl.type.is_module(get_module)) {
+						for(var prop in get_module.rules) {
+							if(!get_module.rules.hasOwnProperty(prop))
+								continue;
+							var indicator = str_indicator(prop);
+							var unif_head = indicator.args[0];
+							for(var i = 0; i < indicator.args[1].value; i++)
+								unif_head.args.push(thread.next_free_variable());
+							var current_properties = [];
+							if(thread.is_public_predicate(prop, module_id))
+								current_properties.push("dynamic");
+							else
+								current_properties.push("static");
+							if(get_module.rules[prop] instanceof Function)
+								current_properties.push("native_code");
+							if(thread.is_multifile_predicate(prop, module_id))
+								current_properties.push("multifile");
+							// all predicates, all properties
+							if(pl.type.is_variable(property)) {
+								for(var i = 0; i < current_properties.length; i++) {
+									points.push(new State(
+										point.goal.replace(new Term(",", [
+											new Term("=", [head, unif_head]),
+											new Term("=", [property, new Term(current_properties[i])])
+										])),
+										point.substitution,
+										point
+									));
+								}
+							// all predicates, one property
+							} else {
+								if(indexOf(current_properties, property.id) !== -1) {
+									points.push(new State(
+										point.goal.replace(new Term("=", [head, unif_head])),
+										point.substitution,
+										point
+									));
+								}
+							}
+						}
+					}
+				// one predicate
+				} else {
+					var builtin = !module_id && pl.type.is_builtin(head);
+					var predicate = builtin ? pl.builtin.rules[head.indicator] : get_module.rules[head.indicator];
+					if(predicate) {
+						var current_properties;
+						if(builtin) {
+							current_properties = ["static", "built_in", "native_code"];
+						} else {
+							current_properties = [];
+							if(thread.is_public_predicate(head.indicator, module_id))
+								current_properties.push("dynamic");
+							else
+								current_properties.push("static");
+							if(predicate instanceof Function)
+								current_properties.push("native_code");
+							if(thread.is_multifile_predicate(head.indicator, module_id))
+								current_properties.push("multifile");
+						}
+						// one predicate, all properties
+						if(pl.type.is_variable(property)) {
+							for(var i = 0; i < current_properties.length; i++) {
+								points.push(new State(
+									point.goal.replace(new Term("=", [property, new Term(current_properties[i])])),
+									point.substitution,
+									point
+								));
+							}
+						// one predicate, one property
+						} else {
+							if(indexOf(current_properties, property.id) !== -1) {
+								points.push(new State(
+									point.goal.replace(null),
+									point.substitution,
+									point
+								));
+							}
+						}
+					}
+				}
+				thread.prepend(points);
+			}
+		},
+
+		// listing/0
+		"listing/0": function( thread, point, atom ) {
+			var from_module = atom.from_module ? atom.from_module : "user";
+			var rules = {};
+			if(pl.type.is_module(thread.session.modules[from_module])) {
+				rules = thread.session.modules[from_module].rules;
+			}
+			var str = "";
+			for(var indicator in rules) {
+				if(!rules.hasOwnProperty(indicator)) continue;
+				var predicate = rules[indicator];
+				str += "% " + indicator + "\n";
+				if(predicate instanceof Array) {
+					for(var i = 0; i < predicate.length; i++)
+						str += predicate[i].toString( {session: thread.session} ) + "\n";
+				} else {
+					str += "/*\n" + predicate.toString() + "\n*/";
+				}
+				str += "\n";
+			}
+			thread.prepend( [new State(
+				point.goal.replace(new Term("write", [new Term(str, [])])),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// listing/1
+		"listing/1": function( thread, point, atom ) {
+			var indicator = atom.args[0];
+			if(pl.type.is_variable(indicator)) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if(!pl.type.is_predicate_indicator(indicator)) {
+				thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
+			} else {
+				var from_module = atom.from_module ? atom.from_module : "user";
+				var rules = {};
+				if(pl.type.is_module(thread.session.modules[from_module])) {
+					rules = thread.session.modules[from_module].rules;
+				}
+				var str = "";
+				var str_indicator = indicator.args[0].id + "/" + indicator.args[1].value;
+				if(rules.hasOwnProperty(str_indicator)) {
+					var predicate = rules[str_indicator];
+					if(predicate instanceof Array) {
+						for(var i = 0; i < predicate.length; i++)
+							str += predicate[i].toString( {session: thread.session} ) + "\n";
+					} else {
+						str += "/*\n" + predicate.toString() + "\n*/";
+					}
+					str += "\n";
+				}
+				thread.prepend( [new State(
+					point.goal.replace(new Term("write", [new Term(str, [])])),
+					point.substitution,
+					point
+				)] );
+			}
+		},
+		
+		// CLAUSE CREATION AND DESTRUCTION
+		
+		// asserta/1
+		"asserta/1": function(thread, point, atom) {
+			var clause = atom.args[0];
+			if(pl.type.is_variable(clause)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(clause)) {
+				thread.throw_error(pl.error.type("callable", clause, atom.indicator));
+			} else {
+				var head, body, module_id, get_module;
+				if(clause.indicator === ":-/2") {
+					head = clause.args[0];
+					body = body_conversion(clause.args[1]);
+				} else {
+					head = clause;
+					body = null;
+				}
+				if(head.indicator === ":/2") {
+					module_id = head.args[0];
+					head = head.args[1];
+					if(!pl.type.is_atom(module_id)) {
+						thread.throw_error(pl.error.type("module", module_id, atom.indicator));
+						return;
+					}
+					module_id = module_id.id;
+				} else {
+					module_id = "user";
+				}
+				if(!pl.type.is_callable(head)) {
+					thread.throw_error(pl.error.type("callable", head, atom.indicator));
+				} else if(body !== null && !pl.type.is_callable(body)) {
+					thread.throw_error( pl.error.type("callable", body, atom.indicator));
+				} else if(!pl.type.is_module(thread.session.modules[module_id]) || thread.is_public_predicate(head.indicator, module_id)) {
+					if(!pl.type.is_module(thread.session.modules[module_id])) {
+						get_module = new Module(module_id, {}, "all", {session: thread.session});
+						thread.session.modules[module_id] = get_module;
+					} else {
+						get_module = thread.session.modules[module_id];
+					}
+					if(get_module.rules[head.indicator] === undefined)
+						get_module.rules[head.indicator] = [];
+					get_module.public_predicates[head.indicator] = true;
+					get_module.rules[head.indicator] = [new Rule(head, body, true)].concat(get_module.rules[head.indicator]);
+					thread.success(point);
+				} else {
+					thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
+				}
+			}
+		},
+		
+		// assertz/1
+		"assertz/1": function(thread, point, atom) {
+			var clause = atom.args[0];
+			if(pl.type.is_variable(clause)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(clause)) {
+				thread.throw_error(pl.error.type("callable", clause, atom.indicator));
+			} else {
+				var head, body, module_id, get_module;
+				if(clause.indicator === ":-/2") {
+					head = clause.args[0];
+					body = body_conversion(clause.args[1]);
+				} else {
+					head = clause;
+					body = null;
+				}
+				if(head.indicator === ":/2") {
+					module_id = head.args[0];
+					head = head.args[1];
+					if(!pl.type.is_atom(module_id)) {
+						thread.throw_error(pl.error.type("module", module_id, atom.indicator));
+						return;
+					}
+					module_id = module_id.id;
+				} else {
+					module_id = "user";
+				}
+				if(!pl.type.is_callable(head)) {
+					thread.throw_error(pl.error.type("callable", head, atom.indicator));
+				} else if(body !== null && !pl.type.is_callable(body)) {
+					thread.throw_error( pl.error.type("callable", body, atom.indicator));
+				} else if(!pl.type.is_module(thread.session.modules[module_id]) || thread.is_public_predicate(head.indicator, module_id)) {
+					if(!pl.type.is_module(thread.session.modules[module_id])) {
+						get_module = new Module(module_id, {}, "all", {session: thread.session});
+						thread.session.modules[module_id] = get_module;
+					} else {
+						get_module = thread.session.modules[module_id];
+					}
+					if(get_module.rules[head.indicator] === undefined)
+						get_module.rules[head.indicator] = [];
+					get_module.public_predicates[head.indicator] = true;
+					get_module.rules[head.indicator].push(new Rule(head, body, true));
+					thread.success(point);
+				} else {
+					thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
+				}
+			}
+		},
+		
+		// retract/1
+		"retract/1": function(thread, point, atom) {
+			var clause = atom.args[0];
+			if(pl.type.is_variable(clause)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(clause)) {
+				thread.throw_error(pl.error.type("callable", clause, atom.indicator));
+			} else {
+				var head, body, module_atom, module_id;
+				if(clause.indicator === ":-/2") {
+					head = clause.args[0];
+					body = clause.args[1];
+				} else {
+					head = clause;
+					body = new Term("true");
+				}
+				if(head.indicator === ":/2") {
+					module_atom = head.args[0];
+					head = head.args[1];
+					if(!pl.type.is_atom(module_atom)) {
+						thread.throw_error(pl.error.type("module", module_atom, atom.indicator));
+						return;
+					}
+				} else {
+					module_atom = new Term("user");
+				}
+				module_id = module_atom.id;
+				var get_module = thread.session.modules[module_id];
+				if(!pl.type.is_module(get_module))
+					return;
+				if(!point.retract) {
+					if(thread.is_public_predicate(head.indicator, module_id)) {
+						if(get_module.rules[head.indicator] !== undefined) {
+							var states = [];
+							for(var i = 0; i < get_module.rules[head.indicator].length; i++) {
+								thread.session.renamed_variables = {};
+								var orule = get_module.rules[head.indicator][i];
+								var rule = orule.rename(thread);
+								if(rule.body === null)
+									rule.body = new Term("true", []);
+								var occurs_check = thread.get_flag("occurs_check").indicator === "true/0";
+								var mgu = pl.unify(new Term(",", [head, body]), new Term(",", [rule.head, rule.body]), occurs_check);
+								if(mgu !== null) {
+									var state = new State(
+										point.goal.replace(new Term(",", [
+											new Term("retract", [new Term(":-", [new Term(":", [module_atom, head]), body])]),
+											new Term(",", [
+												new Term("=", [head, rule.head]),
+												new Term("=", [body, rule.body])
+											] )
+										])), point.substitution, point);
+									state.retract = orule;
+									states.push(state);
+								}
+							}
+							thread.prepend(states);
+						}
+					} else {
+						thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
+					}
+				} else {
+					retract(thread, point, head.indicator, point.retract, get_module);
+				}
+			}
+		},
+		
+		// retractall/1
+		"retractall/1": function(thread, point, atom) {
+			var head = atom.args[0];
+			if(pl.type.is_variable(head)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(head)) {
+				thread.throw_error(pl.error.type("callable", head, atom.indicator));
+			} else {
+				thread.prepend([
+					new State(point.goal.replace(new Term(",", [
+						new Term("retract", [new pl.type.Term(":-", [head, new Var("_")])]),
+						new Term("fail", [])
+					])), point.substitution, point ),
+					new State(point.goal.replace(null), point.substitution, point)
+				]);
+			}
+		},
+
+		// abolish/1
+		"abolish/1": function(thread, point, atom) {
+			var predicate = atom.args[0];
+			var module_id;
+			if(pl.type.is_term(predicate) && predicate.indicator === ":/2") {
+				if(!pl.type.is_atom(predicate.args[0])) {
+					thread.throw_error(pl.error.type("module", predicate.args[0], atom.indicator));
+					return;
+				}
+				module_id = predicate.args[0].id;
+				predicate = predicate.args[1];
+			} else {
+				module_id = "user";
+			}
+			if(pl.type.is_variable(predicate) || pl.type.is_term(predicate) && predicate.indicator === "//2"
+			&& (pl.type.is_variable(predicate.args[0]) || pl.type.is_variable(predicate.args[1]))) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_term(predicate) || predicate.indicator !== "//2") {
+				thread.throw_error(pl.error.type("predicate_indicator", predicate, atom.indicator));
+			} else if(!pl.type.is_atom(predicate.args[0])) {
+				thread.throw_error(pl.error.type("atom", predicate.args[0], atom.indicator));
+			} else if(!pl.type.is_integer(predicate.args[1])) {
+				thread.throw_error(pl.error.type("integer", predicate.args[1], atom.indicator));
+			} else if(predicate.args[1].value < 0) {
+				thread.throw_error(pl.error.domain("not_less_than_zero", predicate.args[1], atom.indicator));
+			} else if(pl.type.is_number(thread.get_flag("max_arity")) && predicate.args[1].value > thread.get_flag("max_arity").value) {
+				thread.throw_error(pl.error.representation("max_arity", atom.indicator));
+			} else {
+				var get_module = thread.session.modules[module_id];
+				if(pl.type.is_module(get_module)) {
+					var indicator = predicate.args[0].id + "/" + predicate.args[1].value;
+					if(thread.is_public_predicate(indicator, module_id)) {
+						delete get_module.rules[indicator];
+						delete get_module.public_predicates[indicator];
+						delete get_module.multifile_predicates[indicator];
+						thread.success(point);
+					} else {
+						thread.throw_error(pl.error.permission("modify", "static_procedure", atom.args[0], atom.indicator));
+					}
+				} else {
+					thread.success(point);
+				}
+			}
+		},
+		
+		// ATOM PROCESSING
+		
+		// atom_length/2
+		"atom_length/2": function( thread, point, atom ) {
+			if( pl.type.is_variable( atom.args[0] ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_atom( atom.args[0] ) ) {
+				thread.throw_error( pl.error.type( "atom", atom.args[0], atom.indicator ) );
+			} else if( !pl.type.is_variable( atom.args[1] ) && !pl.type.is_integer( atom.args[1] ) ) {
+				thread.throw_error( pl.error.type( "integer", atom.args[1], atom.indicator ) );
+			} else if( pl.type.is_integer( atom.args[1] ) && atom.args[1].value < 0 ) {
+				thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[1], atom.indicator ) );
+			} else {
+				var length = new Num( stringLength(atom.args[0].id), false );
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [length, atom.args[1]] ) ), point.substitution, point )] );
+			}
+		},
+		
+		// atom_concat/3
+		"atom_concat/3": function( thread, point, atom ) {
+			var str, goal, start = atom.args[0], end = atom.args[1], whole = atom.args[2];
+			if( pl.type.is_variable( whole ) && (pl.type.is_variable( start ) || pl.type.is_variable( end )) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( start ) && !pl.type.is_atom( start ) ) {
+				thread.throw_error( pl.error.type( "atom", start, atom.indicator ) );
+			} else if( !pl.type.is_variable( end ) && !pl.type.is_atom( end ) ) {
+				thread.throw_error( pl.error.type( "atom", end, atom.indicator ) );
+			} else if( !pl.type.is_variable( whole ) && !pl.type.is_atom( whole ) ) {
+				thread.throw_error( pl.error.type( "atom", whole, atom.indicator ) );
+			} else {
+				var v1 = pl.type.is_variable( start );
+				var v2 = pl.type.is_variable( end );
+				//var v3 = pl.type.is_variable( whole );
+				if( !v1 && !v2 ) {
+					goal = new Term( "=", [whole, new Term( start.id + end.id )] );
+					thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+				} else if( v1 && !v2 ) {
+					str = whole.id.substr( 0, whole.id.length - end.id.length );
+					if( str + end.id === whole.id ) {
+						goal = new Term( "=", [start, new Term( str )] );
+						thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+					}
+				} else if( v2 && !v1 ) {
+					str = whole.id.substr( start.id.length );
+					if( start.id + str === whole.id ) {
+						goal = new Term( "=", [end, new Term( str )] );
+						thread.prepend( [new State( point.goal.replace( goal ), point.substitution, point )] );
+					}
+				} else {
+					var states = [];
+					for( var i = 0; i <= whole.id.length; i++ ) {
+						var atom1 = new Term( whole.id.substr( 0, i ) );
+						var atom2 = new Term( whole.id.substr( i ) );
+						goal = new Term( ",", [new Term( "=", [atom1, start] ), new Term( "=", [atom2, end] )] );
+						states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
+					}
+					thread.prepend( states );
+				}
+			}
+		},
+		
+		// sub_atom/5
+		"sub_atom/5": function( thread, point, atom ) {
+			var i, atom1 = atom.args[0], before = atom.args[1], length = atom.args[2], after = atom.args[3], subatom = atom.args[4];
+			if( pl.type.is_variable( atom1 ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( before ) && !pl.type.is_integer( before ) ) {
+				thread.throw_error( pl.error.type( "integer", before, atom.indicator ) );
+			} else if( !pl.type.is_variable( length ) && !pl.type.is_integer( length ) ) {
+				thread.throw_error( pl.error.type( "integer", length, atom.indicator ) );
+			} else if( !pl.type.is_variable( after ) && !pl.type.is_integer( after ) ) {
+				thread.throw_error( pl.error.type( "integer", after, atom.indicator ) );
+			} else if( pl.type.is_integer( before ) && before.value < 0 ) {
+				thread.throw_error( pl.error.domain( "not_less_than_zero", before, atom.indicator ) );
+			} else if( pl.type.is_integer( length ) && length.value < 0 ) {
+				thread.throw_error( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
+			} else if( pl.type.is_integer( after ) && after.value < 0 ) {
+				thread.throw_error( pl.error.domain( "not_less_than_zero", after, atom.indicator ) );
+			} else {
+				var bs = [], ls = [], as = [];
+				if( pl.type.is_variable( before ) ) {
+					for( i = 0; i <= atom1.id.length; i++ ) {
+						bs.push( i );
+					}
+				} else {
+					bs.push( before.value );
+				}
+				if( pl.type.is_variable( length ) ) {
+					for( i = 0; i <= atom1.id.length; i++ ) {
+						ls.push( i );
+					}
+				} else {
+					ls.push( length.value );
+				}
+				if( pl.type.is_variable( after ) ) {
+					for( i = 0; i <= atom1.id.length; i++ ) {
+						as.push( i );
+					}
+				} else {
+					as.push( after.value );
+				}
+				var states = [];
+				for( var _i in bs ) {
+					if(!bs.hasOwnProperty(_i)) continue;
+					i = bs[_i];
+					for( var _j in ls ) {
+						if(!ls.hasOwnProperty(_j)) continue;
+						var j = ls[_j];
+						var k = atom1.id.length - i - j;
+						if( indexOf( as, k ) !== -1 ) {
+						if( i+j+k === atom1.id.length ) {
+								var str = atom1.id.substr( i, j );
+								if( atom1.id === atom1.id.substr( 0, i ) + str + atom1.id.substr( i+j, k ) ) {
+									var pl1 = new Term( "=", [new Term( str ), subatom] );
+									var pl2 = new Term( "=", [before, new Num( i )] );
+									var pl3 = new Term( "=", [length, new Num( j )] );
+									var pl4 = new Term( "=", [after, new Num( k )] );
+									var goal = new Term( ",", [ new Term( ",", [ new Term( ",", [pl2, pl3] ), pl4] ), pl1] );
+									states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
+								}
+							}
+						}
+					}
+				}
+				thread.prepend( states );
+			}
+		},
+		
+		// atom_chars/2
+		"atom_chars/2": function( thread, point, atom ) {
+			var atom1 = atom.args[0], list = atom.args[1];
+			if( pl.type.is_variable( atom1 ) && pl.type.is_variable( list ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( atom1 ) && !pl.type.is_atom( atom1 ) ) {
+				thread.throw_error( pl.error.type( "atom", atom1, atom.indicator ) );
+			} else {
+				if( !pl.type.is_variable( atom1 ) ) {
+					var list1 = new Term( "[]" );
+					var unilen = stringLength(atom1.id);
+					for( var i = unilen-1; i >= 0; i-- ) {
+						list1 = new Term( ".", [new Term( atom1.id.charAt( i ) ), list1] );
+					}
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
+				} else {			
+					var pointer = list;
+					var v = pl.type.is_variable( atom1 );
+					var str = "";
+					while( pointer.indicator === "./2" ) {
+						if( !pl.type.is_character( pointer.args[0] ) ) {
+							if( pl.type.is_variable( pointer.args[0] ) && v ) {
+								thread.throw_error( pl.error.instantiation( atom.indicator ) );
+								return;
+							} else if( !pl.type.is_variable( pointer.args[0] ) ) {
+								thread.throw_error( pl.error.type( "character", pointer.args[0], atom.indicator ) );
+								return;
+							}
+						} else {
+							str += pointer.args[0].id;
+						}
+						pointer = pointer.args[1];
+					}
+					if( pl.type.is_variable( pointer ) && v ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
+						thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+					} else {
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [new Term( str ), atom1] ) ), point.substitution, point )] );
+					}
+				}
+			}
+		},
+		
+		// atom_codes/2
+		"atom_codes/2": function( thread, point, atom ) {
+			var atom1 = atom.args[0], list = atom.args[1];
+			if( pl.type.is_variable( atom1 ) && pl.type.is_variable( list ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( atom1 ) && !pl.type.is_atom( atom1 ) ) {
+				thread.throw_error( pl.error.type( "atom", atom1, atom.indicator ) );
+			} else {
+				if( !pl.type.is_variable( atom1 ) ) {
+					var list1 = new Term( "[]" );
+					var unilen = stringLength(atom1.id);
+					for( var i = unilen-1; i >= 0; i-- ) {
+						list1 = new Term( ".", [new Num( codePointAt(atom1.id,i), false ), list1] );
+					}
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list1] ) ), point.substitution, point )] );
+				} else {			
+					var pointer = list;
+					var v = pl.type.is_variable( atom1 );
+					var str = "";
+					while( pointer.indicator === "./2" ) {
+						if( !pl.type.is_character_code( pointer.args[0] ) ) {
+							if( pl.type.is_variable( pointer.args[0] ) && v ) {
+								thread.throw_error( pl.error.instantiation( atom.indicator ) );
+								return;
+							} else if( !pl.type.is_variable( pointer.args[0] ) ) {
+								thread.throw_error( pl.error.representation( "character_code", atom.indicator ) );
+								return;
+							}
+						} else {
+							str += fromCodePoint( pointer.args[0].value );
+						}
+						pointer = pointer.args[1];
+					}
+					if( pl.type.is_variable( pointer ) && v ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					} else if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
+						thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+					} else {
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [new Term( str ), atom1] ) ), point.substitution, point )] );
+					}
+				}
+			}
+		},
+		
+		// char_code/2
+		"char_code/2": function( thread, point, atom ) {
+			var char = atom.args[0], code = atom.args[1];
+			if( pl.type.is_variable( char ) && pl.type.is_variable( code ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
+				thread.throw_error( pl.error.type( "character", char, atom.indicator ) );
+			} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
+				thread.throw_error( pl.error.type( "integer", code, atom.indicator ) );
+			} else if( !pl.type.is_variable( code ) && !pl.type.is_character_code( code ) ) {
+				thread.throw_error( pl.error.representation( "character_code", atom.indicator ) );
+			} else {
+				if( pl.type.is_variable( code ) ) {
+					var code1 = new Num( codePointAt(char.id,0 ), false );
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [code1, code] ) ), point.substitution, point )] );
+				} else {
+					var char1 = new Term( fromCodePoint( code.value ) );
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [char1, char] ) ), point.substitution, point )] );
+				}
+			}
+		},
+		
+		// number_chars/2
+		"number_chars/2": function( thread, point, atom ) {
+			var str, num = atom.args[0], list = atom.args[1];
+			if( pl.type.is_variable( num ) && pl.type.is_variable( list ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
+				thread.throw_error( pl.error.type( "number", num, atom.indicator ) );
+			} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
+				thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+			} else {
+				var isvar = pl.type.is_variable( num );
+				if( !pl.type.is_variable( list ) ) {	
+					var pointer = list;
+					var total = true;
+					str = "";
+					while( pointer.indicator === "./2" ) {
+						if( !pl.type.is_character( pointer.args[0] ) ) {
+							if( pl.type.is_variable( pointer.args[0] ) ) {
+								total = false;
+							} else if( !pl.type.is_variable( pointer.args[0] ) ) {
+								thread.throw_error( pl.error.type( "character", pointer.args[0], atom.indicator ) );
+								return;
+							}
+						} else {
+							str += pointer.args[0].id;
+						}
+						pointer = pointer.args[1];
+					}
+					total = total && pl.type.is_empty_list( pointer );
+					if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
+						thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+						return;
+					}
+					if( !total && isvar ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if( total ) {
+						if( pl.type.is_variable( pointer ) && isvar ) {
+							thread.throw_error( pl.error.instantiation( atom.indicator ) );
+							return;
+						} else {
+							var expr = thread.parse( str );
+							var num2 = expr.value;
+							if( !pl.type.is_number( num2 ) || expr.tokens[expr.tokens.length-1].space ) {
+								thread.throw_error( pl.error.syntax_by_predicate( "parseable_number", atom.indicator ) );
+							} else {
+								thread.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
+							}
+							return;
+						}
+					}
+				}
+				if( !isvar ) {
+					str = num.toString();
+					var list2 = new Term( "[]" );
+					for( var i = str.length - 1; i >= 0; i-- ) {
+						list2 = new Term( ".", [ new Term( str.charAt( i ) ), list2 ] );
+					}
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
+				}
+			}
+		},
+		
+		// number_codes/2
+		"number_codes/2": function( thread, point, atom ) {
+			var str, num = atom.args[0], list = atom.args[1];
+			if( pl.type.is_variable( num ) && pl.type.is_variable( list ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( num ) && !pl.type.is_number( num ) ) {
+				thread.throw_error( pl.error.type( "number", num, atom.indicator ) );
+			} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
+				thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+			} else {
+				var isvar = pl.type.is_variable( num );
+				if( !pl.type.is_variable( list ) ) {	
+					var pointer = list;
+					var total = true;
+					str = "";
+					while( pointer.indicator === "./2" ) {
+						if( !pl.type.is_character_code( pointer.args[0] ) ) {
+							if( pl.type.is_variable( pointer.args[0] ) ) {
+								total = false;
+							} else if( !pl.type.is_variable( pointer.args[0] ) ) {
+								thread.throw_error( pl.error.type( "character_code", pointer.args[0], atom.indicator ) );
+								return;
+							}
+						} else {
+							str += fromCodePoint( pointer.args[0].value );
+						}
+						pointer = pointer.args[1];
+					}
+					total = total && pl.type.is_empty_list( pointer );
+					if( !pl.type.is_empty_list( pointer ) && !pl.type.is_variable( pointer ) ) {
+						thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+						return;
+					}
+					if( !total && isvar ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if( total ) {
+						if( pl.type.is_variable( pointer ) && isvar ) {
+							thread.throw_error( pl.error.instantiation( atom.indicator ) );
+							return;
+						} else {
+							var expr = thread.parse( str );
+							var num2 = expr.value;
+							if( !pl.type.is_number( num2 ) || expr.tokens[expr.tokens.length-1].space ) {
+								thread.throw_error( pl.error.syntax_by_predicate( "parseable_number", atom.indicator ) );
+							} else {
+								thread.prepend( [new State( point.goal.replace( new Term( "=", [num, num2] ) ), point.substitution, point )] );
+							}
+							return;
+						}
+					}
+				}
+				if( !isvar ) {
+					str = num.toString();
+					var list2 = new Term( "[]" );
+					for( var i = str.length - 1; i >= 0; i-- ) {
+						list2 = new Term( ".", [ new Num( codePointAt(str,i), false ), list2 ] );
+					}
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [list, list2] ) ), point.substitution, point )] );
+				}
+			}
+		},
+		
+		// upcase_atom/2
+		"upcase_atom/2": function( thread, point, atom ) {
+			var original = atom.args[0], upcase = atom.args[1];
+			if( pl.type.is_variable( original ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_atom( original ) ) {
+				thread.throw_error( pl.error.type( "atom", original, atom.indicator ) );
+			} else if( !pl.type.is_variable( upcase ) && !pl.type.is_atom( upcase ) ) {
+				thread.throw_error( pl.error.type( "atom", upcase, atom.indicator ) );
+			} else {
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [upcase, new Term( original.id.toUpperCase(), [] )] ) ), point.substitution, point )] );
+			}
+		},
+		
+		// downcase_atom/2
+		"downcase_atom/2": function( thread, point, atom ) {
+			var original = atom.args[0], downcase = atom.args[1];
+			if( pl.type.is_variable( original ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_atom( original ) ) {
+				thread.throw_error( pl.error.type( "atom", original, atom.indicator ) );
+			} else if( !pl.type.is_variable( downcase ) && !pl.type.is_atom( downcase ) ) {
+				thread.throw_error( pl.error.type( "atom", downcase, atom.indicator ) );
+			} else {
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [downcase, new Term( original.id.toLowerCase(), [] )] ) ), point.substitution, point )] );
+			}
+		},
+		
+		// atomic_list_concat/2
+		"atomic_list_concat/2": function( thread, point, atom ) {
+			var list = atom.args[0], concat = atom.args[1];
+			thread.prepend( [new State( point.goal.replace( new Term( "atomic_list_concat", [list, new Term( "", [] ), concat] ) ), point.substitution, point )] );
+		},
+		
+		// atomic_list_concat/3
+		"atomic_list_concat/3": function( thread, point, atom ) {
+			var list = atom.args[0], separator = atom.args[1], concat = atom.args[2];
+			if( pl.type.is_variable( separator ) || pl.type.is_variable( list ) && pl.type.is_variable( concat ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( list ) && !pl.type.is_list( list ) ) {
+				thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+			} else if( !pl.type.is_variable( concat ) && !pl.type.is_atom( concat ) ) {
+				thread.throw_error( pl.error.type( "atom", concat, atom.indicator ) );
+			} else {
+				if( !pl.type.is_variable( concat ) ) {
+					var atomic = arrayToList( map(
+						concat.id.split( separator.id ),
+						function( id ) {
+							return new Term( id, [] );
+						}
+					) );
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [atomic, list] ) ), point.substitution, point )] );
+				} else {
+					var id = "";
+					var pointer = list;
+					while( pl.type.is_term( pointer ) && pointer.indicator === "./2" ) {
+						if( !pl.type.is_atom( pointer.args[0] ) && !pl.type.is_number( pointer.args[0] ) ) {
+							thread.throw_error( pl.error.type( "atomic", pointer.args[0], atom.indicator ) );
+							return;
+						}
+						if( id !== "" )
+							id += separator.id;
+						if( pl.type.is_atom( pointer.args[0] ) )
+							id += pointer.args[0].id;
+						else
+							id += "" + pointer.args[0].value;
+						pointer = pointer.args[1];
+					}
+					id = new Term( id, [] );
+					if( pl.type.is_variable( pointer ) ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					} else if( !pl.type.is_term( pointer ) || pointer.indicator !== "[]/0" ) {
+						thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+					} else {
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [id, concat] ) ), point.substitution, point )] );
+					}
+				}
+			}
+		},
+		
+		// TERM COMPARISON
+		
+		"@=</2": function( thread, point, atom ) {
+			if( pl.compare( atom.args[0], atom.args[1] ) <= 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		"==/2": function( thread, point, atom ) {
+			if( pl.compare( atom.args[0], atom.args[1] ) === 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		"\\==/2": function( thread, point, atom ) {
+			if( pl.compare( atom.args[0], atom.args[1] ) !== 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		"@</2": function( thread, point, atom ) {
+			if( pl.compare( atom.args[0], atom.args[1] ) < 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		"@>/2": function( thread, point, atom ) {
+			if( pl.compare( atom.args[0], atom.args[1] ) > 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		"@>=/2": function( thread, point, atom ) {
+			if( pl.compare( atom.args[0], atom.args[1] ) >= 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		"compare/3": function( thread, point, atom ) {
+			var order = atom.args[0], left = atom.args[1], right = atom.args[2];
+			if( !pl.type.is_variable( order ) && !pl.type.is_atom( order ) ) {
+				thread.throw_error( pl.error.type( "atom", order, atom.indicator ) );
+			} else if( pl.type.is_atom( order ) && ["<", ">", "="].indexOf( order.id ) === -1 ) {
+				thread.throw_error( pl.type.domain( "order", order, atom.indicator ) );
+			} else {
+				var compare = pl.compare( left, right );
+				compare = compare === 0 ? "=" : (compare === -1 ? "<" : ">");
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [order, new Term( compare, [] )] ) ), point.substitution, point )] );
+			}
+		},
+		
+		// EVALUATION
+		
+		// is/2
+		"is/2": function( thread, point, atom ) {
+			var op = atom.args[1].interpret( thread );
+			if( !pl.type.is_number( op ) ) {
+				thread.throw_error( op );
+			} else {
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [atom.args[0], op], atom.indicator ) ), point.substitution, point )] );
+			}
+		},
+		
+		// between/3
+		"between/3": function( thread, point, atom ) {
+			var lower = atom.args[0], upper = atom.args[1], bet = atom.args[2];
+			if( pl.type.is_variable( lower ) || pl.type.is_variable( upper ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_integer( lower ) ) {
+				thread.throw_error( pl.error.type( "integer", lower, atom.indicator ) );
+			} else if( !pl.type.is_integer( upper ) ) {
+				thread.throw_error( pl.error.type( "integer", upper, atom.indicator ) );
+			} else if( !pl.type.is_variable( bet ) && !pl.type.is_integer( bet ) ) {
+				thread.throw_error( pl.error.type( "integer", bet, atom.indicator ) );
+			} else {
+				if( pl.type.is_variable( bet ) ) {
+					var states = [new State( point.goal.replace( new Term( "=", [bet, lower] ) ), point.substitution, point )];
+					if( lower.value < upper.value )
+						states.push( new State( point.goal.replace( new Term( "between", [new Num( lower.value+1, false ), upper, bet] ) ), point.substitution, point ) );
+					thread.prepend( states );
+				} else if( lower.value <= bet.value && upper.value >= bet.value ) {
+					thread.success( point );
+				}
+			}
+		},
+		
+		// succ/2
+		"succ/2": function( thread, point, atom ) {
+			var n = atom.args[0], m = atom.args[1];
+			if( pl.type.is_variable( n ) && pl.type.is_variable( m ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( n ) && !pl.type.is_integer( n ) ) {
+				thread.throw_error( pl.error.type( "integer", n, atom.indicator ) );
+			} else if( !pl.type.is_variable( m ) && !pl.type.is_integer( m ) ) {
+				thread.throw_error( pl.error.type( "integer", m, atom.indicator ) );
+			} else if( !pl.type.is_variable( n ) && n.value < 0 ) {
+				thread.throw_error( pl.error.domain( "not_less_than_zero", n, atom.indicator ) );
+			} else if( !pl.type.is_variable( m ) && m.value < 0 ) {
+				thread.throw_error( pl.error.domain( "not_less_than_zero", m, atom.indicator ) );
+			} else {
+				if( pl.type.is_variable( m ) || m.value > 0 ) {
+					if( pl.type.is_variable( n ) ) {
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [n, new Num( m.value-1, false )] ) ), point.substitution, point )] );
+					} else {
+						thread.prepend( [new State( point.goal.replace( new Term( "=", [m, new Num( n.value+1, false )] ) ), point.substitution, point )] );
+					}
+				}
+			}
+		},
+		
+		// =:=/2
+		"=:=/2": function( thread, point, atom ) {
+			var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
+			if( pl.type.is_term( cmp ) ) {
+				thread.throw_error( cmp );
+			} else if( cmp === 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		// =\=/2
+		"=\\=/2": function( thread, point, atom ) {
+			var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
+			if( pl.type.is_term( cmp ) ) {
+				thread.throw_error( cmp );
+			} else if( cmp !== 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		// </2
+		"</2": function( thread, point, atom ) {
+			var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
+			if( pl.type.is_term( cmp ) ) {
+				thread.throw_error( cmp );
+			} else if( cmp < 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		// =</2
+		"=</2": function( thread, point, atom ) {
+			var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
+			if( pl.type.is_term( cmp ) ) {
+				thread.throw_error( cmp );
+			} else if( cmp <= 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		// >/2
+		">/2": function( thread, point, atom ) {
+			var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
+			if( pl.type.is_term( cmp ) ) {
+				thread.throw_error( cmp );
+			} else if( cmp > 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		// >=/2
+		">=/2": function( thread, point, atom ) {
+			var cmp = pl.arithmetic_compare( thread, atom.args[0], atom.args[1] );
+			if( pl.type.is_term( cmp ) ) {
+				thread.throw_error( cmp );
+			} else if( cmp >= 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		// TYPE TEST
+		
+		// var/1
+		"var/1": function( thread, point, atom ) {
+			if( pl.type.is_variable( atom.args[0] ) ) {
+				thread.success( point );
+			}
+		},
+		
+		// atom/1
+		"atom/1": function( thread, point, atom ) {
+			if( pl.type.is_atom( atom.args[0] ) ) {
+				thread.success( point );
+			}
+		},
+		
+		// atomic/1
+		"atomic/1": function( thread, point, atom ) {
+			if( pl.type.is_atomic( atom.args[0] ) ) {
+				thread.success( point );
+			}
+		},
+		
+		// compound/1
+		"compound/1": function( thread, point, atom ) {
+			if( pl.type.is_compound( atom.args[0] ) ) {
+				thread.success( point );
+			}
+		},
+		
+		// integer/1
+		"integer/1": function( thread, point, atom ) {
+			if( pl.type.is_integer( atom.args[0] ) ) {
+				thread.success( point );
+			}
+		},
+		
+		// float/1
+		"float/1": function( thread, point, atom ) {
+			if( pl.type.is_float( atom.args[0] ) ) {
+				thread.success( point );
+			}
+		},
+		
+		// number/1
+		"number/1": function( thread, point, atom ) {
+			if( pl.type.is_number( atom.args[0] ) ) {
+				thread.success( point );
+			}
+		},
+		
+		// nonvar/1
+		"nonvar/1": function( thread, point, atom ) {
+			if( !pl.type.is_variable( atom.args[0] ) ) {
+				thread.success( point );
+			}
+		},
+		
+		// ground/1
+		"ground/1": function( thread, point, atom ) {
+			if( atom.variables().length === 0 ) {
+				thread.success( point );
+			}
+		},
+		
+		// acyclic_term/1
+		"acyclic_term/1": function( thread, point, atom ) {
+			var test = point.substitution.apply( point.substitution );
+			var variables = atom.args[0].variables();
+			for( var i = 0; i < variables.length; i++ )
+				if( point.substitution.links[variables[i]] !== undefined && !point.substitution.links[variables[i]].equals( test.links[variables[i]] ) )
+					return;
+			thread.success( point );
+		},
+		
+		// callable/1
+		"callable/1": function( thread, point, atom ) {
+			if( pl.type.is_callable( atom.args[0] ) ) {
+				thread.success( point );
+			}
+		},
+
+		// is_list/1
+		"is_list/1": function( thread, point, atom ) {
+			var list = atom.args[0];
+			while( pl.type.is_term( list ) && list.indicator === "./2" )
+				list = list.args[1];
+			if( pl.type.is_term( list ) && list.indicator === "[]/0" )
+				thread.success( point );
+		},
+
+
+
+		// STREAM SELECTION AND CONTROL
+
+		// current_input/1
+		"current_input/1": function( thread, point, atom ) {
+			var stream = atom.args[0];
+			if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain("stream", stream, atom.indicator) );
+			} else {
+				if( pl.type.is_atom( stream ) && thread.get_stream_by_alias( stream.id ) )
+					stream = thread.get_stream_by_alias( stream.id );
+				thread.prepend( [new State(
+					point.goal.replace(new Term("=", [stream, thread.get_current_input()])),
+					point.substitution,
+					point)
+				] );
+			}
+		},
+
+		// current_output/1
+		"current_output/1": function( thread, point, atom ) {
+			var stream = atom.args[0];
+			if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain("stream_or_alias", stream, atom.indicator) );
+			} else {
+				if( pl.type.is_atom( stream ) && thread.get_stream_by_alias( stream.id ) )
+					stream = thread.get_stream_by_alias( stream.id );
+				thread.prepend( [new State(
+					point.goal.replace(new Term("=", [stream, thread.get_current_output()])),
+					point.substitution,
+					point)
+				] );
+			}
+		},
+
+		// set_input/1
+		"set_input/1": function( thread, point, atom ) {
+			var input = atom.args[0];
+			var stream = pl.type.is_stream( input ) ? input : thread.get_stream_by_alias( input.id );
+			if( pl.type.is_variable( input ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( input ) && !pl.type.is_stream( input ) && !pl.type.is_atom( input ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", input, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) ) {
+				thread.throw_error( pl.error.existence( "stream", input, atom.indicator ) );
+			} else if( stream.output === true ) {
+				thread.throw_error( pl.error.permission( "input", "stream", input, atom.indicator ) );
+			} else {
+				thread.set_current_input( stream );
+				thread.success( point );
+			}
+		},
+
+		// set_output/1
+		"set_output/1": function( thread, point, atom ) {
+			var output = atom.args[0];
+			var stream = pl.type.is_stream( output ) ? output : thread.get_stream_by_alias( output.id );
+			if( pl.type.is_variable( output ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( output ) && !pl.type.is_stream( output ) && !pl.type.is_atom( output ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", output, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) ) {
+				thread.throw_error( pl.error.existence( "stream", output, atom.indicator ) );
+			} else if( stream.input === true ) {
+				thread.throw_error( pl.error.permission( "output", "stream", output, atom.indicator ) );
+			} else {
+				thread.set_current_output( stream );
+				thread.success( point );
+			}
+		},
+
+		// open/3
+		"open/3": function( thread, point, atom ) {
+			var dest = atom.args[0], mode = atom.args[1], stream = atom.args[2];
+			thread.prepend( [new State(
+				point.goal.replace(new Term("open", [dest, mode, stream, new Term("[]", [])])),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// open/4
+		"open/4": function( thread, point, atom ) {
+			var dest = atom.args[0], mode = atom.args[1], stream = atom.args[2], options = atom.args[3];
+			if( pl.type.is_variable( dest ) || pl.type.is_variable( mode ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( mode ) && !pl.type.is_atom( mode ) ) {
+				thread.throw_error( pl.error.type( "atom", mode, atom.indicator ) );
+			} else if( !pl.type.is_list( options ) ) {
+				thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+			} else if( !pl.type.is_variable( stream ) ) {
+				thread.throw_error( pl.error.type( "variable", stream, atom.indicator ) );
+			} else if( !pl.type.is_atom( dest ) && !pl.type.is_streamable( dest ) ) {
+				thread.throw_error( pl.error.domain( "source_sink", dest, atom.indicator ) );
+			} else if( !pl.type.is_io_mode( mode ) ) {
+				thread.throw_error( pl.error.domain( "io_mode", mode, atom.indicator ) );
+			} else {
+				var obj_options = {};
+				var pointer = options;
+				var property;
+				while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
+					property = pointer.args[0];
+					if( pl.type.is_variable( property ) ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if( !pl.type.is_stream_option( property ) ) {
+						thread.throw_error( pl.error.domain( "stream_option", property, atom.indicator ) );
+						return;
+					}
+					obj_options[property.id] = property.args[0].id;
+					pointer = pointer.args[1];
+				}
+				if( pointer.indicator !== "[]/0" ) {
+					if( pl.type.is_variable( pointer ) )
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					else
+						thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+					return;
+				} else {
+					var alias = obj_options["alias"];
+					if( alias && thread.get_stream_by_alias(alias) ) {
+						thread.throw_error( pl.error.permission( "open", "source_sink", new Term("alias", [new Term(alias, [])]), atom.indicator ) );
+						return;
+					}
+					if( !obj_options["type"] )
+						obj_options["type"] = "text";
+					var file;
+					if( pl.type.is_atom( dest ) )
+						file = thread.file_system_open( dest.id, obj_options["type"], mode.id );
+					else
+						file = dest.stream( obj_options["type"], mode.id );
+					if( file === false ) {
+						thread.throw_error( pl.error.permission( "open", "source_sink", dest, atom.indicator ) );
+						return;
+					} else if( file === null ) {
+						thread.throw_error( pl.error.existence( "source_sink", dest, atom.indicator ) );
+						return;
+					}
+					var newstream = new Stream(
+						file, mode.id,
+						obj_options["alias"],
+						obj_options["type"],
+						obj_options["reposition"] === "true",
+						obj_options["eof_action"] );
+					if( alias )
+						thread.session.streams[alias] = newstream;
+					else
+						thread.session.streams[newstream.id] = newstream;
+					thread.prepend( [new State(
+						point.goal.replace( new Term( "=", [stream, newstream] ) ),
+						point.substitution,
+						point
+					)] );
+				}
+			}
+		},
+
+		// close/1
+		"close/1": function( thread, point, atom ) {
+			var stream = atom.args[0];
+			thread.prepend( [new State(
+				point.goal.replace(new Term("close", [stream, new Term("[]", [])])),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// close/2
+		"close/2": function( thread, point, atom ) {
+			var stream = atom.args[0], options = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) || pl.type.is_variable( options ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_list( options ) ) {
+				thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else {
+				// Get options
+				var obj_options = {};
+				var pointer = options;
+				var property;
+				while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
+					property = pointer.args[0];
+					if( pl.type.is_variable( property ) ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if( !pl.type.is_close_option( property ) ) {
+						thread.throw_error( pl.error.domain( "close_option", property, atom.indicator ) );
+						return;
+					}
+					obj_options[property.id] = property.args[0].id === "true";
+					pointer = pointer.args[1];
+				}
+				if( pointer.indicator !== "[]/0" ) {
+					if( pl.type.is_variable( pointer ) )
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					else
+						thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+					return;
+				} else {
+					if( stream2 === thread.session.standard_input || stream2 === thread.session.standard_output ) {
+						thread.success( point );
+						return;
+					} else if( stream2 === thread.session.current_input ) {
+						thread.session.current_input = thread.session.standard_input;
+					} else if( stream2 === thread.session.current_output ) {
+						thread.session.current_output = thread.session.current_output;
+					}
+					if( stream2.alias !== null )
+						delete thread.session.streams[stream2.alias];
+					else
+						delete thread.session.streams[stream2.id];
+					if( stream2.output )
+						stream2.stream.flush();
+					var closed = stream2.stream.close();
+					stream2.stream = null;
+					if( obj_options.force === true || closed === true ) {
+						thread.success( point );
+					}
+				}
+			}
+		},
+
+		// flush_output/0
+		"flush_output/0": function( thread, point, atom ) {
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("flush_output", [new Var("S")])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// flush_output/1
+		"flush_output/1": function( thread, point, atom ) {
+			var stream = atom.args[0];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream.input === true ) {
+				thread.throw_error( pl.error.permission( "output", "stream", output, atom.indicator ) );
+			} else {
+				stream2.stream.flush();
+				thread.success( point );
+			}
+		},
+
+		// stream_property/2
+		"stream_property/2": function( thread, point, atom ) {
+			var stream = atom.args[0], property = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_variable( stream ) && (!pl.type.is_stream( stream2 ) || stream2.stream === null) ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( !pl.type.is_variable( property ) && !pl.type.is_stream_property( property ) ) {
+				thread.throw_error( pl.error.domain( "stream_property", property, atom.indicator ) );
+			} else {
+				var streams = [];
+				var states = [];
+				if( !pl.type.is_variable( stream ) )
+					streams.push( stream2 );
+				else
+					for( var key in thread.session.streams )
+						streams.push( thread.session.streams[key] );
+				for( var i = 0; i < streams.length; i++ ) {
+					var properties = [];
+					if( streams[i].filename )
+						properties.push( new Term( "file_name", [new Term(streams[i].file_name, [])] ) );
+					properties.push( new Term( "mode", [new Term(streams[i].mode, [])] ) );
+					properties.push( new Term( streams[i].input ? "input" : "output", [] ) );
+					if( streams[i].alias )
+						properties.push( new Term( "alias", [new Term(streams[i].alias, [])] ) );
+					properties.push( new Term( "position", [
+						typeof streams[i].position === "number" ?
+							new Num( streams[i].position, false ) :
+							new Term( streams[i].position, [] )
+					] ) );
+					properties.push( new Term( "end_of_stream", [new Term(
+						streams[i].position === "end_of_stream" ? "at" :
+						streams[i].position === "past_end_of_stream" ? "past" :
+						"not", [])] ) );
+					properties.push( new Term( "eof_action", [new Term(streams[i].eof_action, [])] ) );
+					properties.push( new Term( "reposition", [new Term(streams[i].reposition ? "true" : "false", [])] ) );
+					properties.push( new Term( "type", [new Term(streams[i].type, [])] ) );
+					for( var j = 0; j < properties.length; j++ ) {
+						states.push( new State(
+							point.goal.replace( new Term( ",", [
+								new Term("=", [pl.type.is_variable( stream ) ? stream : stream2, streams[i]]),
+								new Term("=", [property, properties[j]])]) ),
+							point.substitution,
+							point
+						) );
+					}
+				}
+				thread.prepend( states );
+			}
+		},
+
+		// at_end_of_stream/0
+		"at_end_of_stream/0": function( thread, point, atom ) {
+			thread.prepend( [new State(
+				point.goal.replace(
+					new Term(",", [new Term("current_input", [new Var("S")]),new Term(",", [
+						new Term("stream_property", [new Var("S"),new Term("end_of_stream", [new Var("E")])]),
+						new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),
+						new Term("at", [])]),new Term("=", [new Var("E"),new Term("past", [])])])])])])
+				),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// at_end_of_stream/1
+		"at_end_of_stream/1": function( thread, point, atom ) {
+			var stream = atom.args[0];
+			thread.prepend( [new State(
+				point.goal.replace(
+					new Term(",", [new Term("stream_property", [stream,new Term("end_of_stream", [new Var("E")])]),
+					new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),new Term("at", [])]),
+					new Term("=", [new Var("E"),new Term("past", [])])])])])
+				),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// set_stream_position/2
+		"set_stream_position/2": function( thread, point, atom ) {
+			var stream = atom.args[0], position = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) || pl.type.is_variable( position ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream_position( position ) ) {
+				thread.throw_error( pl.error.domain( "stream_position", position, atom.indicator ) );
+			} else if( stream2.reposition === false ) {
+				thread.throw_error( pl.error.permission( "reposition", "stream", stream, atom.indicator ) );
+			} else {
+				if( pl.type.is_integer( position ) )
+					stream2.position = position.value;
+				else
+					stream2.position = position.id;
+				thread.success( point );
+			}
+		},
+
+
+
+		//  CHARACTER INPUT OUTPUT
+		
+		// get_char/1
+		"get_char/1": function( thread, point, atom ) {
+			var char = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_char", [new Var("S"),char])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// get_char/2
+		"get_char/2": function( thread, point, atom ) {
+			var stream = atom.args[0], char = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
+				thread.throw_error( pl.error.type( "in_character", char, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.output ) {
+				thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "binary" ) {
+				thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+				thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+			} else {
+				var stream_char;
+				if( stream2.position === "end_of_stream" ) {
+					stream_char = "end_of_file";
+					stream2.position = "past_end_of_stream";
+				} else {
+					stream_char = stream2.stream.get( 1, stream2.position );
+					if( stream_char === null ) {
+						thread.throw_error( pl.error.representation( "character", atom.indicator ) );
+						return;
+					}
+					stream2.position++;
+				}
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
+					point.substitution,
+					point
+				)] );
+			}
+		},
+
+		// get_code/1
+		"get_code/1": function( thread, point, atom ) {
+			var code = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_code", [new Var("S"),code])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// get_code/2
+		"get_code/2": function( thread, point, atom ) {
+			var stream = atom.args[0], code = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
+				thread.throw_error( pl.error.type( "integer", char, atom.indicator ) );
+			} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.output ) {
+				thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "binary" ) {
+				thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+				thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+			} else {
+				var stream_code;
+				if( stream2.position === "end_of_stream" ) {
+					stream_code = -1;
+					stream2.position = "past_end_of_stream";
+				} else {
+					stream_code = stream2.stream.get( 1, stream2.position );
+					if( stream_code === null ) {
+						thread.throw_error( pl.error.representation( "character", atom.indicator ) );
+						return;
+					}
+					stream_code = codePointAt( stream_code, 0 );
+					stream2.position++;
+				}
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
+					point.substitution,
+					point
+				)] );
+			}
+		},
+
+		// peek_char/1
+		"peek_char/1": function( thread, point, atom ) {
+			var char = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_char", [new Var("S"),char])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// peek_char/2
+		"peek_char/2": function( thread, point, atom ) {
+			var stream = atom.args[0], char = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
+				thread.throw_error( pl.error.type( "in_character", char, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.output ) {
+				thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "binary" ) {
+				thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+				thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+			} else {
+				var stream_char;
+				if( stream2.position === "end_of_stream" ) {
+					stream_char = "end_of_file";
+					stream2.position = "past_end_of_stream";
+				} else {
+					stream_char = stream2.stream.get( 1, stream2.position );
+					if( stream_char === null ) {
+						thread.throw_error( pl.error.representation( "character", atom.indicator ) );
+						return;
+					}
+				}
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
+					point.substitution,
+					point
+				)] );
+			}
+		},
+
+		// peek_code/1
+		"peek_code/1": function( thread, point, atom ) {
+			var code = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_code", [new Var("S"),code])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// peek_code/2
+		"peek_code/2": function( thread, point, atom ) {
+			var stream = atom.args[0], code = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
+				thread.throw_error( pl.error.type( "integer", char, atom.indicator ) );
+			} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.output ) {
+				thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "binary" ) {
+				thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+				thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+			} else {
+				var stream_code;
+				if( stream2.position === "end_of_stream" ) {
+					stream_code = -1;
+					stream2.position = "past_end_of_stream";
+				} else {
+					stream_code = stream2.stream.get( 1, stream2.position );
+					if( stream_code === null ) {
+						thread.throw_error( pl.error.representation( "character", atom.indicator ) );
+						return;
+					}
+					stream_code = codePointAt( stream_code, 0 );
+				}
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
+					point.substitution,
+					point
+				)] );
+			}
+		},
+
+		// put_char/1
+		"put_char/1": function( thread, point, atom ) {
+			var char = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"),char])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// put_char/2
+		"put_char/2": function( thread, point, atom ) {
+			var stream = atom.args[0], char = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) || pl.type.is_variable( char ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_character( char ) ) {
+				thread.throw_error( pl.error.type( "character", char, atom.indicator ) );
+			} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.input ) {
+				thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "binary" ) {
+				thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
+			} else {
+				if( stream2.stream.put( char.id, stream2.position ) ) {
+					if(typeof stream2.position === "number")
+						stream2.position++;
+					thread.success( point );
+				}
+			}
+		},
+
+		// put_code/1
+		"put_code/1": function( thread, point, atom ) {
+			var code = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_code", [new Var("S"),code])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// put_code/2
+		"put_code/2": function( thread, point, atom ) {
+			var stream = atom.args[0], code = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) || pl.type.is_variable( code ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_integer( code ) ) {
+				thread.throw_error( pl.error.type( "integer", code, atom.indicator ) );
+			} else if( !pl.type.is_character_code( code ) ) {
+				thread.throw_error( pl.error.representation( "character_code", atom.indicator ) );
+			} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.input ) {
+				thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "binary" ) {
+				thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
+			} else {
+				if( stream2.stream.put_char( fromCodePoint( code.value ), stream2.position ) ) {
+					if(typeof stream2.position === "number")
+						stream2.position++;
+					thread.success( point );
+				}
+			}
+		},
+
+		// nl/0
+		"nl/0": function( thread, point, atom ) {
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"), new Term("\n", [])])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// nl/1
+		"nl/1": function( thread, point, atom ) {
+			var stream = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term("put_char", [stream, new Term("\n", [])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+
+
+		// BYTE INPUT/OUTPUT
+
+		// get_byte/1
+		"get_byte/1": function( thread, point, atom ) {
+			var byte = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_byte", [new Var("S"),byte])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// get_byte/2
+		"get_byte/2": function( thread, point, atom ) {
+			var stream = atom.args[0], byte = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( byte ) && !pl.type.is_byte( byte ) ) {
+				thread.throw_error( pl.error.type( "in_byte", char, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.output ) {
+				thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "text" ) {
+				thread.throw_error( pl.error.permission( "input", "text_stream", stream, atom.indicator ) );
+			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+				thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+			} else {
+				var stream_byte;
+				if( stream2.position === "end_of_stream" ) {
+					stream_byte = "end_of_file";
+					stream2.position = "past_end_of_stream";
+				} else {
+					stream_byte = stream2.stream.get_byte( stream2.position );
+					if( stream_byte === null ) {
+						thread.throw_error( pl.error.representation( "byte", atom.indicator ) );
+						return;
+					}
+					stream2.position++;
+				}
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "=", [new Num(stream_byte,false), byte] ) ),
+					point.substitution,
+					point
+				)] );
+			}
+		},
+		
+		// peek_byte/1
+		"peek_byte/1": function( thread, point, atom ) {
+			var byte = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_byte", [new Var("S"),byte])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// peek_byte/2
+		"peek_byte/2": function( thread, point, atom ) {
+			var stream = atom.args[0], byte = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( byte ) && !pl.type.is_byte( byte ) ) {
+				thread.throw_error( pl.error.type( "in_byte", char, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.output ) {
+				thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "text" ) {
+				thread.throw_error( pl.error.permission( "input", "text_stream", stream, atom.indicator ) );
+			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+				thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+			} else {
+				var stream_byte;
+				if( stream2.position === "end_of_stream" ) {
+					stream_byte = "end_of_file";
+					stream2.position = "past_end_of_stream";
+				} else {
+					stream_byte = stream2.stream.get_byte( stream2.position );
+					if( stream_byte === null ) {
+						thread.throw_error( pl.error.representation( "byte", atom.indicator ) );
+						return;
+					}
+				}
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "=", [new Num(stream_byte,false), byte] ) ),
+					point.substitution,
+					point
+				)] );
+			}
+		},
+
+		// put_byte/1
+		"put_byte/1": function( thread, point, atom ) {
+			var byte = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_byte", [new Var("S"),byte])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// put_byte/2
+		"put_byte/2": function( thread, point, atom ) {
+			var stream = atom.args[0], byte = atom.args[1];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) || pl.type.is_variable( byte ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_byte( byte ) ) {
+				thread.throw_error( pl.error.type( "byte", byte, atom.indicator ) );
+			} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.input ) {
+				thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "text" ) {
+				thread.throw_error( pl.error.permission( "output", "text_stream", stream, atom.indicator ) );
+			} else {
+				if( stream2.stream.put_byte( byte.value, stream2.position ) ) {
+					if(typeof stream2.position === "number")
+						stream2.position++;
+					thread.success( point );
+				}
+			}
+		},
+
+
+
+		// TERM INPUT/OUTPUT
+
+		// read/1
+		"read/1": function( thread, point, atom ) {
+			var term = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),term,new Term("[]",[])])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// read/2
+		"read/2": function( thread, point, atom ) {
+			var stream = atom.args[0], term = atom.args[1];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term("read_term", [stream,term,new Term("[]",[])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// read_term/2
+		"read_term/2": function( thread, point, atom ) {
+			var term = atom.args[0], options = atom.args[1];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),term,options])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// read_term/3
+		"read_term/3": function( thread, point, atom ) {
+			var stream = atom.args[0], term = atom.args[1], options = atom.args[2];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) || pl.type.is_variable( options ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_list( options ) ) {
+				thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.output ) {
+				thread.throw_error( pl.error.permission( "input", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "binary" ) {
+				thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
+			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+				thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+			} else {
+				// Get options
+				var obj_options = {};
+				var pointer = options;
+				var property;
+				while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
+					property = pointer.args[0];
+					if( pl.type.is_variable( property ) ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if( !pl.type.is_read_option( property ) ) {
+						thread.throw_error( pl.error.domain( "read_option", property, atom.indicator ) );
+						return;
+					}
+					obj_options[property.id] = property.args[0];
+					pointer = pointer.args[1];
+				}
+				if( pointer.indicator !== "[]/0" ) {
+					if( pl.type.is_variable( pointer ) )
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					else
+						thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+					return;
+				} else {
+					var char, tokenizer, expr;
+					var text = "";
+					var tokens = [];
+					var last_token = null;
+					// Get term
+					while( last_token === null || last_token.name !== "atom" || last_token.value !== "." ||
+						(expr.type === ERROR && pl.flatten_error(new Term("throw",[expr.value])).found === "token_not_found") ) {
+						char = stream2.stream.get( 1, stream2.position );
+						if( char === null ) {
+							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
+							return;
+						}
+						if( char === "end_of_file" || char === "past_end_of_file" ) {
+							if( expr )
+								thread.throw_error( pl.error.syntax( tokens[expr.len-1], ". or expression expected", false ) );
+							else
+								thread.throw_error( pl.error.syntax( null, "token not found", true ) );
+							return;
+						}
+						stream2.position++;
+						text += char;
+						tokenizer = new Tokenizer( thread );
+						tokenizer.new_text( text );
+						tokens = tokenizer.get_tokens();
+						last_token = tokens !== null && tokens.length > 0 ? tokens[tokens.length-1] : null;
+						if( tokens === null )
+							continue;
+						expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
+					}
+					// Succeed analyzing term
+					if( expr.type === SUCCESS && expr.len === tokens.length-1 && last_token.value === "." ) {
+						expr = expr.value.rename( thread );
+						var eq = new Term( "=", [term, expr] );
+						// Variables
+						if( obj_options.variables ) {
+							var vars = arrayToList( map( nub( expr.variables() ), function(v) { return new Var(v); } ) );
+							eq = new Term( ",", [eq, new Term( "=", [obj_options.variables, vars] )] )
+						}
+						// Variable names
+						if( obj_options.variable_names ) {
+							var vars = arrayToList( map( nub( expr.variables() ), function(v) {
+								var prop;
+								for( prop in thread.session.renamed_variables ) {
+									if( thread.session.renamed_variables.hasOwnProperty( prop ) ) {
+										if( thread.session.renamed_variables[ prop ] === v )
+											break;
+									}
+								}
+								return new Term( "=", [new Term( prop, []), new Var(v)] );
+							} ) );
+							eq = new Term( ",", [eq, new Term( "=", [obj_options.variable_names, vars] )] )
+						}
+						// Singletons
+						if( obj_options.singletons ) {
+							var vars = arrayToList( map( new Rule( expr, null ).singleton_variables(), function(v) {
+								var prop;
+								for( prop in thread.session.renamed_variables ) {
+									if( thread.session.renamed_variables.hasOwnProperty( prop ) ) {
+										if( thread.session.renamed_variables[ prop ] === v )
+											break;
+									}
+								}
+								return new Term( "=", [new Term( prop, []), new Var(v)] );
+							} ) );
+							eq = new Term( ",", [eq, new Term( "=", [obj_options.singletons, vars] )] )
+						}
+						thread.prepend( [new State( point.goal.replace( eq ), point.substitution, point )] );
+					// Failed analyzing term
+					} else {
+						if( expr.type === SUCCESS )
+							thread.throw_error( pl.error.syntax( tokens[expr.len], "unexpected token", false ) );
+						else
+							thread.throw_error( expr.value );
+					}
+				}
+			}
+		},
+
+		// write/1
+		"write/1": function( thread, point, atom ) {
+			var term = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("write", [new Var("S"),term])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+		
+		// write/2
+		"write/2": function( thread, point, atom ) {
+			var stream = atom.args[0], term = atom.args[1];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term("write_term", [stream, term,
+					new Term(".", [new Term("quoted", [new Term("false", [])]),
+						new Term(".", [new Term("ignore_ops", [new Term("false")]),
+							new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+		
+		// writeq/1
+		"writeq/1": function( thread, point, atom ) {
+			var term = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("writeq", [new Var("S"),term])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+		
+		// writeq/2
+		"writeq/2": function( thread, point, atom ) {
+			var stream = atom.args[0], term = atom.args[1];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term("write_term", [stream, term,
+					new Term(".", [new Term("quoted", [new Term("true", [])]),
+						new Term(".", [new Term("ignore_ops", [new Term("false")]),
+							new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+		
+		// write_canonical/1
+		"write_canonical/1": function( thread, point, atom ) {
+			var term = atom.args[0];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("write_canonical", [new Var("S"),term])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+		
+		// write_canonical/2
+		"write_canonical/2": function( thread, point, atom ) {
+			var stream = atom.args[0], term = atom.args[1];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term("write_term", [stream, term,
+					new Term(".", [new Term("quoted", [new Term("true", [])]),
+						new Term(".", [new Term("ignore_ops", [new Term("true")]),
+							new Term(".", [new Term("numbervars", [new Term("false")]), new Term("[]",[])])])])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+
+		// write_term/2
+		"write_term/2": function( thread, point, atom ) {
+			var term = atom.args[0], options = atom.args[1];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("write_term", [new Var("S"),term,options])]) ),
+				point.substitution,
+				point
+			)] );
+		},
+		
+		// write_term/3
+		"write_term/3": function( thread, point, atom ) {
+			var stream = atom.args[0], term = atom.args[1], options = atom.args[2];
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) || pl.type.is_variable( options ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_list( options ) ) {
+				thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else if( stream2.input ) {
+				thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
+			} else if( stream2.type === "binary" ) {
+				thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
+			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
+				thread.throw_error( pl.error.permission( "output", "past_end_of_stream", stream, atom.indicator ) );
+			} else {
+				// Get options
+				var obj_options = {};
+				var pointer = options;
+				var property;
+				while( pl.type.is_term(pointer) && pointer.indicator === "./2" ) {
+					property = pointer.args[0];
+					if( pl.type.is_variable( property ) ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if( !pl.type.is_write_option( property ) ) {
+						thread.throw_error( pl.error.domain( "write_option", property, atom.indicator ) );
+						return;
+					}
+					obj_options[property.id] = property.args[0].id === "true";
+					pointer = pointer.args[1];
+				}
+				if( pointer.indicator !== "[]/0" ) {
+					if( pl.type.is_variable( pointer ) )
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					else
+						thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
+					return;
+				} else {
+					obj_options.session = thread.session;
+					var text = term.toString( obj_options );
+					stream2.stream.put( text, stream2.position );
+					if( typeof stream2.position === "number" )
+						stream2.position += text.length;
+					thread.success( point );
+				}
+			}
+		},
+
+		// write_to_chars/2
+		"write_to_chars/2": function(thread, point, atom) {
+			var chars = atom.args[0], term = atom.args[1];
+			thread.prepend([new State( 
+				point.goal.replace( new Term("write_term_to_chars", [chars, term,
+					new Term(".", [new Term("quoted", [new Term("false", [])]),
+						new Term(".", [new Term("ignore_ops", [new Term("false")]),
+							new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
+				point.substitution,
+				point
+			)]);
+		},
+
+		// writeq_to_chars/2
+		"writeq_to_chars/2": function(thread, point, atom) {
+			var chars = atom.args[0], term = atom.args[1];
+			thread.prepend([new State( 
+				point.goal.replace(new Term("write_term_to_chars", [chars, term,
+					new Term(".", [new Term("quoted", [new Term("true", [])]),
+						new Term(".", [new Term("ignore_ops", [new Term("false")]),
+							new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
+				point.substitution,
+				point
+			)]);
+		},
+
+		// write_canonical_to_chars/2
+		"write_canonical_to_chars/2": function(thread, point, atom) {
+			var chars = atom.args[0], term = atom.args[1];
+			thread.prepend( [new State( 
+				point.goal.replace( new Term("write_term_to_chars", [chars, term,
+					new Term(".", [new Term("quoted", [new Term("true", [])]),
+						new Term(".", [new Term("ignore_ops", [new Term("true")]),
+							new Term(".", [new Term("numbervars", [new Term("false")]), new Term("[]",[])])])])]) ),
+				point.substitution,
+				point
+			)]);
+		},
+
+		// write_term_to_chars/3
+		"write_term_to_chars/3": function(thread, point, atom) {
+			var chars = atom.args[0], term = atom.args[1], options = atom.args[2];
+			if(!pl.type.is_variable(chars) && !pl.type.is_list(chars)) {
+				thread.throw_error(pl.error.type("list", chars, atom.indicator));
+			} else if(pl.type.is_variable(options)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else {
+				// check chars
+				if(!pl.type.is_variable(chars)) {
+					var pointer = chars;
+					while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+						var char = pointer.args[0];
+						if(!pl.type.is_character(char)) {
+							thread.throw_error(pl.error.type("character", char, atom.indicator));
+							return;
+						}
+						pointer = pointer.args[1];
+					}
+					if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
+						thread.throw_error(pl.error.type("list", chars, atom.indicator));
+						return;
+					}
+				}
+				// get options
+				var obj_options = {};
+				var pointer = options;
+				var property;
+				while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+					property = pointer.args[0];
+					if(pl.type.is_variable(property)) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if(!pl.type.is_write_option(property)) {
+						thread.throw_error( pl.error.domain("write_option", property, atom.indicator));
+						return;
+					}
+					obj_options[property.id] = property.args[0].id === "true";
+					pointer = pointer.args[1];
+				}
+				if(pointer.indicator !== "[]/0") {
+					if(pl.type.is_variable(pointer))
+						thread.throw_error(pl.error.instantiation(atom.indicator));
+					else
+						thread.throw_error(pl.error.type("list", options, atom.indicator));
+					return;
+				} else {
+					obj_options.session = thread.session;
+					var text = term.toString( obj_options );
+					var list = new Term("[]", []);
+					for(var i = stringLength(text)-1; i >= 0; i--)
+						list = new Term(".", [new Term(fromCodePoint(codePointAt(text, i)), []), list]);
+					thread.prepend([new State(
+						point.goal.replace(new Term("=", [chars, list])),
+						point.substitution,
+						point
+					)]);
+				}
+			}
+		},
+
+
+		
+		// IMPLEMENTATION DEFINED HOOKS
+		
+		// halt/0
+		"halt/0": function( thread, point, _ ) {
+			if( thread.get_flag("nodejs").indicator === "true/0" )
+				process.exit();
+			thread.points = [];
+		},
+		
+		// halt/1
+		"halt/1": function( thread, point, atom ) {
+			var int = atom.args[0];
+			if( pl.type.is_variable( int ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_integer( int ) ) {
+				thread.throw_error( pl.error.type( "integer", int, atom.indicator ) );
+			} else {
+				if( thread.get_flag("nodejs").indicator === "true/0" )
+					process.exit(int.value);
+				thread.points = [];
+			}
+		},
+		
+		// current_prolog_flag/2
+		"current_prolog_flag/2": function( thread, point, atom ) {
+			var flag = atom.args[0], value = atom.args[1];
+			if( !pl.type.is_variable( flag ) && !pl.type.is_atom( flag ) ) {
+				thread.throw_error( pl.error.type( "atom", flag, atom.indicator ) );
+			} else if( !pl.type.is_variable( flag ) && !pl.type.is_flag( flag ) ) {
+				thread.throw_error( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
+			} else {
+				var states = [];
+				for( var name in pl.flag ) {
+					if(!pl.flag.hasOwnProperty(name)) continue;
+					var goal = new Term( ",", [new Term( "=", [new Term( name ), flag] ), new Term( "=", [thread.get_flag(name), value] )] );
+					states.push( new State( point.goal.replace( goal ), point.substitution, point ) );
+				}
+				thread.prepend( states );
+			}
+		},
+		
+		// set_prolog_flag/2
+		"set_prolog_flag/2": function( thread, point, atom ) {
+			var flag = atom.args[0], value = atom.args[1];
+			if( pl.type.is_variable( flag ) || pl.type.is_variable( value ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_atom( flag ) ) {
+				thread.throw_error( pl.error.type( "atom", flag, atom.indicator ) );
+			} else if( !pl.type.is_flag( flag ) ) {
+				thread.throw_error( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
+			} else if( !pl.type.is_value_flag( flag, value ) ) {
+				thread.throw_error( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
+			} else if( !pl.type.is_modifiable_flag( flag ) ) {
+				thread.throw_error( pl.error.permission( "modify", "flag", flag ) );
+			} else {
+				thread.session.flag[flag.id] = value;
+				thread.success( point );
+			}
+		},
+
+
+
+		// LOAD PROLOG SOURCE FILES
+
+		// consult/1
+		"consult/1": function( thread, point, atom ) {
+			var src = atom.args[0];
+			if(pl.type.is_variable(src)) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if(!pl.type.is_atom(src)) {
+				thread.throw_error( pl.error.type( "atom", src, atom.indicator ) );
+			} else {
+				if(thread.consult( src.id ))
+					thread.success(point);
+			}
+		},
+
+
+
+		// TIME AND DATES
+
+		// get_time/1
+		"get_time/1": function( thread, point, atom ) {
+			var time = atom.args[0];
+			if(!pl.type.is_variable(time) && !pl.type.is_number(time)) {
+				thread.throw_error( pl.error.type( "number", time, atom.indicator ) );
+			} else {
+				var current = new Num(Date.now(), true);
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "=", [time, current] ) ), 
+					point.substitution,
+					point
+				)] );
+			}
+		},
+
+
+
+		// GRAMMARS
+
+		// phrase/3
+		"phrase/3": function( thread, point, atom ) {
+			var grbody = atom.args[0], s0 = atom.args[1], s = atom.args[2];
+			if( pl.type.is_variable( grbody ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_callable( grbody ) ) {
+				thread.throw_error( pl.error.type( "callable", grbody, atom.indicator ) );
+			} else {
+				var goal = body_to_dcg( grbody.clone(), s0, thread );
+				if(goal !== null) {
+					thread.prepend( [new State(
+						point.goal.replace( new Term( ",", [goal.value, new Term("=", [goal.variable, s])] ) ), 
+						point.substitution,
+						point
+					)] );
+				}
+			}
+		},
+
+		// phrase/2
+		"phrase/2": function( thread, point, atom ) {
+			var grbody = atom.args[0], s0 = atom.args[1];
+			thread.prepend( [new State(
+				point.goal.replace( new Term( "phrase", [grbody, s0, new Term("[]", [])] ) ), 
+				point.substitution,
+				point
+			)] );
+		},
+
+
+
+		// TAU PROLOG INFORMATION
+
+		// version/0
+		"version/0": function( thread, point, atom ) {
+			var msg = "Welcome to Tau Prolog version " + version.major + "." + version.minor + "." + version.patch + "\n";
+			msg += "Tau Prolog comes with ABSOLUTELY NO WARRANTY. This is free software.\n";
+			msg += "Please run ?- license. for legal details.\n";
+			msg += "For online help and background, visit http:/tau-prolog.org";
+			thread.prepend( [new State(
+				point.goal.replace( new Term( "write", [new Term( msg, [] )] ) ), 
+				point.substitution,
+				point
+			)] );
+		},
+
+		// license/0
+		"license/0": function( thread, point, atom ) {
+			var msg = "Tau Prolog. A Prolog interpreter in JavaScript.\n";
+			msg += "Copyright (C) 2017 - 2020 José Antonio Riaza Valverde\n\n";
+			msg += "Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\n";
+			msg += "1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\n";
+			msg += "2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.\n";
+			msg += "3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.\n\n";
+			msg += "THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\n";
+			msg += "You should have received a copy of the BSD 3-Clause License along with this program. If not, see https://opensource.org/licenses/BSD-3-Clause";
+			thread.prepend( [new State(
+				point.goal.replace( new Term( "write", [new Term( msg, [] )] ) ), 
+				point.substitution,
+				point
+			)] );
+		}
+
+	}, "all", {
+		meta_predicates: {
+			// (0;0)
+			";/2": new Term(";", [new Num(0, false), new Num(0, false)]),
+			// (0->0)
+			"->/2": new Term("->", [new Num(0, false), new Num(0, false)]),
+			// (\+0)
+			"\\+/1": new Term("\\+", [new Num(0, false)]),
+			// abolish(:)
+			"abolish/1": new Term("abolish", [new Term(":")]),
+			// asserta(:)
+			"asserta/1": new Term("asserta", [new Term(":")]),
+			// assertz(:)
+			"assertz/1": new Term("assertz", [new Term(":")]),
+			// bagof(?, ^, -)
+			"bagof/3": new Term("bagof", [new Term("?"), new Term("^"), new Term("-")]),
+			// call(0)
+			"call/1": new Term("call", [new Num(0, false)]),
+			// call(1, ?)
+			"call/2": new Term("call", [new Num(1, false), new Term("?")]),
+			// call(2, ?, ?)
+			"call/3": new Term("call", [new Num(2, false), new Term("?"), new Term("?")]),
+			// call(3, ?, ?, ?)
+			"call/4": new Term("call", [new Num(3, false), new Term("?"), new Term("?"), new Term("?")]),
+			// call(4, ?, ?, ?, ?)
+			"call/5": new Term("call", [new Num(4, false), new Term("?"), new Term("?"), new Term("?"), new Term("?")]),
+			// call(5, ?, ?, ?, ?, ?)
+			"call/6": new Term("call", [new Num(5, false), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?")]),
+			// call(6, ?, ?, ?, ?, ?, ?)
+			"call/7": new Term("call", [new Num(6, false), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?")]),
+			// catch(0, ?, 0)
+			"catch/3": new Term("catch", [new Num(0, false), new Term("?"), new Num(0, false)]),
+			// consult(:)
+			"consult/1": new Term("consult", [new Term(":")]),
+			// clause(:, ?)
+			"clause/2": new Term("clause", [new Term(":"), new Term("?")]),
+			// current_predicate(?, :)
+			"current_predicate/2": new Term("current_predicate", [new Term("?"), new Term(":")]),
+			// findall(?, 0, -)
+			"findall/3": new Term("findall", [new Term("?"), new Num(0, false), new Term("-")]),
+			// findall(?, 0, -, ?)
+			"findall/4": new Term("findall", [new Term("?"), new Num(0, false), new Term("-"), new Term("?")]),
+			// forall(0, 0)
+			"forall/2": new Term("forall", [new Num(0, false), new Num(0, false)]),
+			// once(0)
+			"once/1": new Term("once", [new Num(0, false)]),
+			// phrase(//, ?, ?)
+			"phrase/3": new Term("phrase", [new Term("?"), new Num(0, false), new Term("-")]),
+			// retract(:)
+			"retract/1": new Term("retract", [new Term(":")]),
+			// retractall(:)
+			"retractall/1": new Term("retractall", [new Term(":")]),
+			// setof(?, ^, -)
+			"setof/3": new Term("setof", [new Term("?"), new Term("^"), new Term("-")])
+		}
+	});
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = pl;
