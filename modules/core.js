@@ -992,6 +992,7 @@
 		options = options ? options : {};
 		options.from = options.from ? options.from : "$tau-js";
 		options.reconsult = options.reconsult !== undefined ? options.reconsult : true;
+		options.context_module = options.context_module !== undefined ? options.context_module : "user";
 		var tokenizer = new Tokenizer( thread );
 		var reconsulted = {};
 		var indicator;
@@ -1099,7 +1100,7 @@
 					}
 				} );
 			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
-				thread.run_directive(expr.value.head.args[0]);
+				thread.run_directive(expr.value.head.args[0], {context_module: options.context_module});
 			} else {
 				indicator = expr.value.head.indicator;
 				if( options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
@@ -1564,6 +1565,7 @@
 		this.dependencies = options.dependencies;
 		this.exports = exports;
 		this.is_library = options.session === null;
+		this.modules = {};
 		if(options.session) {
 			options.session.modules[id] = this;
 			for(var i = 0; i < options.dependencies.length; i++) {
@@ -2266,15 +2268,15 @@
 	};
 
 	// Run a directive
-	Session.prototype.run_directive = function( directive ) {
+	Session.prototype.run_directive = function(directive, options) {
 		this.thread.run_directive( directive );
 	};
-	Thread.prototype.run_directive = function( directive ) {
+	Thread.prototype.run_directive = function(directive, options) {
 		if( pl.type.is_directive( directive ) ) {
 			if(pl.directive[directive.indicator])
-				pl.directive[directive.indicator]( this, directive );
+				pl.directive[directive.indicator]( this, directive, options );
 			else
-				pl.directive[directive.id + "/*"]( this, directive );
+				pl.directive[directive.id + "/*"]( this, directive, options );
 			return true;
 		}
 		return false;
@@ -2359,57 +2361,112 @@
 	};
 
 	// Consult a program from a string
-	Session.prototype.consult = function( program, options ) {
-		return this.thread.consult( program, options );
+	Session.prototype.consult = function(program, options) {
+		return this.thread.consult(program, options);
 	};
-	Thread.prototype.consult = function( program, options ) {
-		var string = "";
+	Thread.prototype.consult = function(program, options) {
+		var string = "", success = false;
+		options = options === undefined ? {} : options;
+		options.context_module = options.tecontext_modulext === undefined ? "user" : options.context_module;
+		options.text = options.text === undefined ? true : options.text;
+		options.html = options.html === undefined ? true : options.html;
+		options.url = options.url === undefined ? true : options.url;
+		options.file = options.file === undefined ? true : options.file;
+		options.script = options.script === undefined ? true : options.script;
+		options.async = options.async === undefined ? false : options.async;
+		options.success = options.success === undefined ? function(){} : options.success;
+		options.error = options.error === undefined ? function(){} : options.error;
 		this.__last_module_parsed = this.session.modules.user;
 		// string
-		if( typeof program === "string" ) {
+		if(typeof program === "string") {
 			string = program;
 			var len = string.length;
 			// script id
-			if( this.get_flag("nodejs").indicator === "false/0" && program != "" && document.getElementById( string ) ) {
-				var script = document.getElementById( string );
-				var type = script.getAttribute( "type" );
-				if( type !== null && type.replace( / /g, "" ).toLowerCase() === "text/prolog" ) {
+			if(options.script && this.get_flag("nodejs").indicator === "false/0" && program != "" && document.getElementById(string)) {
+				var script = document.getElementById(string);
+				var type = script.getAttribute("type");
+				if(type !== null && type.replace(/ /g, "").toLowerCase() === "text/prolog") {
 					string = script.text;
+					success = true;
 				}
 			// file (node.js)
-			} else if( this.get_flag("nodejs").indicator === "true/0" ) {
+			} else if(options.file && this.get_flag("nodejs").indicator === "true/0") {
 				var fs = require("fs");
-				const isFile = fs.existsSync(program);
-				if(isFile) string = fs.readFileSync( program ).toString();
-				else string = program;
+				if(options.async) {
+					var thread = this;
+					fs.readFile(program, function(error, data) {
+						if(error) {
+							options.error(error);
+							return false;
+						}
+						parseProgram(thread, data.toString(), {
+							context_module: options.context_module
+						});
+						options.success();
+					});
+					return true;
+				} else {
+					if(fs.existsSync(program)) {
+						string = fs.readFileSync(program).toString();
+						success = true;
+					} else {
+						string = program;
+					}
+				}
 			// http request
-			} else if( program != "" && !(/\s/.test(program)) ) {
+			} else if(options.url && program !== "" && !(/\s/.test(program))) {
 				try {
 					var xhttp = new XMLHttpRequest();
+					var thread = this;
 					xhttp.onreadystatechange = function() {
-						if( this.readyState == 4 && this.status == 200 )
-							string = xhttp.responseText;
+						if(this.readyState == 4) {
+							if(this.status == 200) {
+								string = xhttp.responseText;
+								success = true;
+								if(options.async) {
+									parseProgram(thread, string, {
+										context_module: options.context_module
+									});
+									options.success();
+								}
+							} else {
+								options.error(this.status);
+							}
+						}
 					}
-					xhttp.open("GET", program, false);
+					xhttp.open("GET", program, options.async);
 					xhttp.send();
-				} catch(ex) {}
+					if(options.async)
+						return true;
+				} catch(ex) {
+					if(options.async) {
+						options.error(ex);
+						return false;
+					}
+				}
+			} else if(options.text) {
+				success = true;
 			}
 		// html
-		} else if( program.nodeName ) {
-			switch( program.nodeName.toLowerCase() ) {
+		} else if(options.html && program.nodeName) {
+			switch(program.nodeName.toLowerCase()) {
 				case "input":
 				case "textarea":
 					string = program.value;
+					success = true;
 					break;
 				default:
 					string = program.innerHTML;
+					success = true;
 					break;
 			}
 		} else {
 			return false;
 		}
 		this.warnings = [];
-		return parseProgram( this, string, options );
+		return success && parseProgram(this, string, {
+			context_module: options.context_module
+		});
 	};
 
 	// Query goal from a string (without ?-)
@@ -2524,28 +2581,39 @@
 	};
 	
 	// Get the module of a predicate
-	Session.prototype.lookup_module = function(atom) {
-		return this.thread.lookup_module(atom);
+	Session.prototype.lookup_module = function(atom, context_module) {
+		return this.thread.lookup_module(atom, context_module);
 	}
-	Thread.prototype.lookup_module = function(atom) {
-		for(var prop in this.session.modules) {
+	Thread.prototype.lookup_module = function(atom, context_module) {
+		var get_module = this.session.modules[context_module];
+		if(!pl.type.is_module(get_module))
+			return null;
+		if(get_module.rules.hasOwnProperty(atom.indicator) && (
+			get_module.exports_predicate(atom.indicator) ||
+			get_module.rules.hasOwnProperty(this.level.indicator) ||
+			context_module === get_module.id))
+				return get_module;
+		get_module.modules.system = pl.modules.system;
+		get_module.modules.user = this.session.modules.user;
+		for(var prop in get_module.modules) {
 			if(!this.session.modules.hasOwnProperty(prop))
 				continue;
 			var get_module = this.session.modules[prop];
 			if(get_module.rules.hasOwnProperty(atom.indicator) && (
 				get_module.exports_predicate(atom.indicator) ||
 				get_module.rules.hasOwnProperty(this.level.indicator) ||
-				atom.context_module === get_module.id))
+				context_module === get_module.id))
 					return get_module;
 		}
 		return null;
 	};
 
 	// Expand a meta-predicate
-	Session.prototype.expand_meta_predicate = function(atom, get_module) {
-		return this.thread.expand_meta_predicate(atom, get_module);
+	Session.prototype.expand_meta_predicate = function(atom, definition_module, context_module) {
+		return this.thread.expand_meta_predicate(atom, definition_module, context_module);
 	};
-	Thread.prototype.expand_meta_predicate = function(atom, get_module) {
+	Thread.prototype.expand_meta_predicate = function(atom, definition_module, context_module) {
+		var get_module = this.session.modules[definition_module];
 		if(!get_module)
 			return;
 		var meta = get_module.is_meta_predicate(atom.indicator);
@@ -2554,13 +2622,13 @@
 		for(var i = 0; i < meta.args.length; i++) {
 			if(pl.type.is_integer(meta.args[i]) || pl.type.is_atom(meta.args[i]) && indexOf([":"], meta.args[i].id) !== -1) {
 				if(!pl.type.is_term(atom.args[i]) || atom.args[i].indicator !== ":/2") {
-					atom.args[i] = new Term(":", [new Term(atom.context_module), atom.args[i]]);
+					atom.args[i] = new Term(":", [new Term(context_module), atom.args[i]]);
 				}
 			} else if(pl.type.is_atom(meta.args[i]) && meta.args[i].id === "^") {
 				if(!pl.type.is_term(atom.args[i]) || atom.args[i].indicator !== ":/2" && atom.args[i].indicator !== "^/2") {
-					atom.args[i] = new Term(":", [new Term(atom.context_module), atom.args[i]]);
+					atom.args[i] = new Term(":", [new Term(context_module), atom.args[i]]);
 				} else if(atom.args[i].indicator === "^/2" && (!pl.type.is_term(atom.args[i].args[1]) || atom.args[i].args[1].indicator !== ":/2")) {
-					atom.args[i].args[1] = new Term(":", [new Term(atom.context_module), atom.args[i].args[1]]);
+					atom.args[i].args[1] = new Term(":", [new Term(context_module), atom.args[i].args[1]]);
 				}
 			}
 		}
@@ -2603,19 +2671,17 @@
 						return;
 					}
 					context_module = context_module.id;
-					atom.context_module = context_module;
+				} else {
+					if(this.level.definition_module) {
+						context_module = this.level.definition_module;
+					} else {
+						context_module = "user";
+					}
 				}
 				this.__call_indicator = atom.indicator;
-				var get_module = this.lookup_module(atom);
-				if(atom.context_module === undefined || atom.context_module === null) {
-					if(this.level.context_module)
-						atom.context_module = this.level.context_module;
-					else
-						atom.context_module = pl.type.is_module(get_module) ? get_module.id : "user";
-				}
-				if(atom.context_module === "system")
-					atom.context_module = "user";
-				this.expand_meta_predicate(atom, get_module);
+				var get_module = this.lookup_module(atom, context_module);
+				atom.definition_module = pl.type.is_module(get_module) ? get_module.id : "user";
+				this.expand_meta_predicate(atom, atom.definition_module, context_module);
 				var get_rules = get_module === null ? null : get_module.rules[atom.indicator];
 				if(get_rules === null) {
 					if(!this.session.modules.user.rules.hasOwnProperty(atom.indicator)) {
@@ -3827,7 +3893,7 @@
 			},
 
 			// module/2
-			"module/2": function(thread, atom) {
+			"module/2": function(thread, atom, options) {
 				var module_id = atom.args[0], exports = atom.args[1];
 				if(pl.type.is_variable(module_id) || pl.type.is_variable(exports)) {
 					thread.throw_warning(pl.error.instantiation(atom.indicator));
@@ -3858,6 +3924,7 @@
 						});
 						thread.session.modules[module_id.id] = new_module;
 						thread.__last_module_parsed = new_module;
+						thread.session.modules[options.context_module].modules[module_id.id] = new_module;
 					} else {
 						thread.throw_warning(pl.error.permission("create", "module", module_id, atom.indicator));
 					}
@@ -7561,15 +7628,32 @@
 		// LOAD PROLOG SOURCE FILES
 
 		// consult/1
-		"consult/1": function( thread, point, atom ) {
+		"consult/1": function(thread, point, atom) {
 			var src = atom.args[0];
+			var context_module = "user";
+			if(src.indicator === ":/2") {
+				context_module = src.args[0].id;
+				src = src.args[1];
+			}
 			if(pl.type.is_variable(src)) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if(!pl.type.is_atom(src)) {
 				thread.throw_error( pl.error.type( "atom", src, atom.indicator ) );
 			} else {
-				if(thread.consult( src.id ))
-					thread.success(point);
+				if(thread.consult(src.id, {
+					context_module: context_module,
+					text: false,
+					html: false,
+					async: true,
+					success: function() {
+						thread.success(point);
+						thread.again();
+					},
+					error: function() {
+						thread.again();
+					}
+				}))
+				return true;
 			}
 		},
 
@@ -7689,6 +7773,8 @@
 			"call/6": new Term("call", [new Num(5, false), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?")]),
 			// call(6, ?, ?, ?, ?, ?, ?)
 			"call/7": new Term("call", [new Num(6, false), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?")]),
+			// call(7, ?, ?, ?, ?, ?, ?, ?)
+			"call/8": new Term("call", [new Num(6, false), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?")]),
 			// catch(0, ?, 0)
 			"catch/3": new Term("catch", [new Num(0, false), new Term("?"), new Num(0, false)]),
 			// consult(:)
@@ -7706,7 +7792,7 @@
 			// once(0)
 			"once/1": new Term("once", [new Num(0, false)]),
 			// phrase(//, ?, ?)
-			"phrase/3": new Term("phrase", [new Term("?"), new Num(0, false), new Term("-")]),
+			"phrase/3": new Term("phrase", [new Term("//"),new Term("?"), new Term("?")]),
 			// retract(:)
 			"retract/1": new Term("retract", [new Term(":")]),
 			// retractall(:)
