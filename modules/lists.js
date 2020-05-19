@@ -73,13 +73,15 @@ var pl;
 			// include/3
 			"include/3": [
 				new pl.type.Rule(new pl.type.Term("include", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", [])]), null),
-				new pl.type.Rule(new pl.type.Term("include", [new pl.type.Var("P"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("T")]),new pl.type.Var("L")]), new pl.type.Term(",", [new pl.type.Term("=..", [new pl.type.Var("P"),new pl.type.Var("A")]),new pl.type.Term(",", [new pl.type.Term("append", [new pl.type.Var("A"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Term("[]", [])]),new pl.type.Var("B")]),new pl.type.Term(",", [new pl.type.Term("=..", [new pl.type.Var("F"),new pl.type.Var("B")]),new pl.type.Term(",", [new pl.type.Term(";", [new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("F")]),new pl.type.Term(",", [new pl.type.Term("=", [new pl.type.Var("L"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("S")])]),new pl.type.Term("!", [])])]),new pl.type.Term("=", [new pl.type.Var("L"),new pl.type.Var("S")])]),new pl.type.Term("include", [new pl.type.Var("P"),new pl.type.Var("T"),new pl.type.Var("S")])])])])]))
+				new pl.type.Rule(new pl.type.Term("include", [new pl.type.Var("P"),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("Xs")]),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("S")])]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("P"),new pl.type.Var("X")]),new pl.type.Term(",", [new pl.type.Term("!", []),new pl.type.Term("include", [new pl.type.Var("P"),new pl.type.Var("Xs"),new pl.type.Var("S")])])])),
+				new pl.type.Rule(new pl.type.Term("include", [new pl.type.Var("P"),new pl.type.Term(".", [new pl.type.Var("_"),new pl.type.Var("Xs")]),new pl.type.Var("S")]), new pl.type.Term("include", [new pl.type.Var("P"),new pl.type.Var("Xs"),new pl.type.Var("S")]))
 			],
 			
 			// exclude/3
 			"exclude/3": [
 				new pl.type.Rule(new pl.type.Term("exclude", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", [])]), null),
-				new pl.type.Rule(new pl.type.Term("exclude", [new pl.type.Var("P"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("T")]),new pl.type.Var("S")]), new pl.type.Term(",", [new pl.type.Term("exclude", [new pl.type.Var("P"),new pl.type.Var("T"),new pl.type.Var("E")]),new pl.type.Term(",", [new pl.type.Term("=..", [new pl.type.Var("P"),new pl.type.Var("L")]),new pl.type.Term(",", [new pl.type.Term("append", [new pl.type.Var("L"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Term("[]", [])]),new pl.type.Var("Q")]),new pl.type.Term(",", [new pl.type.Term("=..", [new pl.type.Var("R"),new pl.type.Var("Q")]),new pl.type.Term(";", [new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("R")]),new pl.type.Term(",", [new pl.type.Term("!", []),new pl.type.Term("=", [new pl.type.Var("S"),new pl.type.Var("E")])])]),new pl.type.Term("=", [new pl.type.Var("S"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("E")])])])])])])]))
+				new pl.type.Rule(new pl.type.Term("exclude", [new pl.type.Var("P"),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("Xs")]),new pl.type.Var("S")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("P"),new pl.type.Var("X")]),new pl.type.Term(",", [new pl.type.Term("!", []),new pl.type.Term("exclude", [new pl.type.Var("P"),new pl.type.Var("Xs"),new pl.type.Var("S")])])])),
+				new pl.type.Rule(new pl.type.Term("exclude", [new pl.type.Var("P"),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("Xs")]),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("S")])]), new pl.type.Term("exclude", [new pl.type.Var("P"),new pl.type.Var("Xs"),new pl.type.Var("S")]))
 			],
 			
 			// foldl/4
@@ -435,15 +437,47 @@ var pl;
 	};
 	
 	var exports = ["append/2", "append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "foldl/5", "foldl/6", "foldl/7", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "prefix/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "sort/2", "msort/2", "keysort/2", "take/3", "drop/3", "reverse/2", "list_to_set/2"];
+	
+	var options = function() {
+		return {
+			meta_predicates: {
+				// exclude(1, +, -)
+				"exclude/3": new pl.type.Term("exclude", [new pl.type.Num(1, false), new pl.type.Term("+"), new pl.type.Term("-")]), 
+				// foldl(3, +, +, -)
+				"foldl/4": new pl.type.Term("foldl", [new pl.type.Num(3, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
+				// foldl(4, +, +, +, -)
+				"foldl/5": new pl.type.Term("foldl", [new pl.type.Num(4, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
+				// foldl(5, +, +, +, +, -)
+				"foldl/6": new pl.type.Term("foldl", [new pl.type.Num(5, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
+				// foldl(6, +, +, +, +, +, -)
+				"foldl/7": new pl.type.Term("foldl", [new pl.type.Num(6, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
+				// exclude(1, +, -)
+				"include/3": new pl.type.Term("include", [new pl.type.Num(1, false), new pl.type.Term("+"), new pl.type.Term("-")]), 
+				// maplist(1, ?)
+				"maplist/2": new pl.type.Term("maplist", [new pl.type.Num(1, false), new pl.type.Term("?")]),
+				// maplist(2, ?, ?)
+				"maplist/3": new pl.type.Term("maplist", [new pl.type.Num(2, false), new pl.type.Term("?"), new pl.type.Term("?")]),
+				// maplist(3, ?, ?, ?)
+				"maplist/4": new pl.type.Term("maplist", [new pl.type.Num(3, false), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?")]),
+				// maplist(4, ?, ?, ?, ?)
+				"maplist/5": new pl.type.Term("maplist", [new pl.type.Num(4, false), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?")]),
+				// maplist(5, ?, ?, ?, ?, ?)
+				"maplist/6": new pl.type.Term("maplist", [new pl.type.Num(5, false), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?")]),
+				// maplist(6, ?, ?, ?, ?, ?, ?)
+				"maplist/7": new pl.type.Term("maplist", [new pl.type.Num(6, false), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?")]),
+				// maplist(7, ?, ?, ?, ?, ?, ?, ?)
+				"maplist/8": new pl.type.Term("maplist", [new pl.type.Num(7, false), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?"), new pl.type.Term("?")])
+			}
+		};
+	};
 
-
-	if( typeof module !== 'undefined' ) {
-		module.exports = function( p ) {
+	if(typeof module !== 'undefined') {
+		module.exports = function(p) {
 			pl = p;
-			new pl.type.Module( "lists", predicates(), exports );
+			new pl.type.Module("lists", predicates(), exports, options());
 		};
 	} else {
-		new pl.type.Module( "lists", predicates(), exports );
+		new pl.type.Module("lists", predicates(), exports, options());
 	}
 
 })( pl );
