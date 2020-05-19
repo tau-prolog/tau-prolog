@@ -1577,7 +1577,7 @@
 			pl.modules[id] = this;
 		}
 		if(exports !== "all") {
-			for(var i = 0; i < exports; i++) {
+			for(var i = 0; i < exports.length; i++) {
 				this.public_predicates[exports[i]] =
 					options.public_predicates.hasOwnProperty(exports[i]) &&
 					options.public_predicates[exports[i]] === true;
@@ -2380,7 +2380,6 @@
 		// string
 		if(typeof program === "string") {
 			string = program;
-			var len = string.length;
 			// script id
 			if(options.script && this.get_flag("nodejs").indicator === "false/0" && program != "" && document.getElementById(string)) {
 				var script = document.getElementById(string);
@@ -2389,8 +2388,9 @@
 					string = script.text;
 					success = true;
 				}
+			}
 			// file (node.js)
-			} else if(options.file && this.get_flag("nodejs").indicator === "true/0") {
+			if(!success && options.file && this.get_flag("nodejs").indicator === "true/0") {
 				var fs = require("fs");
 				if(options.async) {
 					var thread = this;
@@ -2413,8 +2413,9 @@
 						string = program;
 					}
 				}
+			}
 			// http request
-			} else if(options.url && program !== "" && !(/\s/.test(program))) {
+			if(!success && options.url && program !== "" && !(/\s/.test(program))) {
 				try {
 					var xhttp = new XMLHttpRequest();
 					var thread = this;
@@ -2444,7 +2445,9 @@
 						return false;
 					}
 				}
-			} else if(options.text) {
+			}
+			// text
+			if(!success && options.text) {
 				success = true;
 			}
 		// html
@@ -3894,6 +3897,8 @@
 
 			// module/2
 			"module/2": function(thread, atom, options) {
+				var options = options === undefined ? {} : options;
+				options.context_module = options.context_module === undefined ? "user" : options.context_module;
 				var module_id = atom.args[0], exports = atom.args[1];
 				if(pl.type.is_variable(module_id) || pl.type.is_variable(exports)) {
 					thread.throw_warning(pl.error.instantiation(atom.indicator));
@@ -3932,31 +3937,41 @@
 			},
 			
 			// use_module/1
-			"use_module/1": function(thread, atom) {
+			"use_module/1": function(thread, atom, options) {
+				var options = options === undefined ? {} : options;
+				options.context_module = options.context_module === undefined ? "user" : options.context_module;
 				var module_id = atom.args[0];
-				var module_o = module_id;
 				if(pl.type.is_variable(module_id)) {
 					thread.throw_warning(pl.error.instantiation(atom.indicator));
 				} else if(!pl.type.is_term(module_id)) {
 					thread.throw_warning(pl.error.type("term", module_id, atom.indicator));
 				} else {
-					var library = module_id.indicator === "library/1";
-					if(library)
-						module_id = module_id.args[0];
-					var name = module_id.id;
-					var mod = library ? pl.modules[name] : thread.session.modules[name];
-					if(pl.type.is_module(mod)) {
-						if(!thread.session.modules.hasOwnProperty(name)) {
-							thread.session.modules[name] = mod;
-							for(var i = 0; i < mod.dependencies.length; i++) {
-								var term = new Term("use_module",
-									[new Term("library", [
-										new Term(mod.dependencies[i])])]);
-								pl.directive["use_module/1"](thread, term);
+					if(module_id.indicator === "library/1") {
+						var name = module_id.args[0].id;
+						var get_module = pl.modules[name];
+						if(pl.type.is_module(get_module)) {
+							if(!thread.session.modules[options.context_module].modules.hasOwnProperty(name)) {
+								thread.session.modules[name] = get_module;
+								thread.session.modules[options.context_module].modules[name] = get_module;
+								for(var i = 0; i < get_module.dependencies.length; i++) {
+									var term = new Term("use_module", [get_module.dependencies[i]]);
+									pl.directive["use_module/1"](thread, term, {
+										context_module: name
+									});
+								}
 							}
+						} else {
+							thread.throw_warning(pl.error.existence("module", module_id, atom.indicator));
 						}
 					} else {
-						thread.throw_warning(pl.error.existence("module", module_o, atom.indicator));
+						var name = module_id.id;
+						var load = thread.consult(name, {
+							text: false,
+							html: false,
+							async: false
+						});
+						if(!load)
+							thread.throw_warning(pl.error.existence("module", module_id, atom.indicator));
 					}
 				}
 			},
