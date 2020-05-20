@@ -7571,12 +7571,12 @@
 
 		// write_to_chars/2
 		"write_to_chars/2": function(thread, point, atom) {
-			var chars = atom.args[0], term = atom.args[1];
+			var term = atom.args[0], chars = atom.args[1];
 			thread.prepend([new State( 
-				point.goal.replace( new Term("write_term_to_chars", [chars, term,
+				point.goal.replace( new Term("write_term_to_chars", [term,
 					new Term(".", [new Term("quoted", [new Term("false", [])]),
 						new Term(".", [new Term("ignore_ops", [new Term("false")]),
-							new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
+							new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])]), chars]) ),
 				point.substitution,
 				point
 			)]);
@@ -7584,12 +7584,12 @@
 
 		// writeq_to_chars/2
 		"writeq_to_chars/2": function(thread, point, atom) {
-			var chars = atom.args[0], term = atom.args[1];
+			var term = atom.args[0], chars = atom.args[1];
 			thread.prepend([new State( 
-				point.goal.replace(new Term("write_term_to_chars", [chars, term,
+				point.goal.replace(new Term("write_term_to_chars", [term,
 					new Term(".", [new Term("quoted", [new Term("true", [])]),
 						new Term(".", [new Term("ignore_ops", [new Term("false")]),
-							new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])])]) ),
+							new Term(".", [new Term("numbervars", [new Term("true")]), new Term("[]",[])])])]), chars]) ),
 				point.substitution,
 				point
 			)]);
@@ -7597,12 +7597,12 @@
 
 		// write_canonical_to_chars/2
 		"write_canonical_to_chars/2": function(thread, point, atom) {
-			var chars = atom.args[0], term = atom.args[1];
+			var term = atom.args[0], chars = atom.args[1];
 			thread.prepend( [new State( 
-				point.goal.replace( new Term("write_term_to_chars", [chars, term,
+				point.goal.replace( new Term("write_term_to_chars", [term,
 					new Term(".", [new Term("quoted", [new Term("true", [])]),
 						new Term(".", [new Term("ignore_ops", [new Term("true")]),
-							new Term(".", [new Term("numbervars", [new Term("false")]), new Term("[]",[])])])])]) ),
+							new Term(".", [new Term("numbervars", [new Term("false")]), new Term("[]",[])])])]), chars]) ),
 				point.substitution,
 				point
 			)]);
@@ -7610,7 +7610,7 @@
 
 		// write_term_to_chars/3
 		"write_term_to_chars/3": function(thread, point, atom) {
-			var chars = atom.args[0], term = atom.args[1], options = atom.args[2];
+			var term = atom.args[0], options = atom.args[1], chars = atom.args[2];
 			if(!pl.type.is_variable(chars) && !pl.type.is_list(chars)) {
 				thread.throw_error(pl.error.type("list", chars, atom.indicator));
 			} else if(pl.type.is_variable(options)) {
