@@ -3047,6 +3047,72 @@
 		}
 		return "{" + obj.join() + "};";
 	};
+
+	// Module
+	Module.prototype.compile = function() {
+		var length = 0;
+		var dependencies = 0;
+		var str = "var pl;\n";
+		str += "(function(pl) {\n";
+		// name
+		str += "\tvar name = \"" + this.id + "\";\n";
+		// predicates
+		str += "\tvar predicates = function() {\n";
+		str += "\t\treturn {\n";
+		for(var prop in this.rules) {
+			if(length > 0)
+				str += ",\n";
+			str += "\t\t\t\"" + prop + "\": ";
+			if(typeof this.rules[prop] === "function") {
+				str += this.rules[prop];
+			} else {
+				str += "[\n";
+				for(var i = 0; i < this.rules[prop].length; i++) {
+					str += "\t\t\t\t" + this.rules[prop][i].compile();
+					if(i < this.rules[prop].length-1)
+						str += ",";
+					str += "\n";
+				}
+				str += "\t\t\t]";
+			}
+			length++;
+		}
+		str += "\n\t\t};\n";
+		str += "\t};\n";
+		// exports
+		str += "\tvar exports = [";
+		for(var i = 0; i < this.exports.length; i++) {
+			if(i > 0)
+				str += ", ";
+			str += "\"" + this.exports[i] + "\"";
+		}
+		str += "];\n";
+		// options
+		str += "\tvar options = function() {\n";
+		str += "\t\treturn {\n";
+		// dependencies
+		str += "\t\t\tdependencies: [";
+		for(var prop in this.modules) {
+			if(dependencies > 0)
+				str += ", ";
+			str += "\"" + prop + "\"";
+			dependencies++;
+		}
+		str += "]\n";
+		str += "\t\t};\n";
+		str += "};\n";
+		// fixed code
+		str += "\tif(typeof module !== 'undefined') {\n";
+		str += "\t\tmodule.exports = function(p) {\n";
+		str += "\t\t\tpl = p;\n";
+		str += "\t\t\tnew pl.type.Module(name, predicates(), exports, options());\n";
+		str += "\t\t};\n";
+		str += "\t} else {\n";
+		str += "\t\tnew pl.type.Module(name, predicates(), exports, options());\n";
+		str += "\t}\n";
+		str += "})(pl);\n";
+		return str;
+	};
 	
 	
 	
