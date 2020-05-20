@@ -165,10 +165,13 @@ var pl;
 			],
 			"format/2": [
 				new pl.type.Rule(new pl.type.Term("format", [new pl.type.Var("Fs"),new pl.type.Var("Args")]), new pl.type.Term(",", [new pl.type.Term("phrase", [new pl.type.Term("format_", [new pl.type.Var("Fs"),new pl.type.Var("Args")]),new pl.type.Var("Cs")]),new pl.type.Term("maplist", [new pl.type.Term("write", []),new pl.type.Var("Cs")])]))
-			]
+            ],
+            "format/3": [
+                new pl.type.Rule(new pl.type.Term("format", [new pl.type.Var("Stream"),new pl.type.Var("Fs"),new pl.type.Var("Args")]), new pl.type.Term(",", [new pl.type.Term("phrase", [new pl.type.Term("format_", [new pl.type.Var("Fs"),new pl.type.Var("Args")]),new pl.type.Var("Cs")]),new pl.type.Term("maplist", [new pl.type.Term("write", [new pl.type.Var("Stream")]),new pl.type.Var("Cs")])]))
+            ]
 		};
 	};
-	var exports = ["format_/4", "format/2"];
+	var exports = ["format_/4", "format/2", "format/3"];
 	var options = function() {
 		return {
 			dependencies: ["lists"]
