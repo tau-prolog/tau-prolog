@@ -1220,6 +1220,14 @@
 				variable: free,
 				error: false
 			};
+		} else if( pl.type.is_term( expr ) && expr.indicator === ":/2" ) {
+			var right = body_to_dcg(expr.args[1], last, thread);
+			if( right.error ) return right;
+			return {
+				value: new Term(":", [expr.args[0], right.value]),
+				variable: right.variable,
+				error: false
+			};
 		} else if( pl.type.is_term( expr ) && expr.indicator === "\\+/1" ) {
 			var left = body_to_dcg(expr.args[0], last, thread);
 			if( left.error ) return left;
@@ -1816,9 +1824,12 @@
 	
 	// Terms
 	Term.prototype.clone = function() {
-		return new Term( this.id, map( this.args, function( arg ) {
+		var term = new Term( this.id, map( this.args, function( arg ) {
 			return arg.clone();
 		} ) );
+		if(this.definition_module)
+			term.definition_module = this.definition_module;
+		return term;
 	};
 
 	// Streams
@@ -2117,7 +2128,7 @@
 	// Select term
 	Term.prototype.select = function() {
 		var pointer = this;
-		while( pointer.indicator === ",/2" )
+		while(pointer.indicator === ",/2")
 			pointer = pointer.args[0];
 		return pointer;
 	};
@@ -2678,6 +2689,16 @@
 					} else {
 						context_module = "user";
 					}
+				}
+				if(atom.indicator === ",/2") {
+					this.prepend([new State(
+						point.goal.replace(new Term(",", [
+							new Term(":", [new Term(context_module), atom.args[0]]),
+							new Term(":", [new Term(context_module), atom.args[1]])])),
+						point.substitution,
+						point
+					)]);
+					return;
 				}
 				this.__call_indicator = atom.indicator;
 				var get_module = this.lookup_module(atom, context_module);
@@ -3953,7 +3974,7 @@
 								thread.session.modules[name] = get_module;
 								thread.session.modules[options.context_module].modules[name] = get_module;
 								for(var i = 0; i < get_module.dependencies.length; i++) {
-									var term = new Term("use_module", [get_module.dependencies[i]]);
+									var term = new Term("use_module", [new Term("library", [new Term(get_module.dependencies[i])])]);
 									pl.directive["use_module/1"](thread, term, {
 										context_module: name
 									});
@@ -4566,20 +4587,24 @@
 		// LOGIC AND CONTROL STRUCTURES
 	
 		// ;/2 (disjunction)
-		";/2": function( thread, point, atom ) {
+		";/2": function(thread, point, atom) {
 			var left = atom.args[0], right = atom.args[1];
-			if( pl.type.is_term( left ) && left.indicator === "->/2" ) {
-				var cond = left.args[0], then = left.args[1], otherwise = right;
-				var goal_fst = point.goal.replace( new Term( ",", [cond, new Term( ",", [new Term( "!" ), then] )] ) );
-				var goal_snd = point.goal.replace( new Term( ",", [new Term( "!" ), otherwise] ) );
+			var context_left = left.args[0];
+			var free_left = left.indicator === ":/2" ? left.args[1] : left;
+			if(pl.type.is_term( free_left ) && free_left.indicator === "->/2") {
+				var cond = left.indicator === ":/2" ? new Term(":", [context_left, free_left.args[0]]) : free_left.args[0];
+				var then = left.indicator === ":/2" ? new Term(":", [context_left, free_left.args[1]]) : free_left.args[1];
+				var otherwise = right;
+				var goal_fst = point.goal.replace(new Term( ",", [cond, new Term(",", [new Term("!"), then])] ) );
+				var goal_snd = point.goal.replace(new Term( ",", [new Term("!"), otherwise]));
 				thread.prepend( [
-					new State( goal_fst, point.substitution, point ),
-					new State( goal_snd, point.substitution, point )
+					new State(goal_fst, point.substitution, point),
+					new State(goal_snd, point.substitution, point)
 				] );
 			} else {
 				thread.prepend([
-					new State( point.goal.replace( left ), point.substitution, point ),
-					new State( point.goal.replace( right ), point.substitution, point )
+					new State(point.goal.replace(left), point.substitution, point),
+					new State(point.goal.replace(right), point.substitution, point)
 				]);
 			}
 		},
@@ -4594,6 +4619,8 @@
 				parent_cut = parent_cut.parent;
 				if(parent_cut.goal !== null) {
 					var selected = parent_cut.goal.select();
+					if(selected && selected.indicator === ":/2")
+						selected = selected.args[1];
 					if( selected && selected.id === "call" && selected.search(atom) ) {
 						parent_cut = last_cut;
 						break;
@@ -7698,12 +7725,18 @@
 		// phrase/3
 		"phrase/3": function( thread, point, atom ) {
 			var grbody = atom.args[0], s0 = atom.args[1], s = atom.args[2];
+			var context_module = "user";
+			if(grbody.indicator === ":/2") {
+				context_module = grbody.args[0].id;
+				grbody = grbody.args[1];
+			}
 			if( pl.type.is_variable( grbody ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_callable( grbody ) ) {
 				thread.throw_error( pl.error.type( "callable", grbody, atom.indicator ) );
 			} else {
 				var goal = body_to_dcg( grbody.clone(), s0, thread );
+				goal.value = new Term(":", [new Term(context_module), new Term("call", [goal.value])]);
 				if(goal !== null) {
 					thread.prepend( [new State(
 						point.goal.replace( new Term( ",", [goal.value, new Term("=", [goal.variable, s])] ) ), 
@@ -7806,8 +7839,10 @@
 			"forall/2": new Term("forall", [new Num(0, false), new Num(0, false)]),
 			// once(0)
 			"once/1": new Term("once", [new Num(0, false)]),
-			// phrase(//, ?, ?)
-			"phrase/3": new Term("phrase", [new Term("//"),new Term("?"), new Term("?")]),
+			// phrase(:, ?)
+			"phrase/2": new Term("phrase", [new Term(":"),new Term("?")]),
+			// phrase(:, ?, ?)
+			"phrase/3": new Term("phrase", [new Term(":"),new Term("?"), new Term("?")]),
 			// retract(:)
 			"retract/1": new Term("retract", [new Term(":")]),
 			// retractall(:)
