@@ -992,7 +992,7 @@
 		options = options ? options : {};
 		options.from = options.from ? options.from : "$tau-js";
 		options.reconsult = options.reconsult !== undefined ? options.reconsult : true;
-		options.context_module = options.context_module !== undefined ? options.context_module : "user";
+		options.context_module = options.context_module === undefined ? "user" : options.context_module;
 		var tokenizer = new Tokenizer( thread );
 		var reconsulted = {};
 		var indicator;
@@ -1100,14 +1100,14 @@
 					}
 				} );
 			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
-				thread.run_directive(expr.value.head.args[0], {context_module: options.context_module});
+				thread.run_directive(expr.value.head.args[0], options);
 			} else {
 				indicator = expr.value.head.indicator;
 				if( options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
-					thread.__last_module_parsed.rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
+					thread.session.modules[options.context_module].rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
 					reconsulted[indicator] = true;
 				}
-				var goal_expansion = thread.__last_module_parsed.rules["goal_expansion/2"];
+				var goal_expansion = thread.session.modules[options.context_module].rules["goal_expansion/2"];
 				if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
 					thread.renamed_variables = {};
 					var origin = {
@@ -1140,7 +1140,7 @@
 				if(tokens[expr_position] && tokens[expr_position].name === "atom" && tokens[expr_position].raw === ".") {
 					expr.value = body_conversion(expr.value);
 					// Goal expansion
-					var goal_expansion = thread.__last_module_parsed.rules["goal_expansion/2"];
+					var goal_expansion = thread.session.modules.user.rules["goal_expansion/2"];
 					if(!thread.__goal_expansion && goal_expansion && goal_expansion.length > 0) {
 						parseQueryExpansion(thread, expr.value);
 					} else {
@@ -1461,8 +1461,8 @@
 		this.rename = 0;
 		this.modules = {};
 		this.modules.user = new Module("user", {}, "all", {
-			dependencies: ["system"],
-			session: this
+			session: this,
+			dependencies: ["system"]
 		});
 		this.rules = this.modules.user.rules;
 		this.total_threads = 1;
@@ -1543,7 +1543,6 @@
 		this.level = new Term("top_level");
 		this.current_limit = this.session.limit;
 		this.warnings = [];
-		this.__last_module_parsed = this.session.modules.user;
 		this.__calls = [];
 		this.__goal_expansion = false;
 	}
@@ -2255,7 +2254,7 @@
 				this.session.modules[module_id] = get_module;
 			}
 		} else {
-			get_module = this.__last_module_parsed;
+			get_module = this.session.modules[options.context_module];
 		}
 		get_module.src_predicates[rule.head.indicator] = options.from;
 		if(!get_module.rules[rule.head.indicator]) {
@@ -2269,14 +2268,14 @@
 
 	// Run a directive
 	Session.prototype.run_directive = function(directive, options) {
-		this.thread.run_directive( directive );
+		this.thread.run_directive(directive, options);
 	};
 	Thread.prototype.run_directive = function(directive, options) {
-		if( pl.type.is_directive( directive ) ) {
+		if(pl.type.is_directive(directive)) {
 			if(pl.directive[directive.indicator])
-				pl.directive[directive.indicator]( this, directive, options );
+				pl.directive[directive.indicator](this, directive, options);
 			else
-				pl.directive[directive.id + "/*"]( this, directive, options );
+				pl.directive[directive.id + "/*"](this, directive, options);
 			return true;
 		}
 		return false;
@@ -2367,7 +2366,7 @@
 	Thread.prototype.consult = function(program, options) {
 		var string = "", success = false;
 		options = options === undefined ? {} : options;
-		options.context_module = options.tecontext_modulext === undefined ? "user" : options.context_module;
+		options.context_module = options.context_module === undefined ? "user" : options.context_module;
 		options.text = options.text === undefined ? true : options.text;
 		options.html = options.html === undefined ? true : options.html;
 		options.url = options.url === undefined ? true : options.url;
@@ -2376,7 +2375,6 @@
 		options.async = options.async === undefined ? false : options.async;
 		options.success = options.success === undefined ? function(){} : options.success;
 		options.error = options.error === undefined ? function(){} : options.error;
-		this.__last_module_parsed = this.session.modules.user;
 		// string
 		if(typeof program === "string") {
 			string = program;
@@ -3801,7 +3799,7 @@
 		directive: {
 			
 			// dynamic/1
-			"dynamic/1": function( thread, atom ) {
+			"dynamic/1": function( thread, atom, options ) {
 				var indicators = atom.args[0];
 				if(!pl.type.is_list(indicators))
 					indicators = arrayToList([indicators]);
@@ -3820,9 +3818,10 @@
 						thread.throw_warning( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 					} else {
 						var key = indicator.args[0].id + "/" + indicator.args[1].value;
-						thread.__last_module_parsed.public_predicates[key] = true;
-						if( !thread.__last_module_parsed.rules[key] )
-							thread.__last_module_parsed.rules[key] = [];
+						var get_module = thread.session.modules[options.context_module];
+						get_module.public_predicates[key] = true;
+						if( !get_module.rules[key] )
+						get_module.rules[key] = [];
 					}
 					pointer = pointer.args[1];
 				}
@@ -3841,7 +3840,7 @@
 			},
 			
 			// multifile/1
-			"multifile/1": function( thread, atom ) {
+			"multifile/1": function( thread, atom, options ) {
 				var indicator = atom.args[0];
 				if( pl.type.is_variable( indicator ) ) {
 					thread.throw_warning( pl.error.instantiation( atom.indicator ) );
@@ -3854,7 +3853,7 @@
 				} else if( !pl.type.is_integer( indicator.args[1] ) ) {
 					thread.throw_warning( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
-					thread.__last_module_parsed.multifile_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
+					thread.session.modules[options.context_module].multifile_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
 				}
 			},
 
@@ -3873,7 +3872,7 @@
 							return;
 						}
 					}
-					thread.__last_module_parsed.meta_predicates[head.indicator] = head;
+					thread.session.modules[options.context_module].meta_predicates[head.indicator] = head;
 				}
 			},
 			
@@ -3928,8 +3927,8 @@
 							session: thread.session
 						});
 						thread.session.modules[module_id.id] = new_module;
-						thread.__last_module_parsed = new_module;
 						thread.session.modules[options.context_module].modules[module_id.id] = new_module;
+						options.context_module = module_id.id;
 					} else {
 						thread.throw_warning(pl.error.permission("create", "module", module_id, atom.indicator));
 					}
@@ -3966,6 +3965,7 @@
 					} else {
 						var name = module_id.id;
 						var load = thread.consult(name, {
+							context_module: options.context_module,
 							text: false,
 							html: false,
 							async: false
