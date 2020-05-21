@@ -5648,22 +5648,22 @@
 				thread.throw_error(pl.error.type("callable", clause, atom.indicator));
 			} else {
 				var head, body, module_atom, module_id;
-				if(clause.indicator === ":-/2") {
-					head = clause.args[0];
-					body = clause.args[1];
-				} else {
-					head = clause;
-					body = new Term("true");
-				}
-				if(head.indicator === ":/2") {
-					module_atom = head.args[0];
-					head = head.args[1];
+				if(clause.indicator === ":/2") {
+					module_atom = clause.args[0];
+					clause = clause.args[1];
 					if(!pl.type.is_atom(module_atom)) {
 						thread.throw_error(pl.error.type("module", module_atom, atom.indicator));
 						return;
 					}
 				} else {
 					module_atom = new Term("user");
+				}
+				if(clause.indicator === ":-/2") {
+					head = clause.args[0];
+					body = clause.args[1];
+				} else {
+					head = clause;
+					body = new Term("true");
 				}
 				module_id = module_atom.id;
 				var get_module = thread.session.modules[module_id];
@@ -5684,11 +5684,14 @@
 								if(mgu !== null) {
 									var state = new State(
 										point.goal.replace(new Term(",", [
-											new Term("retract", [new Term(":-", [new Term(":", [module_atom, head]), body])]),
+											new Term(":", [
+												module_atom,
+												new Term("retract", [new Term(":-", [head, body])]),
+											]),
 											new Term(",", [
 												new Term("=", [head, rule.head]),
 												new Term("=", [body, rule.body])
-											] )
+											])
 										])), point.substitution, point);
 									state.retract = orule;
 									states.push(state);
