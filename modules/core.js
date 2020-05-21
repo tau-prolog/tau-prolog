@@ -1687,7 +1687,7 @@
 	// Terms
 	Term.prototype.toString = function( options, priority, from ) {
 		options = !options ? {} : options;
-		options.quoted = options.quoted === undefined ? true: options.quoted;
+		options.quoted = options.quoted === undefined ? false: options.quoted;
 		options.ignore_ops = options.ignore_ops === undefined ? false : options.ignore_ops;
 		options.numbervars = options.numbervars === undefined ? false : options.numbervars;
 		priority = priority === undefined ? {priority: 999, class: "", indicator: ""} : priority;
