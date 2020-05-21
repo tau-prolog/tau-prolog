@@ -1725,8 +1725,8 @@
 				if( options.session === undefined || options.ignore_ops || operator === null ) {
 					if( options.quoted && ! /^(!|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+)$/.test( id ) && id !== "{}" && id !== "[]" )
 						id = "'" + redoEscape(id) + "'";
-					return id + (this.args.length ? "(" + map( this.args,
-						function(x) { return x.toString( options); }
+					return id + (this.args.length > 0 ? "(" + map( this.args,
+						function(x) { return x.toString(options); }
 					).join(", ") + ")" : "");
 				} else {
 					var priority_op = parseInt(operator.priority);
@@ -4803,75 +4803,47 @@
 		},
 		
 		// catch/3
-		"catch/3": function( thread, point, atom ) {
-			var points = thread.points;
-			thread.points = [];
-			thread.prepend( [new State( atom.args[0], point.substitution, point )] );
-			var format_success = thread.session.format_success;
-			var format_error = thread.session.format_error;
-			thread.session.format_success = function(x) { return x.substitution; };
-			thread.session.format_error = function(x) { return x.goal; };
-			var callback = function( answer ) {
-				var call_points = thread.points;
-				thread.points = points;
-				thread.session.format_success = format_success;
-				thread.session.format_error = format_error;
-				if( pl.type.is_error( answer ) ) {
-					var states = [];
-					for( var i = thread.points.length-1 ; i >= 0; i-- ) {
-						var state = thread.points[i];
-						var node = state.parent;
-						while( node !== null && node !== point.parent ) {
-							node = node.parent;
-						}
-						if( node === null && node !== point.parent )
-							states.push( state );
-					}
-					thread.points = states;
-					var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
+		"catch/3": function(thread, point, atom) {
+			var goal = atom.args[0], catcher = atom.args[1], recover = atom.args[2];
+			var nthread;
+			if(!point.catch) {
+				nthread = new Thread(thread.session);
+				nthread.debugger = thread.debugger;
+				nthread.format_success = function(state) { return state.substitution; };
+				nthread.format_error = function(state) { return state.goal; };
+				nthread.add_goal(goal, true, point);
+				point.catch = nthread;
+			} else {
+				nthread = point.catch;
+			}
+			var callback = function(answer) {
+				if(pl.type.is_error(answer)) {
+					var occurs_check = thread.get_flag("occurs_check").indicator === "true/0";
 					var state = new State();
-					var mgu = pl.unify( answer.args[0], atom.args[1], occurs_check );
-					if( mgu !== null ) {
-						state.substitution = point.substitution.apply( mgu );
-						state.goal = point.goal.replace( atom.args[2] ).apply( mgu );
+					var mgu = pl.unify(answer.args[0], catcher, occurs_check);
+					if(mgu !== null) {
+						state.substitution = point.substitution.apply(mgu);
+						state.goal = point.goal.replace(recover).apply(mgu);
 						state.parent = point;
-						thread.prepend( [state] );
+						thread.prepend([state]);
 					} else {
-						thread.throw_error( answer.args[0] );
+						thread.throw_error(answer.args[0]);
 					}
-				} else if( answer !== false ) {
-					var answer_state = answer === null ? [] : [new State(
-						point.goal.apply( answer ).replace( null ),
-						point.substitution.apply( answer ),
+				} else if(answer !== false && answer !== null) {
+					var state = answer === null ? [] : new State(
+						point.goal.apply(answer).replace(null),
+						point.substitution.apply(answer),
 						point
-					)];
-					var filter_points = [];
-					for( var i = call_points.length-1; i >= 0; i-- ) {
-						filter_points.push( call_points[i] );
-						var selected = call_points[i].goal !== null ? call_points[i].goal.select() : null;
-						if( pl.type.is_term( selected ) && selected.indicator === "!/0" )
-							break;
-					}
-					var catch_points = map( filter_points, function( state ) {
-						if( state.goal === null )
-							state.goal = new Term( "true", [] );
-						state = new State(
-							point.goal.replace( new Term( "catch", [state.goal, atom.args[1], atom.args[2]] ) ),
-							point.substitution.apply( state.substitution ),
-							state.parent
-						);
-						state.exclude = atom.args[0].variables();
-						return state;
-					} ).reverse();
-					thread.prepend( catch_points );
-					thread.prepend( answer_state );
-					if( answer === null ) {
-						this.current_limit = 0;
-						thread.__calls.shift()( null );
-					}
+					);
+					thread.prepend([state, point]);
+				} else if(answer === null) {
+					thread.prepend([point]);
+					thread.current_limit = 0;
 				}
+				thread.again(answer !== null);
 			};
-			thread.__calls.unshift( callback );
+			nthread.answer(callback);
+			return true;
 		},
 		
 		// UNIFICATION
