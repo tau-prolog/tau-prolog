@@ -1472,6 +1472,7 @@
 			session: this,
 			dependencies: ["system"]
 		});
+		this.modules.system = pl.modules.system;
 		this.rules = this.modules.user.rules;
 		this.total_threads = 1;
 		this.renamed_variables = {};
@@ -2599,7 +2600,7 @@
 	Thread.prototype.lookup_module = function(atom, context_module) {
 		var get_module = this.session.modules[context_module];
 		if(!pl.type.is_module(get_module))
-			return null;
+			get_module = this.session.modules.user;
 		if(get_module.rules.hasOwnProperty(atom.indicator) && (
 			get_module.exports_predicate(atom.indicator) ||
 			get_module.rules.hasOwnProperty(this.level.indicator) ||
