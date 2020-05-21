@@ -3128,10 +3128,10 @@
 	};
 	
 	// Terms
-	Term.prototype.toJavaScript = function() {
+	Term.prototype.toJavaScript = function(options) {
 		// Atom => String
 		if( this.args.length === 0 && this.indicator !== "[]/0" ) {
-			return this.toString();
+			return this.toString(options);
 		} else if( pl.type.is_list( this ) ) {
 			// List => Array
 			var all_obj = true;
@@ -3140,18 +3140,18 @@
 			var pointer = this;
 			var value;
 			while( pointer.indicator === "./2" ) {
-				value = pointer.args[0].toJavaScript();
+				value = pointer.args[0].toJavaScript(options);
 				arr.push( value );
 				all_obj = all_obj && pl.type.is_term(pointer.args[0]) && pointer.args[0].indicator === "-/2" && pl.type.is_atom(pointer.args[0].args[0]);
 				if(all_obj)
-					obj[pointer.args[0].args[0].id] = pointer.args[0].args[1].toJavaScript();
+					obj[pointer.args[0].args[0].id] = pointer.args[0].args[1].toJavaScript(options);
 				pointer = pointer.args[1];
 			}
 			if( pointer.indicator === "[]/0" )
 				return all_obj && arr.length > 0 ? obj : arr;
 
 		}
-		return this.toString();
+		return this.toString(options);
 	};
 	
 	
