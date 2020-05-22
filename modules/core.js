@@ -1021,7 +1021,7 @@
 		}
 		// run goals from initialization/1 directive
 		for(var i = 0; i < options.initialization.length; i++) {
-			var nthread = new Thread(this.session);
+			var nthread = new Thread(thread.session);
 			nthread.add_goal(options.initialization[i]);
 			nthread.answer(function(answer) {
 				if(answer === null)
@@ -1479,7 +1479,7 @@
 		});
 		this.modules.system = pl.modules.system;
 		this.rules = this.modules.user.rules;
-		this.total_threads = 1;
+		this.total_threads = 0;
 		this.renamed_variables = {};
 		this.public_predicates = this.modules.user.public_predicates;
 		this.multifile_predicates = this.modules.user.multifile_predicates;
