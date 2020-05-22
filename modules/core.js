@@ -5738,11 +5738,19 @@
 			} else if(!pl.type.is_callable(head)) {
 				thread.throw_error(pl.error.type("callable", head, atom.indicator));
 			} else {
+				var context_module = "user;"
+				if(head.indicator === ":/2") {
+					context_module = head.args[0].id;
+					head = head.args[1];
+				}
 				thread.prepend([
 					new State(point.goal.replace(new Term(",", [
-						new Term("retract", [new pl.type.Term(":-", [head, new Var("_")])]),
+						new Term(":", [
+							new Term(context_module),
+							new Term("retract", [new pl.type.Term(":-", [head, new Var("_")])])
+						]),
 						new Term("fail", [])
-					])), point.substitution, point ),
+					])), point.substitution, point),
 					new State(point.goal.replace(null), point.substitution, point)
 				]);
 			}
