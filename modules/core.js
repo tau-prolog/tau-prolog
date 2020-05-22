@@ -995,7 +995,9 @@
 					var n_thread = new Thread( thread.session );
 					var term = expr.value.body ? new Term(":-", [expr.value.head, expr.value.body]) : expr.value.head;
 					term = term.rename( thread.session );
-					n_thread.query("term_expansion(" + term.toString() + ", X).");
+					n_thread.query("term_expansion(" + term.toString({
+						quoted: true
+					}) + ", X).");
 					n_thread.answer(function(answer) {
 						if(answer && !pl.type.is_error(answer) && pl.type.is_term(answer.links['X'])) {
 							var term = answer.links['X'];
@@ -1024,7 +1026,11 @@
 		n_thread.__goal_expansion = true;
 		var varterm = thread.next_free_variable();
 		var varhead = thread.next_free_variable();
-		var goal = varhead + " = " + head + ", goal_expansion(" + term + ", " + varterm + ").";
+		var goal = varhead + " = " + head + ", goal_expansion(" + term.toString({
+			quoted: true
+		}) + ", " + varterm.toString({
+			quoted: true
+		}) + ").";
 		n_thread.query(goal);
 		n_thread.answer(function(answer) {
 			if(answer && !pl.type.is_error(answer) && answer.links[varterm]) {
@@ -1038,7 +1044,11 @@
 		var n_thread = new Thread( thread.session );
 		n_thread.__goal_expansion = true;
 		var varterm = thread.next_free_variable();
-		var goal = "goal_expansion(" + term + ", " + varterm + ").";
+		var goal = "goal_expansion(" + term.toString({
+			quoted: true
+		}) + ", " + varterm.toString({
+			quoted: true
+		}) + ").";
 		n_thread.query(goal);
 		var variables = n_thread.head_point().substitution.domain();
 		n_thread.answer(function(answer) {
