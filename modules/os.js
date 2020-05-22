@@ -67,9 +67,10 @@ var pl;
 				} else if(!pl.type.is_variable(entries) && !pl.type.is_list(entries)) {
 					thread.throw_error(pl.error.type("list", entries, atom.indicator));
 				} else {
+					var absolute = thread.absolute_file_name(path.id);
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
-						fs.readdir(path.id, function(error, items) {
+						fs.readdir(absolute, function(error, items) {
 							if(error) {
 								thread.throw_error(pl.error.existence("directory", path, atom.indicator));
 							} else {
@@ -86,7 +87,6 @@ var pl;
 						});
 						return true;
 					} else {
-						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
 						if(pl.type.is_directory(file)) {
 							var items = [];
@@ -121,11 +121,16 @@ var pl;
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						wd = process.cwd();
 						if(!pl.type.is_variable(newcwd))
-							process.chdir(newcwd.id);
+							try {
+								process.chdir(thread.absolute_file_name(newcwd.id));
+							} catch(ex) {
+								thread.throw_error(pl.error.existence("directory", newcwd, atom.indicator));
+								return;
+							}
 					} else {
 						wd = thread.session.working_directory;
 						if(!pl.type.is_variable(newcwd)) {
-							thread.session.working_directory = pl.utils.cd(wd, newcwd.id);
+							thread.session.working_directory = thread.absolute_file_name(newcwd.id);
 						}
 					}
 					thread.prepend([new pl.type.State(
@@ -144,15 +149,16 @@ var pl;
 				} else if(!pl.type.is_atom(path)) {
 					thread.throw_error(pl.error.type("atom", path, atom.indicator));
 				} else {
+					var absolute = thread.absolute_file_name(path.id);
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
-						fs.stat(path.id, function(error, stat) {
+						fs.stat(absolute, function(error, stat) {
 							if(!error && stat.isFile()) {
-								fs.unlink(path.id, function(error) {
+								fs.unlink(absolute, function(error) {
 									if(error)
 										thread.throw_error(pl.error.permission("delete", "source_sink", path, atom.indicator));
 									else
-										thread.success( point );
+										thread.success(point);
 									thread.again();
 								});
 							} else {
@@ -162,7 +168,6 @@ var pl;
 						});
 						return true;
 					} else {
-						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
 						if(pl.type.is_file(file)) {
 							file.parent.remove(file.name);
@@ -182,15 +187,16 @@ var pl;
 				} else if(!pl.type.is_atom(path)) {
 					thread.throw_error(pl.error.type("atom", path, atom.indicator));
 				} else {
+					var absolute = thread.absolute_file_name(path.id);
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
-						fs.stat(path.id, function(error, stat) {
+						fs.stat(absolute, function(error, stat) {
 							if(!error && stat.isDirectory()) {
-								fs.rmdir(path.id, function(error) {
+								fs.rmdir(absolute, function(error) {
 									if(error)
 										thread.throw_error(pl.error.permission("delete", "directory", path, atom.indicator));
 									else
-										thread.success( point );
+										thread.success(point);
 									thread.again();
 								});
 							} else {
@@ -200,7 +206,6 @@ var pl;
 						});
 						return true;
 					} else {
-						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
 						if(pl.type.is_directory(file)) {
 							if(file !== thread.session.file_system.files && file.empty()) {
@@ -224,14 +229,15 @@ var pl;
 				} else if(!pl.type.is_atom(path)) {
 					thread.throw_error(pl.error.type("atom", path, atom.indicator));
 				} else {
+					var absolute = thread.absolute_file_name(path.id);
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
-						fs.stat(path.id, function(error, stat) {
+						fs.stat(absolute, function(error, stat) {
 							if(!error && (stat.isDirectory() || stat.isFile())) {
 								thread.throw_error(pl.error.permission("create", "directory", path, atom.indicator));
 								thread.again();
 							} else {
-								fs.mkdir(path.id, function(error) { 
+								fs.mkdir(absolute, function(error) { 
 									if(error)
 										thread.throw_error(pl.error.existence("directory", path, atom.indicator));
 									else
@@ -242,7 +248,6 @@ var pl;
 						});
 						return true;
 					} else {
-						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var dirs = absolute.replace(/\/$/, "").split("/");
 						var dir = thread.session.file_system.files;
 						var name = dirs[dirs.length-1];
@@ -273,14 +278,16 @@ var pl;
 				} else if(!pl.type.is_atom(new_path)) {
 					thread.throw_error(pl.error.type("atom", new_path, atom.indicator));
 				} else {
+					var old_absolute = thread.absolute_file_name(old_path.id);
+					var new_absolute = thread.absolute_file_name(new_path.id);
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
-						fs.stat(old_path.id, function(error, stat) {
+						fs.stat(old_absolute, function(error, stat) {
 							if(error || !stat.isFile()) {
 								thread.throw_error(pl.error.existence("source_sink", old_path, atom.indicator));
 								thread.again();
 							} else {
-								fs.rename(old_path.id, new_path.id, function(error) { 
+								fs.rename(old_absolute, new_absolute, function(error) { 
 									if(error)
 										thread.throw_error(pl.error.existence("source_sink", new_path, atom.indicator));
 									else
@@ -291,13 +298,12 @@ var pl;
 						});
 						return true;
 					} else {
-						var old_file = thread.file_system_open(old_path.id, "text", "read");
+						var old_file = thread.file_system_open(old_absolute, "text", "read");
 						if(old_file) {
-							var new_file = thread.file_system_open(new_path.id, "text", "write");
+							var new_file = thread.file_system_open(new_absolute, "text", "write");
 							if(new_file) {
 								new_file.text = old_file.text;
-								var absolute = pl.utils.cd(thread.session.working_directory, old_path.id);
-								var dirs = absolute.replace(/\/$/, "").split("/");
+								var dirs = old_absolute.replace(/\/$/, "").split("/");
 								var dir = thread.session.file_system.files;
 								var name = dirs[dirs.length-1];
 								for(var i = 1; i < dirs.length-1; i++)
@@ -322,16 +328,16 @@ var pl;
 				} else if(!pl.type.is_atom(path)) {
 					thread.throw_error(pl.error.type("atom", path, atom.indicator));
 				} else {
+					var absolute = thread.absolute_file_name(path.id);
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
-						fs.stat(path.id, function(error, stat) {
+						fs.stat(absolute, function(error, stat) {
 							if(!error && stat.isFile())
 								thread.success(point);
 							thread.again();
 						});
 						return true;
 					} else {
-						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
 						if(pl.type.is_file(file))
 							thread.success(point);
@@ -347,16 +353,16 @@ var pl;
 				} else if(!pl.type.is_atom(path)) {
 					thread.throw_error(pl.error.type("atom", path, atom.indicator));
 				} else {
+					var absolute = thread.absolute_file_name(path.id);
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
-						fs.stat(path.id, function(error, stat) {
+						fs.stat(absolute, function(error, stat) {
 							if(!error && stat.isDirectory())
 								thread.success(point);
 							thread.again();
 						});
 						return true;
 					} else {
-						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
 						if(pl.type.is_directory(file))
 							thread.success(point);
@@ -377,11 +383,13 @@ var pl;
 					if(fst_path.id === snd_path.id) {
 						thread.success(point);
 					} else {
+						var fst_absolute = thread.absolute_file_name(fst_path.id);
+						var snd_absolute = thread.absolute_file_name(snd_path.id);
 						if(thread.get_flag("nodejs").indicator === "true/0") {
 							var fs = require('fs');
-							fs.stat(fst_path.id, function(error, fst_stat) {
+							fs.stat(fst_absolute, function(error, fst_stat) {
 								if(!error)
-									fs.stat(snd_path.id, function(error, snd_stat) {
+									fs.stat(snd_absolute, function(error, snd_stat) {
 										if(!error && fst_stat.dev === snd_stat.dev && fst_stat.ino === snd_stat.ino)
 											thread.success(point);
 										thread.again();
@@ -391,9 +399,8 @@ var pl;
 							});
 							return true;
 						} else {
-							var working_directory = thread.session.working_directory;
-							var fst_file = thread.session.file_system.get(pl.utils.cd(working_directory, fst_path.id));
-							var snd_file = thread.session.file_system.get(pl.utils.cd(working_directory, snd_path.id));
+							var fst_file = thread.session.file_system.get(fst_absolute);
+							var snd_file = thread.session.file_system.get(snd_absolute);
 							if(fst_file && snd_file && fst_file === snd_file)
 								thread.success(point);
 						}
@@ -411,13 +418,7 @@ var pl;
 				} else if(!pl.type.is_variable(absolute) && !pl.type.is_atom(absolute)) {
 					thread.throw_error(pl.error.type("atom", absolute, atom.indicator));
 				} else {
-					var absolute_filename;
-					if(thread.get_flag("nodejs").indicator === "true/0") {
-						var path = require("path");
-						absolute_filename = path.resolve(filename.id);
-					} else {
-						absolute_filename = pl.utils.cd(thread.session.working_directory, filename.id);
-					}
+					var absolute_filename = thread.absolute_file_name(filename.id);
 					thread.prepend([new pl.type.State(
 						point.goal.replace(new pl.type.Term("=", [
 							absolute,
@@ -438,7 +439,13 @@ var pl;
 				} else {
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var path = require('path');
-						if(path.isAbsolute(filename.id))
+						var expand = filename.id;
+						for(var prop in process.env) {
+							if(!process.env.hasOwnProperty(prop))
+								continue;
+							expand = expand.replace(new RegExp("\\$" + prop, "g"), process.env[prop]);
+						}
+						if(path.isAbsolute(expand))
 							thread.success(point);
 					} else {
 						if(filename.id.length > 0 && filename.id[0] === "/")
@@ -457,9 +464,10 @@ var pl;
 				} else if(!pl.type.is_variable(size) && !pl.type.is_integer(size)) {
 					thread.throw_error(pl.error.type("integer", size, atom.indicator));
 				} else {
+					var absolute = thread.absolute_file_name(path.id);
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
-						fs.stat(path.id, function(error, stat) {
+						fs.stat(absolute, function(error, stat) {
 							if(!error) {
 								var filesize = stat.size;
 								thread.prepend([new pl.type.State(
@@ -474,7 +482,6 @@ var pl;
 						});
 						return true;
 					} else {
-						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
 						if(pl.type.is_file(file) || pl.type.is_directory(file)) {
 							var filesize = file.size();
@@ -500,9 +507,10 @@ var pl;
 				} else if(!pl.type.is_variable(time) && !pl.type.is_number(time)) {
 					thread.throw_error(pl.error.type("number", time, atom.indicator));
 				} else {
+					var absolute = thread.absolute_file_name(path.id);
 					if(thread.get_flag("nodejs").indicator === "true/0") {
 						var fs = require('fs');
-						fs.stat(path.id, function(error, stat) {
+						fs.stat(absolute, function(error, stat) {
 							if(!error) {
 								var mtime = stat.mtime / 1000;
 								thread.prepend([new pl.type.State(
@@ -517,7 +525,6 @@ var pl;
 						});
 						return true;
 					} else {
-						var absolute = pl.utils.cd(thread.session.working_directory, path.id);
 						var file = thread.session.file_system.get(absolute);
 						if(pl.type.is_file(file) || pl.type.is_directory(file)) {
 							var mtime = file.modified;

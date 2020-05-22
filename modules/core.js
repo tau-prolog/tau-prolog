@@ -6,25 +6,6 @@
 
 
 	// IO FILE SYSTEM
-
-	function cd(working_directory, path) {
-        if(path[0] === "/")
-            working_directory = path;
-        else
-            working_directory += working_directory[working_directory.length-1] === "/" ? path : "/" + path;
-        working_directory = working_directory.replace(/\/\.\//g, "/");
-        var dirs = working_directory.split("/");
-        var dirs2 = [];
-        for(var i = 0; i < dirs.length; i++) {
-            if(dirs[i] !== "..") {
-                dirs2.push(dirs[i]);
-            } else {
-                if(dirs2.length !== 0)
-                	dirs2.pop();
-            }
-        }
-        return dirs2.join("/").replace(/\/\.$/, "/");
-	}
 	
 	// Virtual file
 	function TauFile(name, type, parent, text) {
@@ -2204,11 +2185,50 @@
 	// Open file
 	Session.prototype.file_system_open = function( path, type, mode ) {
 		if(this.get_flag("nodejs").indicator === "false/0")
-			path = cd(this.working_directory, path);
+			path = this.absolute_file_name(path);
 		return this.file_system.open( path, type, mode );
 	};
 	Thread.prototype.file_system_open = function( path, type, mode ) {
 		return this.session.file_system_open( path, type, mode );
+	};
+
+	// Absolute file name
+	Session.prototype.absolute_file_name = function(filename) {
+		var absolute;
+		// node.js
+		if(this.get_flag("nodejs").indicator === "true/0") {
+			var path = require("path");
+			absolute = filename;
+			for(var prop in process.env) {
+				if(!process.env.hasOwnProperty(prop))
+					continue;
+				absolute = absolute.replace(new RegExp("\\$" + prop, "g"), process.env[prop]);
+			}
+			return path.resolve(absolute);
+		// browser
+		} else {
+			var cwd = this.working_directory;
+			if(filename[0] === "/")
+				absolute = filename;
+			else
+				absolute = cwd + (cwd[cwd.length-1] === "/" ? filename : "/" + filename);
+			absolute = absolute.replace(/\/\.\//g, "/");
+			var dirs = absolute.split("/");
+			var dirs2 = [];
+			for(var i = 0; i < dirs.length; i++) {
+				if(dirs[i] !== "..") {
+					dirs2.push(dirs[i]);
+				} else {
+					if(dirs2.length !== 0)
+						dirs2.pop();
+				}
+			}
+			absolute = dirs2.join("/").replace(/\/\.$/, "/");
+		}
+        return absolute;
+	};
+	Thread.prototype.absolute_file_name = function(path, cwd) {
+		return this.session.absolute_file_name(path, cwd);
 	};
 
 	// Get conversion of the char
@@ -3215,9 +3235,7 @@
 			// Code point at
 			codePointAt: codePointAt,
 			// From code point
-			fromCodePoint: fromCodePoint,
-			// Current directory
-			cd: cd
+			fromCodePoint: fromCodePoint
 			
 		},
 		
