@@ -5136,7 +5136,7 @@
 										if(last.compare(pointer.args[1].args[0]) === 0) {
 											pointer.args[1] = pointer.args[1].args[1];
 										} else {
-											last = pointer.args[0];
+											last = pointer.args[1].args[0];
 											pointer = pointer.args[1];
 										}
 									}
