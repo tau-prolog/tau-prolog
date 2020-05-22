@@ -5129,6 +5129,18 @@
 							for( var i = 0; i < answers.length; i++ ) {
 								answer = answers[i].answers.sort( pl.compare );
 								var list = arrayToList(answer);
+								if(list.indicator === "./2") {
+									var pointer = list;
+									var last = pointer.args[0];
+									while(pointer.args[1].indicator === "./2") {
+										if(last.compare(pointer.args[1].args[0]) === 0) {
+											pointer.args[1] = pointer.args[1].args[1];
+										} else {
+											last = pointer.args[0];
+											pointer = pointer.args[1];
+										}
+									}
+								}
 								states.push( new State(
 									point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
 									point.substitution,
