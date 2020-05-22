@@ -978,6 +978,7 @@
 		options.from = options.from ? options.from : "$tau-js";
 		options.reconsult = options.reconsult !== undefined ? options.reconsult : true;
 		options.context_module = options.context_module === undefined ? "user" : options.context_module;
+		options.initialization = options.initialization === undefined ? [] : options.initialization;
 		var tokenizer = new Tokenizer( thread );
 		var reconsulted = {};
 		var indicator;
@@ -1017,6 +1018,15 @@
 					n = 0;
 				}
 			}
+		}
+		// run goals from initialization/1 directive
+		for(var i = 0; i < options.initialization.length; i++) {
+			var nthread = new Thread(this.session);
+			nthread.add_goal(options.initialization[i]);
+			nthread.answer(function(answer) {
+				if(answer === null)
+					nthread.answer();
+			});
 		}
 		return true;
 	}
@@ -4178,6 +4188,12 @@
 						return true;
 					}
 				}
+			},
+
+			// initialization/1
+			"initialization/1": function(thread, atom, options) {
+				var goal = atom.args[0];
+				options.initialization.push(goal);
 			}
 			
 		},
