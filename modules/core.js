@@ -204,7 +204,11 @@
 				get: function( length, position ) {
 					var buffer = new Buffer( length );
 					fs.readSync( fd, buffer, 0, length, position );
-					return buffer.toString();
+					var end_of_file = true;
+					var text = buffer.toString();
+					for(var i = 0; i < length && end_of_file; i++)
+						end_of_file = text[i] === "\u0000";
+					return end_of_file ? "end_of_file" : buffer.toString();
 				},
 				put: function( text, position ) {
 					var buffer = Buffer.from( text );
@@ -7367,11 +7371,20 @@
 							return;
 						}
 						if( char === "end_of_file" || char === "past_end_of_file" ) {
-							if( expr )
-								thread.throw_error( pl.error.syntax( tokens[expr.len-1], ". or expression expected", false ) );
-							else
+							if(tokens === null || tokens.length === 0) {
+								expr = {
+									value: new Term(char, []),
+									type: SUCCESS,
+									len: -1
+								};
+								break;
+							} else if(expr) {
+								thread.throw_error( pl.error.syntax( null, "unexpected end of file", false ) );
+								return;
+							} else {
 								thread.throw_error( pl.error.syntax( null, "token not found", true ) );
-							return;
+								return;
+							}
 						}
 						stream2.position++;
 						text += char;
@@ -7384,7 +7397,7 @@
 						expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
 					}
 					// Succeed analyzing term
-					if( expr.type === SUCCESS && expr.len === tokens.length-1 && last_token.value === "." ) {
+					if( expr.type === SUCCESS && (expr.len === -1 || expr.len === tokens.length-1 && last_token.value === "." )) {
 						expr = expr.value.rename( thread );
 						var eq = new Term( "=", [term, expr] );
 						// Variables
