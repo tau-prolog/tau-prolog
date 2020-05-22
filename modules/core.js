@@ -2672,10 +2672,16 @@
 					atom.args[i] = new Term(":", [new Term(context_module), atom.args[i]]);
 				}
 			} else if(pl.type.is_atom(meta.args[i]) && meta.args[i].id === "^") {
-				if(!pl.type.is_term(atom.args[i]) || atom.args[i].indicator !== ":/2" && atom.args[i].indicator !== "^/2") {
-					atom.args[i] = new Term(":", [new Term(context_module), atom.args[i]]);
-				} else if(atom.args[i].indicator === "^/2" && (!pl.type.is_term(atom.args[i].args[1]) || atom.args[i].args[1].indicator !== ":/2")) {
-					atom.args[i].args[1] = new Term(":", [new Term(context_module), atom.args[i].args[1]]);
+				var pointer_last = atom;
+				var pointer_index = i;
+				var pointer = atom.args[i];
+				while(pl.type.is_term(pointer) && pointer.indicator === "^/2") {
+					pointer_last = pointer;
+					pointer_index = 1;
+					pointer = pointer.args[1];
+				}
+				if(!pl.type.is_term(pointer) || pointer.indicator !== ":/2") {
+					pointer_last.args[pointer_index] = new Term(":", [new Term(context_module), pointer]);
 				}
 			}
 		}
@@ -4987,7 +4993,7 @@
 		
 		// bagof/3
 		"bagof/3": function( thread, point, atom ) {
-			var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
+			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
 			if( pl.type.is_variable( goal ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_callable( goal ) ) {
@@ -4996,12 +5002,10 @@
 				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
 			} else {
 				var variable = thread.next_free_variable();
-				var template_vars;
-				if( goal.indicator === "^/2" ) {
-					template_vars = goal.args[0].variables();
+				var template_vars = [];
+				while( goal.indicator === "^/2" ) {
+					template_vars = template_vars.concat(goal.args[0].variables());
 					goal = goal.args[1];
-				} else {
-					template_vars = [];
 				}
 				template_vars = template_vars.concat( template.variables() );
 				var free_vars = goal.variables().filter( function( v ){
@@ -5069,7 +5073,7 @@
 
 		// setof/3
 		"setof/3": function( thread, point, atom ) {
-			var answer, template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
+			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
 			if( pl.type.is_variable( goal ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_callable( goal ) ) {
@@ -5078,12 +5082,10 @@
 				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
 			} else {
 				var variable = thread.next_free_variable();
-				var template_vars;
-				if( goal.indicator === "^/2" ) {
-					template_vars = goal.args[0].variables();
+				var template_vars = [];
+				while( goal.indicator === "^/2" ) {
+					template_vars = template_vars.concat(goal.args[0].variables());
 					goal = goal.args[1];
-				} else {
-					template_vars = [];
 				}
 				template_vars = template_vars.concat( template.variables() );
 				var free_vars = goal.variables().filter( function( v ){
