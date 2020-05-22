@@ -5733,16 +5733,16 @@
 		// retractall/1
 		"retractall/1": function(thread, point, atom) {
 			var head = atom.args[0];
+			var context_module = "user";
+			if(pl.type.is_term(head) && head.indicator === ":/2") {
+				context_module = head.args[0].id;
+				head = head.args[1];
+			}
 			if(pl.type.is_variable(head)) {
 				thread.throw_error(pl.error.instantiation(atom.indicator));
 			} else if(!pl.type.is_callable(head)) {
 				thread.throw_error(pl.error.type("callable", head, atom.indicator));
 			} else {
-				var context_module = "user;"
-				if(head.indicator === ":/2") {
-					context_module = head.args[0].id;
-					head = head.args[1];
-				}
 				thread.prepend([
 					new State(point.goal.replace(new Term(",", [
 						new Term(":", [
