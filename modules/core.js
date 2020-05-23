@@ -5441,6 +5441,31 @@
 			}
 		},
 
+		// current_module/1
+		"current_module/1": function(thread, point, atom) {
+			var module_id = atom.args[0];
+			if(!pl.type.is_variable(module_id) && !pl.type.is_atom(module_id)) {
+				thread.throw_error(pl.error.type("atom", module_id, atom.indicator));
+			} else {
+				if(pl.type.is_variable(module_id)) {
+					var states = [];
+					for(var prop in thread.session.modules) {
+						if(!thread.session.modules.hasOwnProperty(prop))
+							continue;
+						states.push(new State(
+							point.goal.replace(new Term("=", [module_id, new Term(prop)])),
+							point.substitution,
+							point
+						));
+					}
+					thread.prepend(states);
+				} else {
+					if(thread.session.modules.hasOwnProperty(module_id.id))
+						thread.success(point);
+				}
+			}
+		},
+
 		// predicate_property/2
 		"predicate_property/2": function(thread, point, atom) {
 			var head = atom.args[0], property = atom.args[1];
