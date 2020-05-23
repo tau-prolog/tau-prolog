@@ -4199,7 +4199,6 @@
 							if( !thread.session.__operators[priority.value][operator.id] ) thread.session.__operators[priority.value][operator.id] = [];
 							thread.session.__operators[priority.value][operator.id].push( type.id );
 						}
-						return true;
 					}
 				}
 			},
@@ -7821,15 +7820,15 @@
 					context_module: context_module,
 					text: false,
 					html: false,
-					async: true,
 					success: function() {
 						thread.success(point);
 						thread.again();
 					},
-					error: function() {
+					error: function(err) {
+						thread.throw_error(err);
 						thread.again();
 					}
-				}))
+				}));
 				return true;
 			}
 		},
