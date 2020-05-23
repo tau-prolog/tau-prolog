@@ -192,6 +192,17 @@
 		} 
 	};
 
+	// User error for browser
+	tau_user_error = {
+		put: function( text, _ ) {
+			(console.error || console.log)( text );
+			return true;
+		},
+		flush: function() {
+			return true;
+		} 
+	};
+
 	// Virtual file system for Node.js
 	nodejs_file_system = {
 		// Open file
@@ -260,6 +271,17 @@
 		flush: function() {
 			return true;
 		}
+	};
+
+	// User error for Node.js
+	nodejs_user_error = {
+		put: function( text, _ ) {
+			process.stderr.write( text );
+			return true;
+		},
+		flush: function() {
+			return true;
+		} 
 	};
 	
 	
@@ -1523,11 +1545,15 @@
 				"read", "user_input", "text", false, "reset" ),
 			"user_output": new Stream(
 				nodejs_flag ? nodejs_user_output : tau_user_output,
-				"write", "user_output", "text", false, "eof_code" )
+				"write", "user_output", "text", false, "eof_code" ),
+			"user_error": new Stream(
+				nodejs_flag ? nodejs_user_error : tau_user_error,
+				"write", "user_error", "text", false, "eof_code" ),
 		};
 		this.file_system = nodejs_flag ? nodejs_file_system : tau_file_system;
 		this.standard_input = this.streams["user_input"];
 		this.standard_output = this.streams["user_output"];
+		this.standard_error = this.streams["user_error"];
 		this.current_input = this.streams["user_input"];
 		this.current_output = this.streams["user_output"];
 		this.working_directory = "/"; // only for browser
@@ -6763,7 +6789,7 @@
 						thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
 					return;
 				} else {
-					if( stream2 === thread.session.standard_input || stream2 === thread.session.standard_output ) {
+					if(stream2 === thread.session.standard_input || stream2 === thread.session.standard_output || stream2 === thread.session.standard_error) {
 						thread.success( point );
 						return;
 					} else if( stream2 === thread.session.current_input ) {
