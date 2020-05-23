@@ -977,25 +977,38 @@
 		options = options ? options : {};
 		options.from = options.from ? options.from : "$tau-js";
 		options.reconsult = options.reconsult !== undefined ? options.reconsult : true;
+		options.reconsulted = options.reconsulted === undefined ? {} : options.reconsulted;
 		options.context_module = options.context_module === undefined ? "user" : options.context_module;
 		options.initialization = options.initialization === undefined ? [] : options.initialization;
-		var tokenizer = new Tokenizer( thread );
-		var reconsulted = {};
-		var indicator;
-		tokenizer.new_text( string );
-		var n = 0;
-		var tokens = tokenizer.get_tokens( n );
-		while( tokens !== null && tokens[n] ) {
+		options.current_token = options.current_token === undefined ? 0 : options.current_token;
+		options.tokenizer = options.tokenizer === undefined ? null : options.tokenizer;
+		options.tokens = options.tokens === undefined ? null : options.tokens;
+		options.string = string;
+		var reconsulted = options.reconsulted;
+		var tokenizer = options.tokenizer;
+		var tokens = options.tokens;
+		if(tokenizer === null) {
+			tokenizer = new Tokenizer(thread);
+			tokenizer.new_text(string);
+			options.tokenizer = tokenizer;
+			tokens = tokenizer.get_tokens(0);
+			options.tokens = tokens;
+		}
+		var n = options.current_token;
+		while(tokens !== null && tokens[n]) {
 			var expr = parseRule(thread, tokens, n);
-			if( expr.type === ERROR ) {
-				return new Term("throw", [expr.value]);
+			options.current_token = expr.len;
+			if(expr.type === ERROR) {
+				if(options.error !== undefined)
+					options.error(new Term("throw", [expr.value]));
+				return;
 			} else {
 				// Term expansion
-				var term_expansion = thread.session.rules["term_expansion/2"];
+				var term_expansion = thread.session.modules.user.rules["term_expansion/2"];
 				if(term_expansion && term_expansion.length > 0) {
-					var n_thread = new Thread( thread.session );
+					var n_thread = new Thread(thread.session);
 					var term = expr.value.body ? new Term(":-", [expr.value.head, expr.value.body]) : expr.value.head;
-					term = term.rename( thread.session );
+					term = term.rename(thread.session);
 					n_thread.query("term_expansion(" + term.toString({
 						quoted: true
 					}) + ", X).");
@@ -1008,30 +1021,41 @@
 							parseProgramExpansion(thread, options, reconsulted, expr);
 						}
 					});
+					return;
 				} else {
 					parseProgramExpansion(thread, options, reconsulted, expr);
-				}
-				n = expr.len;
-				if(expr.value.body === null && expr.value.head.indicator === ":-/1" && 
-				   expr.value.head.args[0].indicator === "char_conversion/2") {
-					tokens = tokenizer.get_tokens( n );
-					n = 0;
+					return;
 				}
 			}
 		}
 		// run goals from initialization/1 directive
-		for(var i = 0; i < options.initialization.length; i++) {
-			var nthread = new Thread(thread.session);
-			nthread.add_goal(options.initialization[i]);
-			nthread.answer(function(answer) {
-				if(answer === null)
-					nthread.answer();
-			});
+		var callback = options.success || function() {};
+		var nthread = new Thread(thread.session);
+		for(var i = options.initialization.length-1; i > 0; i--) {
+			var next_callback = (function(init, callback) {
+				return function(answer) {
+					if(answer === null) {
+						nthread.answer();
+					} else if(pl.type.is_error(answer)) {
+						if(options.error)
+							options.error(answer);
+					} else {
+						nthread.add_goal(init);
+						nthread.answer(callback);
+					}
+				};
+			})(options.initialization[i], callback);
+			callback = next_callback;
 		}
-		return true;
+		if(options.initialization.length > 0) {
+			nthread.add_goal(options.initialization[0]);
+			nthread.answer(callback);
+		} else {
+			callback();
+		}
 	}
 
-	function parseGoalExpansion(thread, head, term, set, origin) {
+	function parseGoalExpansion(thread, options, head, term, set, origin) {
 		var n_thread = new Thread( thread.session );
 		n_thread.__goal_expansion = true;
 		var varterm = thread.next_free_variable();
@@ -1046,12 +1070,15 @@
 			if(answer && !pl.type.is_error(answer) && answer.links[varterm]) {
 				set(answer.links[varhead], body_conversion(answer.links[varterm]));
 				parseGoalExpansion(thread, origin.head(), origin.term(), origin.set, origin);
+			} else {
+				thread.add_rule(expr.value, options);
+				parseProgram(thread, options.string, options);
 			}
 		});
 	}
 
 	function parseQueryExpansion(thread, term) {
-		var n_thread = new Thread( thread.session );
+		var n_thread = new Thread(thread.session);
 		n_thread.__goal_expansion = true;
 		var varterm = thread.next_free_variable();
 		var goal = "goal_expansion(" + term.toString({
@@ -1095,24 +1122,28 @@
 		for(var i = 0; i < exprs.length; i++) {
 			expr.value = exprs[i];
 			if(expr.value.body === null && expr.value.head.indicator === "?-/1") {
-				var n_thread = new Thread( thread.session );
-				n_thread.add_goal( expr.value.head.args[0] );
-				n_thread.answer( function( answer ) {
-					if( pl.type.is_error( answer ) ) {
-						thread.throw_warning( answer.args[0] );
-					} else if( answer === false || answer === null ) {
-						thread.throw_warning( pl.warning.failed_goal( expr.value.head.args[0], expr.len ) );
+				var n_thread = new Thread(thread.session);
+				n_thread.add_goal(expr.value.head.args[0]);
+				n_thread.answer(function(answer) {
+					if(pl.type.is_error(answer)) {
+						thread.throw_warning(answer.args[0]);
+					} else if(answer === false || answer === null) {
+						thread.throw_warning(pl.warning.failed_goal(expr.value.head.args[0], expr.len));
 					}
-				} );
+					parseProgram(thread, options.string, options);
+				});
 			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
-				thread.run_directive(expr.value.head.args[0], options);
+				var result = thread.run_directive(expr.value.head.args[0], options);
+				if(result !== true) {
+					parseProgram(thread, options.string, options);
+				}
 			} else {
 				indicator = expr.value.head.indicator;
-				if( options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate( indicator ) ) {
-					thread.session.modules[options.context_module].rules[indicator] = filter( thread.session.rules[indicator] || [], function( rule ) { return rule.dynamic; } );
+				if(options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate(indicator)) {
+					thread.session.modules[options.context_module].rules[indicator] = filter(thread.session.rules[indicator] || [], function(rule) { return rule.dynamic; });
 					reconsulted[indicator] = true;
 				}
-				var goal_expansion = thread.session.modules[options.context_module].rules["goal_expansion/2"];
+				var goal_expansion = thread.session.modules.user.rules["goal_expansion/2"];
 				if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
 					thread.renamed_variables = {};
 					var origin = {
@@ -1123,9 +1154,11 @@
 							expr.value.body = p;
 						}
 					};
-					parseGoalExpansion(thread, expr.value.head, body_conversion(expr.value.body), origin.set, origin);
+					parseGoalExpansion(thread, options, expr.value.head, body_conversion(expr.value.body), origin.set, origin);
+				} else {
+					thread.add_rule(expr.value, options);
+					parseProgram(thread, options.string, options);
 				}
-				thread.add_rule(expr.value, options);
 			}
 		}
 	}
@@ -2313,7 +2346,7 @@
 			get_module = this.session.modules[options.context_module];
 		}
 		get_module.src_predicates[rule.head.indicator] = options.from;
-		if(!get_module.rules[rule.head.indicator]) {
+		if(!get_module.rules.hasOwnProperty(rule.head.indicator)) {
 			get_module.rules[rule.head.indicator] = [];
 		}
 		get_module.rules[rule.head.indicator].push(rule);
@@ -2324,15 +2357,14 @@
 
 	// Run a directive
 	Session.prototype.run_directive = function(directive, options) {
-		this.thread.run_directive(directive, options);
+		return this.thread.run_directive(directive, options);
 	};
 	Thread.prototype.run_directive = function(directive, options) {
 		if(pl.type.is_directive(directive)) {
 			if(pl.directive[directive.indicator])
-				pl.directive[directive.indicator](this, directive, options);
+				return pl.directive[directive.indicator](this, directive, options);
 			else
-				pl.directive[directive.id + "/*"](this, directive, options);
-			return true;
+				return pl.directive[directive.id + "/*"](this, directive, options);
 		}
 		return false;
 	};
@@ -2428,8 +2460,6 @@
 		options.url = options.url === undefined ? true : options.url;
 		options.file = options.file === undefined ? true : options.file;
 		options.script = options.script === undefined ? true : options.script;
-		options.async = options.async === undefined ? false : options.async;
-		options.success = options.success === undefined ? function(){} : options.success;
 		options.error = options.error === undefined ? function(){} : options.error;
 		// string
 		if(typeof program === "string") {
@@ -2446,30 +2476,19 @@
 			// file (node.js)
 			if(!success && options.file && this.get_flag("nodejs").indicator === "true/0") {
 				var fs = require("fs");
-				if(options.async) {
-					var thread = this;
-					fs.readFile(program, function(error, data) {
-						if(error) {
-							options.error(error);
-							return false;
-						}
-						parseProgram(thread, data.toString(), {
-							context_module: options.context_module
-						});
-						options.success();
-					});
-					return true;
-				} else {
-					if(fs.existsSync(program)) {
-						string = fs.readFileSync(program).toString();
-						success = true;
+				var thread = this;
+				fs.readFile(program, function(error, data) {
+					if(error) {
+						options.file = false;
+						thread.consult(program, options);
 					} else {
-						string = program;
+						parseProgram(thread, data.toString(), options);
 					}
-				}
+				});
+				return;
 			}
 			// http request
-			if(!success && options.url && program !== "" && !(/\s/.test(program))) {
+			if(!success && this.get_flag("nodejs").indicator === "false/0" && options.url && program !== "" && !(/\s/.test(program))) {
 				try {
 					var xhttp = new XMLHttpRequest();
 					var thread = this;
@@ -2478,26 +2497,19 @@
 							if(this.status == 200) {
 								string = xhttp.responseText;
 								success = true;
-								if(options.async) {
-									parseProgram(thread, string, {
-										context_module: options.context_module
-									});
-									options.success();
-								}
+								parseProgram(thread, string, options);
 							} else {
-								options.error(this.status);
+								options.url = false;
+								this.consult(program, options);
 							}
 						}
 					}
-					xhttp.open("GET", program, options.async);
+					xhttp.open("GET", program, true);
 					xhttp.send();
-					if(options.async)
-						return true;
+					return;
 				} catch(ex) {
-					if(options.async) {
-						options.error(ex);
-						return false;
-					}
+					options.error(ex);
+					return;
 				}
 			}
 			// text
@@ -2518,12 +2530,10 @@
 					break;
 			}
 		} else {
-			return false;
+			options.error(pl.error.existence("source_sink", new Term(string), "top_level/0"));
 		}
 		this.warnings = [];
-		return success && parseProgram(this, string, {
-			context_module: options.context_module
-		});
+		parseProgram(this, string, options);
 	};
 
 	// Query goal from a string (without ?-)
@@ -4100,33 +4110,37 @@
 						}
 					} else {
 						var name = module_id.id;
-						var load = thread.consult(name, {
+						thread.consult(name, {
 							context_module: options.context_module,
 							text: false,
-							html: false,
-							async: false
+							success: function() {
+								parseProgram(thread, options.string, options);
+							},
+							error: function() {
+								options.error(pl.error.existence("module", module_id, atom.indicator));
+							}
 						});
-						if(!load)
-							thread.throw_warning(pl.error.existence("module", module_id, atom.indicator));
+						return true;
 					}
 				}
 			},
 			
 			// char_conversion/2
-			"char_conversion/2": function( thread, atom ) {
+			"char_conversion/2": function(thread, atom, options) {
 				var inchar = atom.args[0], outchar = atom.args[1];
-				if( pl.type.is_variable( inchar ) || pl.type.is_variable( outchar ) ) {
-					thread.throw_warning( pl.error.instantiation( atom.indicator ) );
-				} else if( !pl.type.is_character( inchar ) ) {
-					thread.throw_warning( pl.error.type( "character", inchar, atom.indicator ) );
-				} else if( !pl.type.is_character( outchar ) ) {
-					thread.throw_warning( pl.error.type( "character", outchar, atom.indicator ) );
+				if( pl.type.is_variable(inchar) || pl.type.is_variable(outchar)) {
+					thread.throw_warning(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_character(inchar)) {
+					thread.throw_warning( pl.error.type( "character", inchar, atom.indicator));
+				} else if(!pl.type.is_character(outchar)) {
+					thread.throw_warning(pl.error.type("character", outchar, atom.indicator));
 				} else {
-					if( inchar.id === outchar.id ) {
+					if(inchar.id === outchar.id) {
 						delete thread.session.__char_conversion[inchar.id];
 					} else {
 						thread.session.__char_conversion[inchar.id] = outchar.id;
 					}
+					options.tokens = tokenizer.get_tokens(options.current_token);
 				}
 			},
 			
