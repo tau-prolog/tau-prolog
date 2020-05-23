@@ -171,6 +171,8 @@
 			var text;
 			while( tau_user_input.buffer.length < length ) {
 				text = window.prompt();
+				if( text.length === 0 )
+					return "end_of_file";
 				if( text ) {
 					tau_user_input.buffer += text;
 				}
@@ -7478,10 +7480,20 @@
 						tokenizer = new Tokenizer( thread );
 						tokenizer.new_text( text );
 						tokens = tokenizer.get_tokens();
+						num_token = tokens !== null && tokens.length > 1 ? tokens[tokens.length-2] : null;
 						last_token = tokens !== null && tokens.length > 0 ? tokens[tokens.length-1] : null;
-						if( tokens === null )
+						if(tokens === null)
 							continue;
 						expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
+						if(num_token && num_token.name === "number" && !num_token.float && !num_token.blank && last_token.value === ".") {
+							var next_char = stream2.stream.get(1, stream2.position);
+							if(next_char >= '0' && next_char <= '9') {
+								stream2.position++;
+								text += next_char;
+								last_token = null;
+								continue;
+							}
+						}
 					}
 					// Succeed analyzing term
 					if( expr.type === SUCCESS && (expr.len === -1 || expr.len === tokens.length-1 && last_token.value === "." )) {
