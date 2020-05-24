@@ -506,7 +506,7 @@
 
 	// Regular expressions for tokens
 	var rules = {
-		whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?(?:\*\/|$))|(?:\s+))\s*/,
+		whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?(?:\*\/))|(?:\s+))\s*/,
 		variable: /^(?:[A-Z_][a-zA-Z0-9_]*)/,
 		atom: /^(\!|,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+|'(?:(?:'')|(?:\\\\)|(?:\\')|[^'])*')/,
 		number: /^(?:0o[0-7]+|0x[0-9a-fA-F]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|[^\\])|\d+(?:\.\d+(?:[eE][+-]?\d+)?)?)/,
@@ -552,7 +552,7 @@
 		var line = 0;
 		var start = 0;
 		var tokens = [];
-		var last_in_blank = false;
+		var last_is_blank;
 
 		if(init) {
 			var token = this.tokens[init-1];
@@ -571,14 +571,14 @@
 
 		while(text !== "") {
 			var matches = [];
-			var last_is_blank = false;
+			last_is_blank = false;
 
 			if(/^\n/.exec(text) !== null) {
 				line++;
 				start = 0;
 				len++;
 				text = text.replace(/\n/, "");
-				last_in_blank = true;
+				last_is_blank = true;
 				continue;
 			}
 
@@ -5672,29 +5672,23 @@
 		// asserta/1
 		"asserta/1": function(thread, point, atom) {
 			var clause = atom.args[0];
+			var module_id = "user";
+			if(pl.type.is_term(clause) && clause.indicator === ":/2") {
+				module_id = clause.args[0].id;
+				clause = clause.args[1];
+			}
 			if(pl.type.is_variable(clause)) {
 				thread.throw_error(pl.error.instantiation(atom.indicator));
 			} else if(!pl.type.is_callable(clause)) {
 				thread.throw_error(pl.error.type("callable", clause, atom.indicator));
 			} else {
-				var head, body, module_id, get_module;
+				var head, body, get_module;
 				if(clause.indicator === ":-/2") {
 					head = clause.args[0];
 					body = body_conversion(clause.args[1]);
 				} else {
 					head = clause;
 					body = null;
-				}
-				if(head.indicator === ":/2") {
-					module_id = head.args[0];
-					head = head.args[1];
-					if(!pl.type.is_atom(module_id)) {
-						thread.throw_error(pl.error.type("module", module_id, atom.indicator));
-						return;
-					}
-					module_id = module_id.id;
-				} else {
-					module_id = "user";
 				}
 				if(!pl.type.is_callable(head)) {
 					thread.throw_error(pl.error.type("callable", head, atom.indicator));
@@ -5721,29 +5715,23 @@
 		// assertz/1
 		"assertz/1": function(thread, point, atom) {
 			var clause = atom.args[0];
+			var module_id = "user";
+			if(pl.type.is_term(clause) && clause.indicator === ":/2") {
+				module_id = clause.args[0].id;
+				clause = clause.args[1];
+			}
 			if(pl.type.is_variable(clause)) {
 				thread.throw_error(pl.error.instantiation(atom.indicator));
 			} else if(!pl.type.is_callable(clause)) {
 				thread.throw_error(pl.error.type("callable", clause, atom.indicator));
 			} else {
-				var head, body, module_id, get_module;
+				var head, body, get_module;
 				if(clause.indicator === ":-/2") {
 					head = clause.args[0];
 					body = body_conversion(clause.args[1]);
 				} else {
 					head = clause;
 					body = null;
-				}
-				if(head.indicator === ":/2") {
-					module_id = head.args[0];
-					head = head.args[1];
-					if(!pl.type.is_atom(module_id)) {
-						thread.throw_error(pl.error.type("module", module_id, atom.indicator));
-						return;
-					}
-					module_id = module_id.id;
-				} else {
-					module_id = "user";
 				}
 				if(!pl.type.is_callable(head)) {
 					thread.throw_error(pl.error.type("callable", head, atom.indicator));
