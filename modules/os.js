@@ -7,6 +7,22 @@ var pl;
 			
 			// OPERATING SYSTEM INTERACTION
 
+			// sleep/1
+			"sleep/1": function( thread, point, atom ) {
+				var time = atom.args[0];
+				if( pl.type.is_variable( time ) ) {
+					thread.throw_error( pl.error.instantiation( thread.level ) );
+				} else if( !pl.type.is_integer( time ) ) {
+					thread.throw_error( pl.error.type( "integer", time, thread.level ) );
+				} else {
+					setTimeout( function() {
+						thread.success( point );
+						thread.again();
+					}, time.value );
+					return true;
+				}
+			},
+
 			// shell/1
 			"shell/1": function( thread, point, atom ) {
 				var command = atom.args[0];
@@ -619,7 +635,7 @@ var pl;
 		
 	};
 	
-	var exports = ["shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1"];
+	var exports = ["sleep/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1"];
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
