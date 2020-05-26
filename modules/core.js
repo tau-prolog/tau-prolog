@@ -3280,16 +3280,23 @@
 		var variables = this.head.variables();
 		var count = {};
 		var singleton = [];
-		if( this.body !== null )
-			variables = variables.concat( this.body.variables() );
-		for( var i = 0; i < variables.length; i++ ) {
-			if( count[variables[i]] === undefined )
+		if(this.body !== null)
+			variables = variables.concat(this.body.variables());
+		for(var i = 0; i < variables.length; i++) {
+			if(count[variables[i]] === undefined)
 				count[variables[i]] = 0;
 			count[variables[i]]++;
 		}
-		for( var key in count )
-			if( key !== "_" && count[key] === 1 )
-				singleton.push( key );
+		for(var key in count) {
+			if(!count.hasOwnProperty(key))
+				continue;
+			if(count[key] === 1) {
+				var charcode = codePointAt(key, 1);
+				if(key === "_" || key[0] === "_" && (charcode === 95 || charcode >= 65 && charcode <= 90))
+					continue;
+				singleton.push(key);
+			}
+		}
 		return singleton;
 	};
 
