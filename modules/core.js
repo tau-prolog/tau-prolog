@@ -1008,6 +1008,7 @@
 		options.tokenizer = options.tokenizer === undefined ? null : options.tokenizer;
 		options.tokens = options.tokens === undefined ? null : options.tokens;
 		options.string = string;
+		options.term_expansion = false;
 		var reconsulted = options.reconsulted;
 		var tokenizer = options.tokenizer;
 		var tokens = options.tokens;
@@ -1030,6 +1031,7 @@
 				// Term expansion
 				var term_expansion = thread.session.modules.user.rules["term_expansion/2"];
 				if(term_expansion && term_expansion.length > 0) {
+					options.term_expansion = true;
 					var n_thread = new Thread(thread.session);
 					var term = expr.value.body ? new Term(":-", [expr.value.head, expr.value.body]) : expr.value.head;
 					term = term.rename(thread.session);
@@ -1047,8 +1049,11 @@
 					});
 					return;
 				} else {
-					parseProgramExpansion(thread, options, reconsulted, expr);
-					return;
+					options.term_expansion = false;
+					var async = parseProgramExpansion(thread, options, reconsulted, expr);
+					if(async)
+						return;
+					n = expr.len;
 				}
 			}
 		}
@@ -1079,12 +1084,12 @@
 		}
 	}
 
-	function parseGoalExpansion(thread, options, head, term, set, origin) {
+	function parseGoalExpansion(thread, options, expr) {
 		var n_thread = new Thread( thread.session );
 		n_thread.__goal_expansion = true;
 		var varterm = thread.next_free_variable();
 		var varhead = thread.next_free_variable();
-		var goal = varhead + " = " + head + ", goal_expansion(" + term.toString({
+		var goal = varhead + " = " + expr.value.head + ", goal_expansion(" + expr.value.body.toString({
 			quoted: true
 		}) + ", " + varterm.toString({
 			quoted: true
@@ -1092,8 +1097,9 @@
 		n_thread.query(goal);
 		n_thread.answer(function(answer) {
 			if(answer && !pl.type.is_error(answer) && answer.links[varterm]) {
-				set(answer.links[varhead], body_conversion(answer.links[varterm]));
-				parseGoalExpansion(thread, origin.head(), origin.term(), origin.set, origin);
+				expr.value.head = answer.links[varhead];
+				expr.value.body = body_conversion(answer.links[varterm]);
+				parseGoalExpansion(thread, options, expr);
 			} else {
 				thread.add_rule(expr.value, options);
 				parseProgram(thread, options.string, options);
@@ -1129,62 +1135,50 @@
 	}
 
 	function parseProgramExpansion(thread, options, reconsulted, expr) {
-		var exprs = [];
-		if(pl.type.is_instantiated_list(expr.value.head) && expr.value.body === null) {
-			var pointer = expr.value.head;
-			while(pointer.indicator === "./2") {
-				var rule = pointer.args[0];
-				if(rule.indicator === ":-/2")
-					exprs.push(new Rule(rule.args[0], rule.args[1]));
-				else
-					exprs.push(new Rule(rule, null));
-				pointer = pointer.args[1];
-			}
+		var async = options.term_expansion === true;
+		if(expr.value.body === null && expr.value.head.indicator === "?-/1") {
+			async = true;
+			var n_thread = new Thread(thread.session);
+			n_thread.add_goal(expr.value.head.args[0]);
+			n_thread.answer(function(answer) {
+				if(pl.type.is_error(answer)) {
+					thread.throw_warning(answer.args[0]);
+				} else if(answer === false || answer === null) {
+					thread.throw_warning(pl.warning.failed_goal(expr.value.head.args[0], expr.len));
+				}
+				parseProgram(thread, options.string, options);
+			});
+		} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
+			var result = thread.run_directive(expr.value.head.args[0], options);
+			async = async || (result === true);
+			if(async)
+				parseProgram(thread, options.string, options);
 		} else {
-			exprs.push(expr.value);
-		}
-		for(var i = 0; i < exprs.length; i++) {
-			expr.value = exprs[i];
-			if(expr.value.body === null && expr.value.head.indicator === "?-/1") {
-				var n_thread = new Thread(thread.session);
-				n_thread.add_goal(expr.value.head.args[0]);
-				n_thread.answer(function(answer) {
-					if(pl.type.is_error(answer)) {
-						thread.throw_warning(answer.args[0]);
-					} else if(answer === false || answer === null) {
-						thread.throw_warning(pl.warning.failed_goal(expr.value.head.args[0], expr.len));
+			indicator = expr.value.head.indicator;
+			if(options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate(indicator)) {
+				thread.session.modules[options.context_module].rules[indicator] = filter(thread.session.rules[indicator] || [], function(rule) { return rule.dynamic; });
+				reconsulted[indicator] = true;
+			}
+			var goal_expansion = thread.session.modules.user.rules["goal_expansion/2"];
+			if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
+				async = true;
+				thread.renamed_variables = {};
+				var origin = {
+					head: function() { return expr.value.head; },
+					term: function() { return expr.value.body; },
+					set: function(h, p){
+						expr.value.head = h;
+						expr.value.body = p;
 					}
-					parseProgram(thread, options.string, options);
-				});
-			} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
-				var result = thread.run_directive(expr.value.head.args[0], options);
-				if(result !== true) {
-					parseProgram(thread, options.string, options);
-				}
+				};
+				parseGoalExpansion(thread, options, expr, body_conversion(expr.value.body), origin.set, origin);
 			} else {
-				indicator = expr.value.head.indicator;
-				if(options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate(indicator)) {
-					thread.session.modules[options.context_module].rules[indicator] = filter(thread.session.rules[indicator] || [], function(rule) { return rule.dynamic; });
-					reconsulted[indicator] = true;
-				}
-				var goal_expansion = thread.session.modules.user.rules["goal_expansion/2"];
-				if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
-					thread.renamed_variables = {};
-					var origin = {
-						head: function() { return expr.value.head; },
-						term: function() { return expr.value.body; },
-						set: function(h, p){
-							expr.value.head = h;
-							expr.value.body = p;
-						}
-					};
-					parseGoalExpansion(thread, options, expr.value.head, body_conversion(expr.value.body), origin.set, origin);
-				} else {
-					thread.add_rule(expr.value, options);
+				thread.add_rule(expr.value, options);
+				if(async)
 					parseProgram(thread, options.string, options);
-				}
 			}
 		}
+		return async;
 	}
 	
 	// Parse a query
@@ -4156,10 +4150,10 @@
 			// char_conversion/2
 			"char_conversion/2": function(thread, atom, options) {
 				var inchar = atom.args[0], outchar = atom.args[1];
-				if( pl.type.is_variable(inchar) || pl.type.is_variable(outchar)) {
+				if(pl.type.is_variable(inchar) || pl.type.is_variable(outchar)) {
 					thread.throw_warning(pl.error.instantiation(atom.indicator));
 				} else if(!pl.type.is_character(inchar)) {
-					thread.throw_warning( pl.error.type( "character", inchar, atom.indicator));
+					thread.throw_warning(pl.error.type("character", inchar, atom.indicator));
 				} else if(!pl.type.is_character(outchar)) {
 					thread.throw_warning(pl.error.type("character", outchar, atom.indicator));
 				} else {
@@ -4168,7 +4162,9 @@
 					} else {
 						thread.session.__char_conversion[inchar.id] = outchar.id;
 					}
-					options.tokens = tokenizer.get_tokens(options.current_token);
+					options.tokens = options.tokenizer.get_tokens(options.current_token);
+					options.current_token = 0;
+					return true;
 				}
 			},
 			
