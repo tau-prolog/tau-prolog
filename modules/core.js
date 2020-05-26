@@ -2855,12 +2855,25 @@
 	};
 	
 	// Find next computed answer
-	Session.prototype.answer = function( success ) {
-		return this.thread.answer( success );
+	Session.prototype.answer = function(options) {
+		return this.thread.answer(options);
 	}
-	Thread.prototype.answer = function( success ) {
-		success = success || function( _ ) { };
-		this.__calls.push( success );
+	Thread.prototype.answer = function(options) {
+		options = options || function() {};
+		if(typeof options === "function") {
+			options = {
+				success: options,
+				error: options,
+				fail: options,
+				limit: options
+			};
+		} else {
+			options.success = options.success === undefined ? function() {} : options.success;
+			options.error = options.error === undefined ? function() {} : options.error;
+			options.fail = options.fail === undefined ? function() {} : options.fail;
+			options.limit = options.limit === undefined ? function() {} : options.limit;
+		}
+		this.__calls.push(options);
 		if( this.__calls.length > 1 ) {
 			return;
 		}
@@ -2892,39 +2905,39 @@
 	};
 
 	// Again finding next computed answer
-	Session.prototype.again = function( reset_limit ) {
-		return this.thread.again( reset_limit );
+	Session.prototype.again = function(reset_limit) {
+		return this.thread.again(reset_limit);
 	};
-	Thread.prototype.again = function( reset_limit ) {
+	Thread.prototype.again = function(reset_limit) {
 		var answer;
 		var t0 = Date.now();
-		while( this.__calls.length > 0 ) {
+		while(this.__calls.length > 0) {
 			this.warnings = [];
-			if( reset_limit !== false )
+			if(reset_limit !== false)
 				this.current_limit = this.session.limit;
-			while( this.current_limit > 0 && this.points.length > 0 && this.head_point().goal !== null && !pl.type.is_error( this.head_point().goal ) ) {
+			while(this.current_limit > 0 && this.points.length > 0 && this.head_point().goal !== null && !pl.type.is_error(this.head_point().goal)) {
 				this.current_limit--;
-				if( this.step() === true ) {
+				if(this.step() === true) {
 					return;
 				}
 			}
 			var t1 = Date.now();
 			this.cpu_time_last = t1-t0;
 			this.cpu_time += this.cpu_time_last;
-			var success = this.__calls.shift();
-			if( this.current_limit <= 0 ) {
-				success( null );
-			} else if( this.points.length === 0 ) {
-				success( false );
-			} else if( pl.type.is_error( this.head_point().goal ) ) {
-				answer = this.format_error( this.points.pop() );
+			var options = this.__calls.shift();
+			if(this.current_limit <= 0) {
+				options.limit(null);
+			} else if(this.points.length === 0) {
+				options.fail(false);
+			} else if(pl.type.is_error(this.head_point().goal)) {
+				answer = this.format_error(this.points.pop());
 				this.points = [];
-				success( answer );
+				options.error(answer);
 			} else {
-				if( this.debugger )
-					this.debugger_states.push( this.head_point() );
-				answer = this.format_success( this.points.pop() );
-				success( answer );
+				if(this.debugger)
+					this.debugger_states.push(this.head_point());
+				answer = this.format_success(this.points.pop());
+				options.success(answer);
 			}
 		}
 	};
