@@ -1107,7 +1107,7 @@
 		});
 	}
 
-	function parseQueryExpansion(thread, term) {
+	function parseQueryExpansion(thread, term, options) {
 		var n_thread = new Thread(thread.session);
 		n_thread.__goal_expansion = true;
 		var varterm = thread.next_free_variable();
@@ -1127,9 +1127,11 @@
 						answer.links[varterm] = answer.links[varterm].apply( subs );
 					}
 				}
-				parseQueryExpansion(thread, body_conversion(answer.links[varterm]));
+				parseQueryExpansion(thread, body_conversion(answer.links[varterm]), options);
 			} else {
 				thread.add_goal(term);
+				options.success(term);
+				parseQuery(thread, options.string, options);
 			}
 		});
 	}
@@ -1182,37 +1184,57 @@
 	}
 	
 	// Parse a query
-	function parseQuery(thread, string) {
-		var tokenizer = new Tokenizer( thread );
-		tokenizer.new_text( string );
-		var n = 0;
+	function parseQuery(thread, string, options) {
+		options = options === undefined ? {} : options;
+		options.success = options.success === undefined ? function(){} : options.success;
+		options.error = options.error === undefined ? function(){} : options.error;
+		options.tokenizer = options.tokenizer === undefined ? null : options.tokenizer;
+		options.current_token = options.current_token === undefined ? 0 : options.current_token;
+		options.string = string;
+		var tokenizer = options.tokenizer;
+		var n = options.current_token;
+		if(tokenizer === null) {
+			tokenizer = new Tokenizer(thread);
+			options.tokenizer = tokenizer;
+			tokenizer.new_text(string);
+		}
 		do {
-			var tokens = tokenizer.get_tokens( n );
-			if( tokens === null ) break;
+			var tokens = tokenizer.get_tokens(n);
+			if(tokens === null)
+				break;
 			var expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
 			if(expr.type !== ERROR) {
 				var expr_position = expr.len;
-				var tokens_pos = expr_position;
+				n = expr.len + 1;
+				options.current_token = n;
 				if(tokens[expr_position] && tokens[expr_position].name === "atom" && tokens[expr_position].raw === ".") {
 					expr.value = body_conversion(expr.value);
 					// Goal expansion
 					var goal_expansion = thread.session.modules.user.rules["goal_expansion/2"];
 					if(!thread.__goal_expansion && goal_expansion && goal_expansion.length > 0) {
-						parseQueryExpansion(thread, expr.value);
+						parseQueryExpansion(thread, expr.value, options);
+						return;
 					} else {
-						thread.add_goal( expr.value );
+						thread.add_goal(expr.value);
+						options.success(expr.value);
 					}
 				} else {
 					var token = tokens[expr_position];
-					return new Term("throw", [pl.error.syntax(token ? token : tokens[expr_position-1], ". or operator expected", !token)] );
+					options.error(
+						new Term("throw", [
+							pl.error.syntax(
+								token ? token : tokens[expr_position-1],
+								". or operator expected",
+								!token
+							)
+						])
+					);
+					return;
 				}
-				
-				n = expr.len + 1;
 			} else {
 				return new Term("throw", [expr.value]);
 			}
-		} while( true );
-		return true;
+		} while(true);
 	}
 
 
@@ -2522,7 +2544,7 @@
 								parseProgram(thread, string, options);
 							} else {
 								options.url = false;
-								this.consult(program, options);
+								thread.consult(program, options);
 							}
 						}
 					}
@@ -2559,14 +2581,14 @@
 	};
 
 	// Query goal from a string (without ?-)
-	Session.prototype.query = function( string ) {
-		return this.thread.query( string );
+	Session.prototype.query = function(string, options) {
+		return this.thread.query(string, options);
 	};
-	Thread.prototype.query = function( string ) {
+	Thread.prototype.query = function(string, options) {
 		this.points = [];
 		this.debugger_states = [];
 		this.level = new Term("top_level");
-		return parseQuery( this, string );
+		return parseQuery(this, string, options);
 	};
 	
 	// Get first choice point
