@@ -257,7 +257,7 @@
 			var text;
 			var readlineSync = require('readline-sync');
 			while( nodejs_user_input.buffer.length < length )
-				nodejs_user_input.buffer += readlineSync.question();
+				nodejs_user_input.buffer += readlineSync.question("", {keepWhitespace: true}) + "\n";
 			text = nodejs_user_input.buffer.substr( 0, length );
 			nodejs_user_input.buffer = nodejs_user_input.buffer.substr( length );
 			return text;
