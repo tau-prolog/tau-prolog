@@ -2609,13 +2609,13 @@
 			this.session.rename++;
 			if( this.current_point )
 				variables = this.current_point.substitution.domain();
-			while( indexOf( variables, pl.format_variable( this.session.rename ) ) !== -1 ) {
+			while( indexOf( variables, pl.format_variable( this.session.rename, variable.id ) ) !== -1 ) {
 				this.session.rename++;
 			}
 			if( variable.id === "_" ) {
-				return new Var( pl.format_variable( this.session.rename ) );
+				return new Var( pl.format_variable( this.session.rename, variable.id ) );
 			} else {
-				this.session.renamed_variables[variable.id] = pl.format_variable( this.session.rename );
+				this.session.renamed_variables[variable.id] = pl.format_variable( this.session.rename, variable.id );
 			}
 		}
 		return new Var( this.session.renamed_variables[variable.id] );
@@ -4570,8 +4570,11 @@
 		},
 		
 		// Format of renamed variables
-		format_variable: function( variable ) {
-			return "_" + variable;
+		format_variable: function( id, variable ) {
+			var charcode = variable && variable.length > 0 ? codePointAt(variable, 1) : 0;
+			if(variable === "_" || variable && variable[0] === "_" && (charcode === 95 || charcode >= 65 && charcode <= 90))
+				return "__" + id;
+			return "_" + id;
 		},
 		
 		// Format of computed answers
