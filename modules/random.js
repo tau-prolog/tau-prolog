@@ -35,12 +35,6 @@ var pl;
 					thread.success(point);
 				}
 			},
-
-			// randomize
-			"randomize/0": function(thread, point, _atom) {
-				thread.get_random_generator().set_seed(Date.now());
-				thread.success(point);
-			},
 			
 			// maybe/0
 			"maybe/0": function( thread, point, _ ) {
@@ -179,7 +173,7 @@ var pl;
 		
 	};
 	
-	var exports = ["get_seed/1", "set_seed/1", "randomize/0", "maybe/0", "maybe/1", "random/1", "random/3", "random_between/3", "random_member/2", "random_permutation/2"];
+	var exports = ["get_seed/1", "set_seed/1", "maybe/0", "maybe/1", "random/1", "random/3", "random_between/3", "random_member/2", "random_permutation/2"];
 
 	// Mulberry32 random generator
 	var mulberry32 = function(seed) {
