@@ -7560,8 +7560,7 @@
 					var tokens = [];
 					var last_token = null;
 					// Get term
-					while( last_token === null || last_token.name !== "atom" || last_token.value !== "." ||
-						(expr.type === ERROR && pl.flatten_error(new Term("throw",[expr.value])).found === "token_not_found") ) {
+					while( last_token === null || last_token.name !== "atom" || last_token.value !== "." || tokens.length > 0 && expr.type === ERROR ) {
 						char = stream2.stream.get( 1, stream2.position );
 						if( char === null ) {
 							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
