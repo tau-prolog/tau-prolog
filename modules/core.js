@@ -5761,6 +5761,81 @@
 				)] );
 			}
 		},
+
+		// LIST OPERATIONS
+
+		// sort/2
+		"sort/2": function( thread, point, atom ) {
+			var list = atom.args[0], expected = atom.args[1];
+			if( pl.type.is_variable( list ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( expected ) && !pl.type.is_fully_list( expected ) ) {
+				thread.throw_error( pl.error.type( "list", expected, atom.indicator ) );
+			} else {
+				var arr = [];
+				var pointer = list;
+				while( pointer.indicator === "./2" ) {
+					arr.push( pointer.args[0] );
+					pointer = pointer.args[1];
+				}
+				if( pl.type.is_variable( pointer ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_empty_list( pointer ) ) {
+					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+				} else {
+					var sorted_arr = arr.sort( pl.compare );
+					for( var i = sorted_arr.length-1; i > 0; i-- ) {
+						if( sorted_arr[i].equals(sorted_arr[i-1]) )
+							sorted_arr.splice(i,1);
+					}
+					var sorted_list = new Term( "[]" );
+					for( var i = sorted_arr.length-1; i >= 0; i-- ) {
+						sorted_list = new Term( ".", [sorted_arr[i], sorted_list] );
+					}
+					thread.prepend( [new State( point.goal.replace( new Term( "=", [sorted_list, expected] ) ), point.substitution, point )] );
+				}
+			}
+		},
+
+		// keysort/2
+		"keysort/2": function( thread, point, atom ) {
+			var list = atom.args[0], expected = atom.args[1];
+			if( pl.type.is_variable( list ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_variable( expected ) && !pl.type.is_fully_list( expected ) ) {
+				thread.throw_error( pl.error.type( "list", expected, atom.indicator ) );
+			} else {
+				var arr = [];
+				var elem;
+				var pointer = list;
+				while( pointer.indicator === "./2" ) {
+					elem = pointer.args[0];
+					if( pl.type.is_variable( elem ) ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if( !pl.type.is_term( elem ) || elem.indicator !== "-/2" ) {
+						thread.throw_error( pl.error.type( "pair", elem, atom.indicator ) );
+						return;
+					}
+					elem.args[0].pair = elem.args[1];
+					arr.push( elem.args[0] );
+					pointer = pointer.args[1];
+				}
+				if( pl.type.is_variable( pointer ) ) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+				} else if( !pl.type.is_empty_list( pointer ) ) {
+					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
+				} else {
+					var sorted_arr = arr.sort( pl.compare );
+					var sorted_list = new pl.type.Term( "[]" );
+					for( var i = sorted_arr.length - 1; i >= 0; i-- ) {
+						sorted_list = new pl.type.Term( ".", [new pl.type.Term( "-", [sorted_arr[i], sorted_arr[i].pair] ), sorted_list] );
+						delete sorted_arr[i].pair;
+					}
+					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [sorted_list, expected] ) ), point.substitution, point )] );
+				}
+			}
+		},
 		
 		// CLAUSE CREATION AND DESTRUCTION
 		
