@@ -1232,7 +1232,8 @@
 					return;
 				}
 			} else {
-				return new Term("throw", [expr.value]);
+				options.error(new Term("throw", [expr.value]));
+				return;
 			}
 		} while(true);
 	}
