@@ -78,7 +78,8 @@ Prioritize your bug reports. For example, failed tests due to an
 exception being different from the one specified by the standards are
 likely not as important at this point as failed tests where a goal
 that is expected to succeed fails or a goal that is expected to fail
-suceeds.
+suceeds. For the actual goal of a failed test, use the test identifier
+to locate the test in the `tests.lgt` file in the directory.
 
 This guide will be updated for Tau Prolog standards compliance progress
 and for improved Logtalk support for Tau Prolog. Do a `git pull` on both
