@@ -4096,10 +4096,10 @@
 					thread.throw_warning( pl.error.type( "atom", flag, atom.indicator ) );
 				} else if( !pl.type.is_flag( flag ) ) {
 					thread.throw_warning( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
-				} else if( !pl.type.is_value_flag( flag, value ) ) {
-					thread.throw_warning( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
 				} else if( !pl.type.is_modifiable_flag( flag ) ) {
 					thread.throw_warning( pl.error.permission( "modify", "flag", flag, atom.indicator ) );
+				} else if( !pl.type.is_value_flag( flag, value ) ) {
+					thread.throw_warning( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
 				} else {
 					thread.session.flag[flag.id] = value;
 				}
@@ -5521,6 +5521,8 @@
 				thread.throw_error(pl.error.type( "atom", indicator.args[0], atom.indicator));
 			} else if(!pl.type.is_variable(indicator) && !pl.type.is_variable(indicator.args[1]) && !pl.type.is_integer(indicator.args[1])) {
 				thread.throw_error(pl.error.type("integer", indicator.args[1], atom.indicator));
+			} else if(!pl.type.is_variable(indicator) && pl.type.is_integer(indicator.args[1]) && indicator.args[1] < 0) {
+				thread.throw_error(pl.error.domain("not_less_than_zero", indicator.args[1], atom.indicator));
 			} else {
 				var states = [];
 				var get_module = thread.session.modules[module_id];
@@ -8010,10 +8012,10 @@
 				thread.throw_error( pl.error.type( "atom", flag, atom.indicator ) );
 			} else if( !pl.type.is_flag( flag ) ) {
 				thread.throw_error( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
+			} else if( !pl.type.is_modifiable_flag( flag ) ) {
+				thread.throw_error( pl.error.permission( "modify", "flag", flag, atom.indicator ) );
 			} else if( !pl.type.is_value_flag( flag, value ) ) {
 				thread.throw_error( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
-			} else if( !pl.type.is_modifiable_flag( flag ) ) {
-				thread.throw_error( pl.error.permission( "modify", "flag", flag ) );
 			} else {
 				thread.session.flag[flag.id] = value;
 				thread.success( point );
