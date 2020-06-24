@@ -5371,6 +5371,8 @@
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_fully_list( atom.args[1] ) ) {
 				thread.throw_error( pl.error.type( "list", atom.args[1], atom.indicator ) );
+			} else if( pl.type.is_variable( atom.args[0] ) && atom.args[1] == "[]" ) {
+				thread.throw_error( pl.error.domain( "non_empty_list", atom.args[1], atom.indicator ) );
 			} else if( !pl.type.is_variable( atom.args[0] ) ) {
 				if( pl.type.is_atomic( atom.args[0] ) ) {
 					list = new Term( ".", [atom.args[0], new Term( "[]" )] );
