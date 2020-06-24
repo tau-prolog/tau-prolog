@@ -5350,6 +5350,8 @@
 		"arg/3": function( thread, point, atom ) {
 			if( pl.type.is_variable( atom.args[0] ) || pl.type.is_variable( atom.args[1] ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_integer( atom.args[0] ) ) {
+				thread.throw_error( pl.error.type( "integer", atom.args[0], atom.indicator ) );
 			} else if( atom.args[0].value < 0 ) {
 				thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[0], atom.indicator ) );
 			} else if( !pl.type.is_compound( atom.args[1] ) ) {
