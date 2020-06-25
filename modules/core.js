@@ -6856,7 +6856,7 @@
 		// open/4
 		"open/4": function( thread, point, atom ) {
 			var dest = atom.args[0], mode = atom.args[1], stream = atom.args[2], options = atom.args[3];
-			if( pl.type.is_variable( dest ) || pl.type.is_variable( mode ) ) {
+			if( pl.type.is_variable( dest ) || pl.type.is_variable( mode ) || pl.type.is_variable( options ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_variable( mode ) && !pl.type.is_atom( mode ) ) {
 				thread.throw_error( pl.error.type( "atom", mode, atom.indicator ) );
