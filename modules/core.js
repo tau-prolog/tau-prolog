@@ -5328,8 +5328,10 @@
 				thread.throw_error( pl.error.type( "integer", atom.args[2], "functor/3" ) );
 			} else if( !pl.type.is_variable( name ) && !pl.type.is_atomic( name ) ) {
 				thread.throw_error( pl.error.type( "atomic", atom.args[1], "functor/3" ) );
-			} else if( pl.type.is_integer( name ) && pl.type.is_integer( arity ) && arity.value !== 0 ) {
+			} else if( pl.type.is_variable( term ) && !pl.type.is_atom( name ) && pl.type.is_integer( arity ) && arity.value > 0 ) {
 				thread.throw_error( pl.error.type( "atom", atom.args[1], "functor/3" ) );
+			} else if( pl.type.is_variable( term ) && pl.type.is_integer( arity ) && arity.value < 0 ) {
+				thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[2], "functor/3" ) );
 			} else if( pl.type.is_variable( term ) ) {
 				if( atom.args[2].value >= 0 ) {
 					var args = [];
