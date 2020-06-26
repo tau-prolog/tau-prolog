@@ -6007,6 +6007,8 @@
 				thread.throw_error(pl.error.instantiation(atom.indicator));
 			} else if(!pl.type.is_callable(head)) {
 				thread.throw_error(pl.error.type("callable", head, atom.indicator));
+			} else if(!thread.is_public_predicate(head.indicator, context_module)) {
+				thread.throw_error(pl.error.permission("modify", "static_procedure", atom.args[0], atom.indicator));
 			} else {
 				thread.prepend([
 					new State(point.goal.replace(new Term(",", [
