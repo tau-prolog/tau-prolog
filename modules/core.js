@@ -5861,7 +5861,9 @@
 					head = clause;
 					body = null;
 				}
-				if(!pl.type.is_callable(head)) {
+				if(pl.type.is_variable(head)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_callable(head)) {
 					thread.throw_error(pl.error.type("callable", head, atom.indicator));
 				} else if(body !== null && !pl.type.is_callable(body)) {
 					thread.throw_error( pl.error.type("callable", body, atom.indicator));
@@ -5904,7 +5906,9 @@
 					head = clause;
 					body = null;
 				}
-				if(!pl.type.is_callable(head)) {
+				if(pl.type.is_variable(head)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_callable(head)) {
 					thread.throw_error(pl.error.type("callable", head, atom.indicator));
 				} else if(body !== null && !pl.type.is_callable(body)) {
 					thread.throw_error( pl.error.type("callable", body, atom.indicator));
