@@ -1918,7 +1918,7 @@
 
 	// Streams
 	Stream.prototype.clone = function() {
-		return new Stram( this.stream, this.mode, this.alias, this.type, this.reposition, this.eof_action );
+		return new Stream( this.stream, this.mode, this.alias, this.type, this.reposition, this.eof_action );
 	};
 	
 	// Substitutions
@@ -7029,8 +7029,8 @@
 		"stream_property/2": function( thread, point, atom ) {
 			var stream = atom.args[0], property = atom.args[1];
 			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
-			if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
+			if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) ) {
+				thread.throw_error( pl.error.domain( "stream", stream, atom.indicator ) );
 			} else if( !pl.type.is_variable( stream ) && (!pl.type.is_stream( stream2 ) || stream2.stream === null) ) {
 				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
 			} else if( !pl.type.is_variable( property ) && !pl.type.is_stream_property( property ) ) {
@@ -7094,15 +7094,22 @@
 		// at_end_of_stream/1
 		"at_end_of_stream/1": function( thread, point, atom ) {
 			var stream = atom.args[0];
-			thread.prepend( [new State(
-				point.goal.replace(
-					new Term(",", [new Term("stream_property", [stream,new Term("end_of_stream", [new Var("E")])]),
-					new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),new Term("at", [])]),
-					new Term("=", [new Var("E"),new Term("past", [])])])])])
-				),
-				point.substitution,
-				point
-			)] );
+			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
+			if( pl.type.is_variable( stream ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
+				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
+			} else {
+				thread.prepend( [new State(
+					point.goal.replace(
+						new Term(",", [new Term("stream_property", [stream2,new Term("end_of_stream", [new Var("E")])]),
+						new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),new Term("at", [])]),
+						new Term("=", [new Var("E"),new Term("past", [])])])])])
+					),
+					point.substitution,
+					point
+				)] );
+			}
 		},
 
 		// set_stream_position/2
