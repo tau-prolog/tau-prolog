@@ -2522,16 +2522,18 @@
 			if(!success && options.file && this.get_flag("nodejs").indicator === "true/0") {
 				var fs = require("fs");
 				var thread = this;
-				fs.readFile(program, function(error, data) {
-					if(error) {
-						options.file = false;
-						thread.consult(program, options);
-					} else {
-						parseProgram(thread, data.toString(), options);
-					}
-				});
+
+				if(fs.existsSync(program)) {
+					var data = fs.readFileSync(program, 'utf-8');
+					parseProgram(thread, data, options);
+
+				} else {
+					options.file = false;
+					thread.consult(program, options);
+				}
 				return;
 			}
+
 			// http request
 			if(!success && this.get_flag("nodejs").indicator === "false/0" && options.url && program !== "" && !(/\s/.test(program))) {
 				try {

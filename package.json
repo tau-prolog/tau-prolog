@@ -5,7 +5,7 @@
 	"main": "./modules/core.js",
 	"scripts": {
 		"example:fruit": "node examples/nodejs/fruit",
-		"test": "node_modules/.bin/qunit test"
+		"test": "./node_modules/.bin/qunit test"
 	},
 	"repository": {
 		"type": "git",
