@@ -6588,7 +6588,7 @@
 			if( !pl.type.is_variable( order ) && !pl.type.is_atom( order ) ) {
 				thread.throw_error( pl.error.type( "atom", order, atom.indicator ) );
 			} else if( pl.type.is_atom( order ) && ["<", ">", "="].indexOf( order.id ) === -1 ) {
-				thread.throw_error( pl.type.domain( "order", order, atom.indicator ) );
+				thread.throw_error( pl.error.domain( "order", order, atom.indicator ) );
 			} else {
 				var compare = pl.compare( left, right );
 				compare = compare === 0 ? "=" : (compare === -1 ? "<" : ">");
