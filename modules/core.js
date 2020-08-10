@@ -5531,6 +5531,10 @@
 			} else if(pl.type.is_module(get_module) && get_module.rules[head.indicator]) {
 				if(get_module.is_public_predicate(head.indicator)) {
 					var states = [];
+					if(typeof get_module.rules[head.indicator] === "function") {
+						thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
+						return;
+					}
 					for(var i = 0; i < get_module.rules[head.indicator].length; i++) {
 						var rule = get_module.rules[head.indicator][i];
 						thread.session.renamed_variables = {};
@@ -5545,7 +5549,7 @@
 					}
 					thread.prepend(states);
 				} else {
-					thread.throw_error(pl.error.permission("access", "private_procedure", head.indicator, atom.indicator));
+					thread.throw_error(pl.error.permission("access", "private_procedure", str_indicator(head.indicator), atom.indicator));
 				}
 			}
 		},
