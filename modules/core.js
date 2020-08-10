@@ -622,7 +622,8 @@
 					}
 					break;
 				case "number":
-					token.float = token.value.substring(0,2) !== "0x" && token.value.match(/[.eE]/) !== null && token.value !== "0'.";
+					var substr = token.value.substring(0,2);
+					token.float = substr !== "0x" && substr !== "0'" && token.value.match(/[.eE]/) !== null;
 					token.value = convertNum( token.value );
 					token.blank = last_is_blank;
 					break;
