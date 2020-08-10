@@ -4096,10 +4096,10 @@
 					thread.throw_warning( pl.error.type( "atom", flag, atom.indicator ) );
 				} else if( !pl.type.is_flag( flag ) ) {
 					thread.throw_warning( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
-				} else if( !pl.type.is_value_flag( flag, value ) ) {
-					thread.throw_warning( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
 				} else if( !pl.type.is_modifiable_flag( flag ) ) {
 					thread.throw_warning( pl.error.permission( "modify", "flag", flag, atom.indicator ) );
+				} else if( !pl.type.is_value_flag( flag, value ) ) {
+					thread.throw_warning( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
 				} else {
 					thread.session.flag[flag.id] = value;
 				}
@@ -4821,23 +4821,35 @@
 		"current_op/3": function( thread, point, atom ) {
 			var priority = atom.args[0], specifier = atom.args[1], operator = atom.args[2];
 			var points = [];
-			for( var p in thread.session.__operators )
-				for( var o in thread.session.__operators[p] )
-					for( var i = 0; i < thread.session.__operators[p][o].length; i++ )
-						points.push( new State(
-							point.goal.replace(
-								new Term( ",", [
-									new Term( "=", [new Num( p, false ), priority] ),
+			if( !pl.type.is_variable( priority ) && !pl.type.is_integer( priority ) ) {
+				thread.throw_error( pl.error.type( "integer", priority, atom.indicator ) );
+			} else if( pl.type.is_integer( priority ) && ( priority.value < 0 || priority.value > 1200 ) ) {
+				thread.throw_error( pl.error.domain( "operator_priority", priority, atom.indicator ) );
+			} else if( !pl.type.is_variable( specifier ) && !pl.type.is_atom( specifier ) ) {
+				thread.throw_error( pl.error.type( "atom", specifier, atom.indicator ) );
+			} else if( pl.type.is_atom( specifier ) && indexOf( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"], specifier.id ) === -1 ) {
+				thread.throw_error( pl.error.domain( "operator_specifier", specifier, atom.indicator ) );
+			} else if( !pl.type.is_variable( operator ) && !pl.type.is_atom( operator ) ) {
+				thread.throw_error( pl.error.type( "atom", operator, atom.indicator ) );
+			} else {
+				for( var p in thread.session.__operators )
+					for( var o in thread.session.__operators[p] )
+						for( var i = 0; i < thread.session.__operators[p][o].length; i++ )
+							points.push( new State(
+								point.goal.replace(
 									new Term( ",", [
-										new Term( "=", [new Term( thread.session.__operators[p][o][i], [] ), specifier] ),
-										new Term( "=", [new Term( o, [] ), operator] )
+										new Term( "=", [new Num( p, false ), priority] ),
+										new Term( ",", [
+											new Term( "=", [new Term( thread.session.__operators[p][o][i], [] ), specifier] ),
+											new Term( "=", [new Term( o, [] ), operator] )
+										] )
 									] )
-								] )
-							),
-							point.substitution,
-							point
-						) );
-			thread.prepend( points );
+								),
+								point.substitution,
+								point
+							) );
+				thread.prepend( points );
+			}
 		},
 	
 
@@ -5328,8 +5340,10 @@
 				thread.throw_error( pl.error.type( "integer", atom.args[2], "functor/3" ) );
 			} else if( !pl.type.is_variable( name ) && !pl.type.is_atomic( name ) ) {
 				thread.throw_error( pl.error.type( "atomic", atom.args[1], "functor/3" ) );
-			} else if( pl.type.is_integer( name ) && pl.type.is_integer( arity ) && arity.value !== 0 ) {
+			} else if( pl.type.is_variable( term ) && !pl.type.is_atom( name ) && pl.type.is_integer( arity ) && arity.value > 0 ) {
 				thread.throw_error( pl.error.type( "atom", atom.args[1], "functor/3" ) );
+			} else if( pl.type.is_variable( term ) && pl.type.is_integer( arity ) && arity.value < 0 ) {
+				thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[2], "functor/3" ) );
 			} else if( pl.type.is_variable( term ) ) {
 				if( atom.args[2].value >= 0 ) {
 					var args = [];
@@ -5350,6 +5364,8 @@
 		"arg/3": function( thread, point, atom ) {
 			if( pl.type.is_variable( atom.args[0] ) || pl.type.is_variable( atom.args[1] ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_integer( atom.args[0] ) ) {
+				thread.throw_error( pl.error.type( "integer", atom.args[0], atom.indicator ) );
 			} else if( atom.args[0].value < 0 ) {
 				thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[0], atom.indicator ) );
 			} else if( !pl.type.is_compound( atom.args[1] ) ) {
@@ -5371,6 +5387,8 @@
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_fully_list( atom.args[1] ) ) {
 				thread.throw_error( pl.error.type( "list", atom.args[1], atom.indicator ) );
+			} else if( pl.type.is_variable( atom.args[0] ) && pl.type.is_empty_list( atom.args[1] ) ) {
+				thread.throw_error( pl.error.domain( "non_empty_list", atom.args[1], atom.indicator ) );
 			} else if( !pl.type.is_variable( atom.args[0] ) ) {
 				if( pl.type.is_atomic( atom.args[0] ) ) {
 					list = new Term( ".", [atom.args[0], new Term( "[]" )] );
@@ -5863,7 +5881,9 @@
 					head = clause;
 					body = null;
 				}
-				if(!pl.type.is_callable(head)) {
+				if(pl.type.is_variable(head)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_callable(head)) {
 					thread.throw_error(pl.error.type("callable", head, atom.indicator));
 				} else if(body !== null && !pl.type.is_callable(body)) {
 					thread.throw_error( pl.error.type("callable", body, atom.indicator));
@@ -5906,7 +5926,9 @@
 					head = clause;
 					body = null;
 				}
-				if(!pl.type.is_callable(head)) {
+				if(pl.type.is_variable(head)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_callable(head)) {
 					thread.throw_error(pl.error.type("callable", head, atom.indicator));
 				} else if(body !== null && !pl.type.is_callable(body)) {
 					thread.throw_error( pl.error.type("callable", body, atom.indicator));
@@ -5953,6 +5975,13 @@
 				} else {
 					head = clause;
 					body = new Term("true");
+				}
+				if(pl.type.is_variable(head)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+					return;
+				} else if(!pl.type.is_callable(head)) {
+					thread.throw_error(pl.error.type("callable", head, atom.indicator));
+					return;
 				}
 				module_id = module_atom.id;
 				var get_module = thread.session.modules[module_id];
@@ -7394,7 +7423,7 @@
 			} else if( stream2.type === "binary" ) {
 				thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
 			} else {
-				if( stream2.stream.put_char( fromCodePoint( code.value ), stream2.position ) ) {
+				if( stream2.stream.put( fromCodePoint( code.value ), stream2.position ) ) {
 					if(typeof stream2.position === "number")
 						stream2.position++;
 					thread.success( point );
@@ -8012,10 +8041,10 @@
 				thread.throw_error( pl.error.type( "atom", flag, atom.indicator ) );
 			} else if( !pl.type.is_flag( flag ) ) {
 				thread.throw_error( pl.error.domain( "prolog_flag", flag, atom.indicator ) );
+			} else if( !pl.type.is_modifiable_flag( flag ) ) {
+				thread.throw_error( pl.error.permission( "modify", "flag", flag, atom.indicator ) );
 			} else if( !pl.type.is_value_flag( flag, value ) ) {
 				thread.throw_error( pl.error.domain( "flag_value", new Term( "+", [flag, value] ), atom.indicator ) );
-			} else if( !pl.type.is_modifiable_flag( flag ) ) {
-				thread.throw_error( pl.error.permission( "modify", "flag", flag ) );
 			} else {
 				thread.session.flag[flag.id] = value;
 				thread.success( point );
