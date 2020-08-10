@@ -5539,7 +5539,7 @@
 				thread.throw_error(pl.error.type( "atom", indicator.args[0], atom.indicator));
 			} else if(!pl.type.is_variable(indicator) && !pl.type.is_variable(indicator.args[1]) && !pl.type.is_integer(indicator.args[1])) {
 				thread.throw_error(pl.error.type("integer", indicator.args[1], atom.indicator));
-			} else if(!pl.type.is_variable(indicator) && pl.type.is_integer(indicator.args[1]) && indicator.args[1] < 0) {
+			} else if(!pl.type.is_variable(indicator) && pl.type.is_integer(indicator.args[1]) && indicator.args[1].value < 0) {
 				thread.throw_error(pl.error.domain("not_less_than_zero", indicator.args[1], atom.indicator));
 			} else {
 				var states = [];
