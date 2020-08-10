@@ -7414,7 +7414,7 @@
 			} else if( stream2.type === "binary" ) {
 				thread.throw_error( pl.error.permission( "output", "binary_stream", stream, atom.indicator ) );
 			} else {
-				if( stream2.stream.put_char( fromCodePoint( code.value ), stream2.position ) ) {
+				if( stream2.stream.put( fromCodePoint( code.value ), stream2.position ) ) {
 					if(typeof stream2.position === "number")
 						stream2.position++;
 					thread.success( point );
