@@ -5991,6 +5991,10 @@
 					if(thread.is_public_predicate(head.indicator, module_id)) {
 						if(get_module.rules[head.indicator] !== undefined) {
 							var states = [];
+							if(typeof get_module.rules[head.indicator] === "function") {
+								thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
+								return;
+							}
 							for(var i = 0; i < get_module.rules[head.indicator].length; i++) {
 								thread.session.renamed_variables = {};
 								var orule = get_module.rules[head.indicator][i];
@@ -6018,7 +6022,7 @@
 							thread.prepend(states);
 						}
 					} else {
-						thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
+						thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
 					}
 				} else {
 					retract(thread, point, head.indicator, point.retract, get_module);
@@ -6038,6 +6042,8 @@
 				thread.throw_error(pl.error.instantiation(atom.indicator));
 			} else if(!pl.type.is_callable(head)) {
 				thread.throw_error(pl.error.type("callable", head, atom.indicator));
+			} else if(!thread.is_public_predicate(head.indicator, context_module)) {
+				thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
 			} else {
 				thread.prepend([
 					new State(point.goal.replace(new Term(",", [
