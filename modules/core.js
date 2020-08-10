@@ -4821,23 +4821,35 @@
 		"current_op/3": function( thread, point, atom ) {
 			var priority = atom.args[0], specifier = atom.args[1], operator = atom.args[2];
 			var points = [];
-			for( var p in thread.session.__operators )
-				for( var o in thread.session.__operators[p] )
-					for( var i = 0; i < thread.session.__operators[p][o].length; i++ )
-						points.push( new State(
-							point.goal.replace(
-								new Term( ",", [
-									new Term( "=", [new Num( p, false ), priority] ),
+			if( !pl.type.is_variable( priority ) && !pl.type.is_integer( priority ) ) {
+				thread.throw_error( pl.error.type( "integer", priority, atom.indicator ) );
+			} else if( pl.type.is_integer( priority ) && ( priority.value < 0 || priority.value > 1200 ) ) {
+				thread.throw_error( pl.error.domain( "operator_priority", priority, atom.indicator ) );
+			} else if( !pl.type.is_variable( specifier ) && !pl.type.is_atom( specifier ) ) {
+				thread.throw_error( pl.error.type( "atom", specifier, atom.indicator ) );
+			} else if( pl.type.is_atom( specifier ) && indexOf( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"], specifier.id ) === -1 ) {
+				thread.throw_error( pl.error.domain( "operator_specifier", specifier, atom.indicator ) );
+			} else if( !pl.type.is_variable( operator ) && !pl.type.is_atom( operator ) ) {
+				thread.throw_error( pl.error.type( "atom", operator, atom.indicator ) );
+			} else {
+				for( var p in thread.session.__operators )
+					for( var o in thread.session.__operators[p] )
+						for( var i = 0; i < thread.session.__operators[p][o].length; i++ )
+							points.push( new State(
+								point.goal.replace(
 									new Term( ",", [
-										new Term( "=", [new Term( thread.session.__operators[p][o][i], [] ), specifier] ),
-										new Term( "=", [new Term( o, [] ), operator] )
+										new Term( "=", [new Num( p, false ), priority] ),
+										new Term( ",", [
+											new Term( "=", [new Term( thread.session.__operators[p][o][i], [] ), specifier] ),
+											new Term( "=", [new Term( o, [] ), operator] )
+										] )
 									] )
-								] )
-							),
-							point.substitution,
-							point
-						) );
-			thread.prepend( points );
+								),
+								point.substitution,
+								point
+							) );
+				thread.prepend( points );
+			}
 		},
 	
 
