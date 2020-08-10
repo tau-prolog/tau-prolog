@@ -5092,12 +5092,37 @@
 		},
 		
 		// subsumes_term/2
+		/*
+		subsumes_term(General, Specific) :-
+			\+ \+ (
+			term_variables(Specific, Vars1),
+			unify_with_occurs_check(General, Specific),
+			term_variables(Vars1, Vars2),
+			Vars1 == Vars2
+		).
+		*/
 		"subsumes_term/2": function( thread, point, atom ) {
-			var occurs_check = thread.get_flag( "occurs_check" ).indicator === "true/0";
-			var mgu = pl.unify( atom.args[1], atom.args[0], occurs_check );
-			if( mgu !== null && atom.args[1].apply( mgu ).equals( atom.args[1] ) ) {
-				thread.success( point );
-			}
+			var general = atom.args[0], specific = atom.args[1];
+			var vars1 = thread.next_free_variable();
+			var vars2 = thread.next_free_variable();
+			thread.prepend([new State(
+				point.goal.replace(new Term("\\+", [
+					new Term("\\+", [
+						new Term(",", [
+							new Term("term_variables", [specific, vars1]),
+							new Term(",", [
+								new Term("unify_with_occurs_check", [general, specific]),
+								new Term(",", [
+									new Term("term_variables", [vars1, vars2]),
+									new Term("==", [vars1, vars2])
+								])
+							])
+						])
+					])
+				])),
+				point.substitution,
+				point
+			)]);
 		},
 		
 		// ALL SOLUTIONS
