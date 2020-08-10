@@ -7297,7 +7297,7 @@
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
 				thread.throw_error( pl.error.type( "integer", code, atom.indicator ) );
-			} else if( code < -1 ) {
+			} else if( !pl.type.is_variable( code ) && code.value < -1 ) {
 				thread.throw_error( pl.error.representation( "in_character_code", atom.indicator ) );
 			} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
