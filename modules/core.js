@@ -6163,6 +6163,8 @@
 			var i, atom1 = atom.args[0], before = atom.args[1], length = atom.args[2], after = atom.args[3], subatom = atom.args[4];
 			if( pl.type.is_variable( atom1 ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_atom( atom1 ) ) {
+				thread.throw_error( pl.error.type( "atom", atom1, atom.indicator ) );
 			} else if( !pl.type.is_variable( before ) && !pl.type.is_integer( before ) ) {
 				thread.throw_error( pl.error.type( "integer", before, atom.indicator ) );
 			} else if( !pl.type.is_variable( length ) && !pl.type.is_integer( length ) ) {
@@ -6175,6 +6177,8 @@
 				thread.throw_error( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
 			} else if( pl.type.is_integer( after ) && after.value < 0 ) {
 				thread.throw_error( pl.error.domain( "not_less_than_zero", after, atom.indicator ) );
+			} else if( !pl.type.is_variable( subatom ) && !pl.type.is_atom( subatom ) ) {
+				thread.throw_error( pl.error.type( "atom", subatom, atom.indicator ) );
 			} else {
 				var bs = [], ls = [], as = [];
 				if( pl.type.is_variable( before ) ) {
