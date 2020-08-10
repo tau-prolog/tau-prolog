@@ -209,10 +209,14 @@
 	nodejs_file_system = {
 		// Open file
 		open: function( path, type, mode ) {
-			var fs = require('fs');
-			var fd = fs.openSync( path, mode[0] );
+			var fd, fs = require('fs');
 			if( mode === "read" && !fs.existsSync( path ) )
 				return null;
+			try {
+				fd = fs.openSync( path, mode[0] );
+			} catch(ex) {
+				return false;
+			}
 			return {
 				get: function( length, position ) {
 					var buffer = new Buffer( length );
