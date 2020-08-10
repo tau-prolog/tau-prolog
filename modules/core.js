@@ -1564,10 +1564,10 @@
 				"read", "user_input", "text", false, "reset" ),
 			"user_output": new Stream(
 				nodejs_flag ? nodejs_user_output : tau_user_output,
-				"write", "user_output", "text", false, "eof_code" ),
+				"append", "user_output", "text", false, "reset" ),
 			"user_error": new Stream(
 				nodejs_flag ? nodejs_user_error : tau_user_error,
-				"write", "user_error", "text", false, "eof_code" ),
+				"append", "user_error", "text", false, "reset" ),
 		};
 		this.file_system = nodejs_flag ? nodejs_file_system : tau_file_system;
 		this.standard_input = this.streams["user_input"];
