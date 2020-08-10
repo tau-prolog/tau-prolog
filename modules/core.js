@@ -3915,7 +3915,7 @@
 				"sqrt/1": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, _ ) { return Math.sqrt( x ); }
+					fn: function( x, thread ) { return x >= 0 ? Math.sqrt( x ) : pl.error.evaluation( "undefined", thread.__call_indicator ); }
 				},
 				"log/1": {
 					type_args: null,
