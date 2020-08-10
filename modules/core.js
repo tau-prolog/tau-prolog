@@ -2213,7 +2213,7 @@
 	// Select term
 	Term.prototype.select = function() {
 		var pointer = this;
-		while(pointer.indicator === ",/2")
+		while(pl.type.is_term(pointer) && pointer.indicator === ",/2")
 			pointer = pointer.args[0];
 		return pointer;
 	};
@@ -2766,7 +2766,7 @@
 		this.current_point = point;
 		if(this.debugger)
 			this.debugger_states.push(point);
-		if(pl.type.is_term(point.goal)) {
+		if(pl.type.is_term(point.goal) && (point.goal.indicator !== ":/2" || pl.type.is_term(point.goal.args[1]))) {
 			var atom = point.goal.select();
 			var context_module = null;
 			var states = [];
@@ -2851,7 +2851,8 @@
 		} else if(pl.type.is_variable(point.goal)) {
 			this.throw_error(pl.error.instantiation(this.level.indicator));
 		} else {
-			this.throw_error(pl.error.type("callable", point.goal, this.level.indicator));
+			var term = pl.type.is_term(point.goal) ? point.goal.args[1] : point.goal;
+			this.throw_error(pl.error.type("callable", term, this.level.indicator));
 		}
 		return asyn;
 	};
