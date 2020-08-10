@@ -5974,6 +5974,13 @@
 					head = clause;
 					body = new Term("true");
 				}
+				if(pl.type.is_variable(head)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+					return;
+				} else if(!pl.type.is_callable(head)) {
+					thread.throw_error(pl.error.type("callable", head, atom.indicator));
+					return;
+				}
 				module_id = module_atom.id;
 				var get_module = thread.session.modules[module_id];
 				if(!pl.type.is_module(get_module))
