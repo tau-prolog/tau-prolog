@@ -4827,7 +4827,7 @@
 				thread.throw_error( pl.error.domain( "operator_priority", priority, atom.indicator ) );
 			} else if( !pl.type.is_variable( specifier ) && !pl.type.is_atom( specifier ) ) {
 				thread.throw_error( pl.error.type( "atom", specifier, atom.indicator ) );
-			} else if( pl.type.is_atom( specifier ) && ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"].indexOf( specifier.id ) === -1 ) {
+			} else if( pl.type.is_atom( specifier ) && indexOf( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"], specifier.id ) === -1 ) {
 				thread.throw_error( pl.error.domain( "operator_specifier", specifier, atom.indicator ) );
 			} else if( !pl.type.is_variable( operator ) && !pl.type.is_atom( operator ) ) {
 				thread.throw_error( pl.error.type( "atom", operator, atom.indicator ) );
