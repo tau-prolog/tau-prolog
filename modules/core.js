@@ -4077,7 +4077,13 @@
 				} else if( !pl.type.is_integer( indicator.args[1] ) ) {
 					thread.throw_warning( pl.error.type( "integer", indicator.args[1], atom.indicator ) );
 				} else {
-					thread.session.modules[options.context_module].multifile_predicates[atom.args[0].args[0].id + "/" + atom.args[0].args[1].value] = true;
+					var predicate_indicator = atom.args[0].args[0].id + "/" + atom.args[0].args[1].value;
+					var get_module = thread.session.modules[options.context_module];
+					get_module.multifile_predicates[predicate_indicator] = true;
+					if(!get_module.rules.hasOwnProperty(predicate_indicator)) {
+						get_module.rules[predicate_indicator] = [];
+						get_module.public_predicates[predicate_indicator] = false;
+					}
 				}
 			},
 
