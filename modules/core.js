@@ -7737,8 +7737,9 @@
 					var text = "";
 					var tokens = [];
 					var last_token = null;
+					var lexical_error = false;
 					// Get term
-					while( last_token === null || last_token.name !== "atom" || last_token.value !== "." || tokens.length > 0 && expr.type === ERROR ) {
+					while( lexical_error || last_token === null || last_token.name !== "atom" || last_token.value !== "." || tokens.length > 0 && expr.type === ERROR ) {
 						char = stream2.stream.get( 1, stream2.position );
 						if( char === null ) {
 							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
@@ -7768,6 +7769,11 @@
 						num_token = tokens !== null && tokens.length > 1 ? tokens[tokens.length-2] : null;
 						last_token = tokens !== null && tokens.length > 0 ? tokens[tokens.length-1] : null;
 						if(tokens === null)
+							continue;
+						lexical_error = false;
+						for(var i = 0; i < tokens.length && !lexical_error; i++)
+							lexical_error = tokens[i].name === "lexical";
+						if(lexical_error)
 							continue;
 						expr = parseExpr(thread, tokens, 0, thread.__get_max_priority(), false);
 						if(num_token && num_token.name === "number" && !num_token.float && !num_token.blank && last_token.value === ".") {
