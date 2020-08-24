@@ -614,6 +614,13 @@
 			start += token.value.length;
 			len += token.value.length;
 
+			var nl = (token.value.match(/\n/g) || []).length;
+			line += nl;
+			if(nl > 0) 
+				start = token.value.length - token.value.lastIndexOf("\n") - 1;
+			token.line_count = line;
+			token.line_position = start;
+
 			switch(token.name) {
 				case "atom":
 					token.raw = token.value;
@@ -643,10 +650,6 @@
 					var last = tokens[tokens.length-1];
 					if(last) last.space = true;
 					last_is_blank = true;
-					var nl = (token.value.match(/\n/g) || []).length;
-					line += nl;
-					if(nl > 0)
-						start = token.value.length - token.value.lastIndexOf("\n") - 1;
 					continue;
 				case "r_bracket":
 					if( tokens.length > 0 && tokens[tokens.length-1].name === "l_bracket" ) {
@@ -1525,6 +1528,9 @@
 		this.position = this.mode === "append" ? "end_of_stream" : 0;
 		this.output = this.mode === "write" || this.mode === "append";
 		this.input = this.mode === "read";
+		this.line_position = 0;
+		this.line_count = 1;
+		this.char_count = 0;
 	}
 	
 	// Substitutions
@@ -3715,12 +3721,16 @@
 					obj.indicator === "output/0" || 
 					obj.indicator === "alias/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom( obj.args[0] )) ||
 					obj.indicator === "file_name/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom( obj.args[0] )) ||
-					obj.indicator === "position/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_stream_position( obj.args[0] )) ||
 					obj.indicator === "reposition/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "true" || obj.args[0].id === "false")) ||
 					obj.indicator === "type/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "text" || obj.args[0].id === "binary")) ||
 					obj.indicator === "mode/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "read" || obj.args[0].id === "write" || obj.args[0].id === "append")) ||
 					obj.indicator === "eof_action/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "error" || obj.args[0].id === "eof_code" || obj.args[0].id === "reset")) ||
-					obj.indicator === "end_of_stream/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "at" || obj.args[0].id === "past" || obj.args[0].id === "not"))
+					obj.indicator === "end_of_stream/1" && (pl.type.is_variable( obj.args[0] ) || pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "at" || obj.args[0].id === "past" || obj.args[0].id === "not")) ||
+					obj.indicator === "position/1"
+						&& (pl.type.is_variable(obj.args[0]) || pl.type.is_term(obj.args[0]) && obj.args[0].indicator === "position/3"
+							&& (pl.type.is_variable(obj.args[0].args[0]) || pl.type.is_integer(obj.args[0].args[0]))
+							&& (pl.type.is_variable(obj.args[0].args[1]) || pl.type.is_integer(obj.args[0].args[1]))
+							&& (pl.type.is_variable(obj.args[0].args[2]) || pl.type.is_integer(obj.args[0].args[2])))
 				);
 			},
 
@@ -4564,7 +4574,7 @@
 				token = token || {value: "", line: 0, column: 0, matches: [""], start: 0};
 				var position = last && token.matches.length > 0 ? token.start + token.matches[0].length : token.start;
 				var found = last ? new Term("token_not_found") : new Term("found", [new Term(token.value.toString())]);
-				var info = new Term( ".", [new Term( "line", [new Num(token.line+1)] ), new Term( ".", [new Term( "column", [new Num(position+1)] ), new Term( ".", [found, new Term( "[]", [] )] )] )] );
+				var info = new Term( ".", [new Term( "line", [new Num(token.line+1)] ), new Term( ".", [new Term( "column", [new Num(position)] ), new Term( ".", [found, new Term( "[]", [] )] )] )] );
 				return new Term( "error", [new Term( "syntax_error", [new Term( expected )] ), info] );
 			},
 			
@@ -7145,9 +7155,11 @@
 					if( streams[i].alias )
 						properties.push( new Term( "alias", [new Term(streams[i].alias, [])] ) );
 					properties.push( new Term( "position", [
-						typeof streams[i].position === "number" ?
-							new Num( streams[i].position, false ) :
-							new Term( streams[i].position, [] )
+						new Term("position", [
+							new Num(streams[i].char_count, false),
+							new Num(streams[i].line_count, false),
+							new Num(streams[i].line_position, false)
+						])
 					] ) );
 					properties.push( new Term( "end_of_stream", [new Term(
 						streams[i].position === "end_of_stream" ? "at" :
@@ -7167,6 +7179,34 @@
 					}
 				}
 				thread.prepend( states );
+			}
+		},
+
+		// stream_position_data
+		"stream_position_data/3": function(thread, point, atom) {
+			var position = atom.args[0], field = atom.args[1], value = atom.args[2];
+			if(pl.type.is_variable(position) || pl.type.is_variable(field)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_term(position) || position.indicator !== "position/3") {
+				thread.throw_error(pl.error.domain("stream_position", position, atom.indicator));
+			} else if(!pl.type.is_atom(field)) {
+				thread.throw_error(pl.error.type("atom", field, atom.indicator));
+			} else if(!pl.type.is_variable(value) && !pl.type.is_integer(value)) {
+				thread.throw_error(pl.error.type("integer", value, atom.indicator));
+			} else {
+				if(field.indicator === "char_count/0") {
+					thread.prepend([new State(point.goal.replace(
+						new Term("=", [value, position.args[0]])
+					), point.substitution, point)]);
+				} else if(field.indicator === "line_count/0") {
+					thread.prepend([new State(point.goal.replace(
+						new Term("=", [value, position.args[1]])
+					), point.substitution, point)]);
+				} else if(field.indicator === "line_position/0") {
+					thread.prepend([new State(point.goal.replace(
+						new Term("=", [value, position.args[2]])
+					), point.substitution, point)]);
+				}
 			}
 		},
 
@@ -7754,10 +7794,10 @@
 								};
 								break;
 							} else if(expr) {
-								thread.throw_error( pl.error.syntax( null, "unexpected end of file", false ) );
+								thread.throw_error( pl.error.syntax( last_token, "unexpected end of file", false ) );
 								return;
 							} else {
-								thread.throw_error( pl.error.syntax( null, "token not found", true ) );
+								thread.throw_error( pl.error.syntax( last_token, "token not found", true ) );
 								return;
 							}
 						}
@@ -7786,6 +7826,12 @@
 							}
 						}
 					}
+					if(last_token.line_position === last_token.len)
+						stream2.line_position += last_token.line_position;
+					else
+						stream2.line_position = last_token.line_position;
+					stream2.line_count += last_token.line_count;
+					stream2.char_count += last_token.len;
 					// Succeed analyzing term
 					if( expr.type === SUCCESS && (expr.len === -1 || expr.len === tokens.length-1 && last_token.value === "." )) {
 						expr = expr.value.rename( thread );
