@@ -1811,7 +1811,7 @@
 				var id = this.id;
 				var operator = options.session ? options.session.lookup_operator( this.id, this.args.length ) : null;
 				if( options.session === undefined || options.ignore_ops || operator === null ) {
-					if( options.quoted && ! /^(!|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+)$/.test( id ) && id !== "{}" && id !== "[]" )
+					if( options.quoted && (! /^(!|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+)$/.test( id ) && id !== "{}" && id !== "[]" || id === "." ) )
 						id = "'" + redoEscape(id) + "'";
 					return id + (this.args.length > 0 ? "(" + map( this.args,
 						function(x) { return x.toString(options); }
@@ -1830,7 +1830,7 @@
 					var rpar = cond ? ")" : "";
 					var space = /^[a-z][0-9a-zA-Z_]*$/.test( id ) ? " " : "";
 					if( this.args.length === 0 ) {
-						return "(" + this.id + ")";
+						return lpar + this.id + rpar;
 					} else if( ["fy","fx"].indexOf( operator.class) !== -1 ) {
 						return lpar + id + space + this.args[0].toString( options, operator ) + rpar;
 					} else if( ["yf","xf"].indexOf( operator.class) !== -1 ) {
