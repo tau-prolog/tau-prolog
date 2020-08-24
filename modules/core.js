@@ -7774,17 +7774,21 @@
 						}
 						// Variable names
 						if( obj_options.variable_names ) {
-							var vars = arrayToList( map( nub( expr.variables() ), function(v) {
-								var prop;
-								for( prop in thread.session.renamed_variables ) {
+							var vars = nub(expr.variables());
+							var plvars = [];
+							for(var i = 0; i < vars.length; i++) {
+								var v = vars[i];
+								for( var prop in thread.session.renamed_variables ) {
 									if( thread.session.renamed_variables.hasOwnProperty( prop ) ) {
-										if( thread.session.renamed_variables[ prop ] === v )
+										if( thread.session.renamed_variables[ prop ] === v ) {
+											plvars.push(new Term( "=", [new Term( prop, []), new Var(v)] ));
 											break;
+										}
 									}
 								}
-								return new Term( "=", [new Term( prop, []), new Var(v)] );
-							} ) );
-							eq = new Term( ",", [eq, new Term( "=", [obj_options.variable_names, vars] )] )
+							}
+							plvars = arrayToList(plvars);
+							eq = new Term( ",", [eq, new Term( "=", [obj_options.variable_names, plvars] )] );
 						}
 						// Singletons
 						if( obj_options.singletons ) {
