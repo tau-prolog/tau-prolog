@@ -643,6 +643,10 @@
 					var last = tokens[tokens.length-1];
 					if(last) last.space = true;
 					last_is_blank = true;
+					var nl = (token.value.match(/\n/g) || []).length;
+					line += nl;
+					if(nl > 0)
+						start = token.value.length - token.value.lastIndexOf("\n") - 1;
 					continue;
 				case "r_bracket":
 					if( tokens.length > 0 && tokens[tokens.length-1].name === "l_bracket" ) {
