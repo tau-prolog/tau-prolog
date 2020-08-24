@@ -3783,7 +3783,14 @@
 			is_meta_argument_specifier: function(obj) {
 				return pl.type.is_integer(obj) && obj.value >= 0 ||
 					pl.type.is_atom(obj) && indexOf(["+", "-", "?", "*", "^", ":", "//"], obj.id) !== -1;
-			}
+			},
+
+			// Is a time property
+			is_time_property: function( obj ) {
+				return pl.type.is_term(obj) && obj.args.length === 1 
+				&& (pl.type.is_variable(obj.args[0]) || pl.type.is_integer(obj.args[0]))
+				&& indexOf(["year", "month", "day", "hours", "minutes", "seconds", "milliseconds", "weekday"], obj.id) !== -1;
+			},
 			
 		},
 
@@ -8156,6 +8163,100 @@
 				var current = new Num(Date.now(), true);
 				thread.prepend( [new State(
 					point.goal.replace( new Term( "=", [time, current] ) ), 
+					point.substitution,
+					point
+				)] );
+			}
+		},
+
+		// time_property
+		"time_property/2": function(thread, point, atom) {
+			var time = atom.args[0], property = atom.args[1];
+			if(pl.type.is_variable(time)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_variable(time) && !pl.type.is_number(time)) {
+				thread.throw_error(pl.error.type("number", time, atom.indicator));
+			} else if(!pl.type.is_variable(property) && !pl.type.is_time_property(property)) {
+				thread.throw_error(pl.error.domain("time_property", property, atom.indicator));
+			} else {
+				var props;
+				if(pl.type.is_variable(property)) {
+					props = ["year", "month", "day", "hours", "minutes", "seconds", "milliseconds", "weekday"];
+				} else {
+					props = [property.id];
+				}
+				var date = new Date(time.value);
+				var value;
+				var states = [];
+				for(var i = 0; i < props.length; i++) {
+					switch(props[i]) {
+						case "year":
+							value = new Term("year", [new Num(date.getFullYear(), false)]);
+							break;
+						case "month":
+							value = new Term("month", [new Num(date.getMonth(), false)]);
+							break;
+						case "day":
+							value = new Term("day", [new Num(date.getDate(), false)]);
+							break;
+						case "hours":
+							value = new Term("hours", [new Num(date.getHours(), false)]);
+							break;
+						case "minutes":
+							value = new Term("minutes", [new Num(date.getMinutes(), false)]);
+							break;
+						case "seconds":
+							value = new Term("seconds", [new Num(date.getSeconds(), false)]);
+							break;
+						case "milliseconds":
+							value = new Term("milliseconds", [new Num(date.getMilliseconds(), false)]);
+							break;
+						case "weekday":
+							value = new Term("weekday", [new Num(date.getDay(), false)]);
+							break;
+					}
+					states.push(new State(
+						point.goal.replace( new Term( "=", [property, value] ) ), 
+						point.substitution,
+						point
+					));
+				}
+				thread.prepend(states);
+			}
+		},
+
+		// time_year/2
+		"time_year/2": function( thread, point, atom ) {
+			var time = atom.args[0], year = atom.args[1];
+			if(pl.type.is_variable(time)) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if(!pl.type.is_number(time)) {
+				thread.throw_error( pl.error.type( "number", time, atom.indicator ) );
+			} else if(!pl.type.is_variable(year) && !pl.type.is_integer(year)) {
+				thread.throw_error( pl.error.type( "integer", year, atom.indicator ) );
+			} else {
+				var value = new Num(new Date(time.value).getFullYear(), false);
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "=", [year, value] ) ), 
+					point.substitution,
+					point
+				)] );
+			}
+		},
+
+		// time_month/2
+		"time_month/2": function( thread, point, atom ) {
+			var time = atom.args[0], month = atom.args[1];
+			if(pl.type.is_variable(time)) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if(!pl.type.is_number(time)) {
+				thread.throw_error( pl.error.type( "number", time, atom.indicator ) );
+			} else if(!pl.type.is_variable(month) && !pl.type.is_integer(month)) {
+				thread.throw_error( pl.error.type( "integer", month, atom.indicator ) );
+			} else {
+				var value = new Num(new Date(time.value).getMonth(), false);
+				thread.prepend( [new State(
+					point.goal.replace( new Term( "=", [month, value] ) ), 
 					point.substitution,
 					point
 				)] );
