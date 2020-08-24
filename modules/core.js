@@ -7184,29 +7184,48 @@
 
 		// stream_position_data
 		"stream_position_data/3": function(thread, point, atom) {
-			var position = atom.args[0], field = atom.args[1], value = atom.args[2];
-			if(pl.type.is_variable(position) || pl.type.is_variable(field)) {
+			var field = atom.args[0], position = atom.args[1], value = atom.args[2];
+			if(pl.type.is_variable(position)) {
 				thread.throw_error(pl.error.instantiation(atom.indicator));
 			} else if(!pl.type.is_term(position) || position.indicator !== "position/3") {
 				thread.throw_error(pl.error.domain("stream_position", position, atom.indicator));
-			} else if(!pl.type.is_atom(field)) {
+			} else if(!pl.type.is_variable(field) && !pl.type.is_atom(field)) {
 				thread.throw_error(pl.error.type("atom", field, atom.indicator));
 			} else if(!pl.type.is_variable(value) && !pl.type.is_integer(value)) {
 				thread.throw_error(pl.error.type("integer", value, atom.indicator));
 			} else {
-				if(field.indicator === "char_count/0") {
-					thread.prepend([new State(point.goal.replace(
-						new Term("=", [value, position.args[0]])
-					), point.substitution, point)]);
-				} else if(field.indicator === "line_count/0") {
-					thread.prepend([new State(point.goal.replace(
-						new Term("=", [value, position.args[1]])
-					), point.substitution, point)]);
-				} else if(field.indicator === "line_position/0") {
-					thread.prepend([new State(point.goal.replace(
-						new Term("=", [value, position.args[2]])
-					), point.substitution, point)]);
+				var fields;
+				if(pl.type.is_variable(field)) {
+					fields = ["char_count", "line_count", "line_position"];
+				} else {
+					fields = [field.id];
 				}
+				var states = [];
+				for(var i = 0; i < fields.length; i++) {
+					if(fields[i] === "char_count") {
+						states.push(new State(point.goal.replace(
+							new Term(",", [
+								new Term("=", [new Term("char_count"), field]),
+								new Term("=", [value, position.args[0]])
+							])
+						), point.substitution, point));
+					} else if(fields[i] === "line_count") {
+						states.push(new State(point.goal.replace(
+							new Term(",", [
+								new Term("=", [new Term("line_count"), field]),
+								new Term("=", [value, position.args[1]])
+							])
+						), point.substitution, point));
+					} else if(fields[i] === "line_position") {
+						states.push(new State(point.goal.replace(
+							new Term(",", [
+								new Term("=", [new Term("line_position"), field]),
+								new Term("=", [value, position.args[2]])
+							])
+						), point.substitution, point));
+					}
+				}
+				thread.prepend(states);
 			}
 		},
 
