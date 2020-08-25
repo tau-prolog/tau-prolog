@@ -5949,7 +5949,10 @@
 					thread.throw_error(pl.error.type("callable", head, atom.indicator));
 				} else if(body !== null && !pl.type.is_callable(body)) {
 					thread.throw_error( pl.error.type("callable", body, atom.indicator));
-				} else if(!pl.type.is_module(thread.session.modules[module_id]) || thread.is_public_predicate(head.indicator, module_id)) {
+				} else if((!pl.type.is_module(thread.session.modules[module_id])
+				|| thread.is_public_predicate(head.indicator, module_id))
+				&& head.indicator !== ",/2"
+				&& !thread.session.modules.system.rules.hasOwnProperty(head.indicator)) {
 					if(!pl.type.is_module(thread.session.modules[module_id])) {
 						get_module = new Module(module_id, {}, "all", {session: thread.session});
 						thread.session.modules[module_id] = get_module;
@@ -5994,7 +5997,10 @@
 					thread.throw_error(pl.error.type("callable", head, atom.indicator));
 				} else if(body !== null && !pl.type.is_callable(body)) {
 					thread.throw_error( pl.error.type("callable", body, atom.indicator));
-				} else if(!pl.type.is_module(thread.session.modules[module_id]) || thread.is_public_predicate(head.indicator, module_id)) {
+				} else if((!pl.type.is_module(thread.session.modules[module_id])
+				|| thread.is_public_predicate(head.indicator, module_id))
+				&& head.indicator !== ",/2"
+				&& !thread.session.modules.system.rules.hasOwnProperty(head.indicator)) {
 					if(!pl.type.is_module(thread.session.modules[module_id])) {
 						get_module = new Module(module_id, {}, "all", {session: thread.session});
 						thread.session.modules[module_id] = get_module;
@@ -6050,7 +6056,9 @@
 				if(!pl.type.is_module(get_module))
 					return;
 				if(!point.retract) {
-					if(thread.is_public_predicate(head.indicator, module_id)) {
+					if(thread.is_public_predicate(head.indicator, module_id)
+					&& head.indicator !== ",/2"
+					&& !thread.session.modules.system.rules.hasOwnProperty(head.indicator)) {
 						if(get_module.rules[head.indicator] !== undefined) {
 							var states = [];
 							if(typeof get_module.rules[head.indicator] === "function") {
@@ -6104,7 +6112,9 @@
 				thread.throw_error(pl.error.instantiation(atom.indicator));
 			} else if(!pl.type.is_callable(head)) {
 				thread.throw_error(pl.error.type("callable", head, atom.indicator));
-			} else if(!thread.is_public_predicate(head.indicator, context_module)) {
+			} else if(!thread.is_public_predicate(head.indicator, context_module)
+			|| head.indicator === ",/2"
+			|| thread.session.modules.system.rules.hasOwnProperty(head.indicator)) {
 				thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
 			} else {
 				thread.prepend([
@@ -6151,7 +6161,9 @@
 				var get_module = thread.session.modules[module_id];
 				if(pl.type.is_module(get_module)) {
 					var indicator = predicate.args[0].id + "/" + predicate.args[1].value;
-					if(thread.is_public_predicate(indicator, module_id)) {
+					if(thread.is_public_predicate(indicator, module_id)
+					&& indicator !== ",/2"
+					&& !thread.session.modules.system.rules.hasOwnProperty(indicator)) {
 						delete get_module.rules[indicator];
 						delete get_module.public_predicates[indicator];
 						delete get_module.multifile_predicates[indicator];
