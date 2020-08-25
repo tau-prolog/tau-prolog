@@ -1788,7 +1788,7 @@
 		options.quoted = options.quoted === undefined ? false: options.quoted;
 		options.ignore_ops = options.ignore_ops === undefined ? false : options.ignore_ops;
 		options.numbervars = options.numbervars === undefined ? false : options.numbervars;
-		priority = priority === undefined ? {priority: 999, class: "", indicator: ""} : priority;
+		priority = priority === undefined ? {priority: 1200, class: "", indicator: ""} : priority;
 		from = from === undefined ? "" : from;
 		if( options.numbervars && this.indicator === "$VAR/1" && pl.type.is_integer( this.args[0] ) && this.args[0].value >= 0 ) {
 			var i = this.args[0].value;
@@ -1821,7 +1821,7 @@
 				var id = this.id;
 				var operator = options.session ? options.session.lookup_operator( this.id, this.args.length ) : null;
 				if( options.session === undefined || options.ignore_ops || operator === null ) {
-					if( options.quoted && (! /^(!|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+)$/.test( id ) && id !== "{}" && id !== "[]" || id === "." ) )
+					if( options.quoted && (! /^(!|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+)$/.test( id ) && id !== "{}" && id !== "[]" || indexOf([".",",",";"], id) !== -1 ) )
 						id = "'" + redoEscape(id) + "'";
 					return id + (this.args.length > 0 ? "(" + map( this.args,
 						function(x) { return x.toString(options); }
@@ -2468,7 +2468,7 @@
 		for(var p in this.__operators)
 			if(this.__operators[p][name])
 				for(var i = 0; i < this.__operators[p][name].length; i++)
-					if( arity === 0 || this.__operators[p][name][i].length === arity+1 )
+					if( this.__operators[p][name][i].length === arity+1 )
 						return {priority: p, class: this.__operators[p][name][i]};
 		return null;
 	};
