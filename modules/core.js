@@ -7845,12 +7845,14 @@
 							}
 						}
 					}
-					if(last_token.line_position === last_token.len)
-						stream2.line_position += last_token.line_position;
-					else
-						stream2.line_position = last_token.line_position;
-					stream2.line_count += last_token.line_count;
-					stream2.char_count += last_token.len;
+					if(last_token) {
+						if(last_token.line_position === last_token.len)
+							stream2.line_position += last_token.line_position;
+						else
+							stream2.line_position = last_token.line_position;
+						stream2.line_count += last_token.line_count;
+						stream2.char_count += last_token.len;
+					}
 					// Succeed analyzing term
 					if( expr.type === SUCCESS && (expr.len === -1 || expr.len === tokens.length-1 && last_token.value === "." )) {
 						expr = expr.value.rename( thread );
@@ -8030,6 +8032,13 @@
 					stream2.stream.put( text, stream2.position );
 					if( typeof stream2.position === "number" )
 						stream2.position += text.length;
+					var nl = (text.match(/\n/g) || []).length;
+					stream2.line_count += nl;
+					if(nl > 0)
+						stream2.line_position = text.length - text.lastIndexOf("\n") - 1;
+					else
+						stream2.line_position += text.length;
+					stream2.char_count += text.length;
 					thread.success( point );
 				}
 			}
