@@ -3940,7 +3940,7 @@
 				"atan2/2": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, y, _ ) { return Math.atan2( x, y ); }
+					fn: function( x, y, thread ) { return x === 0 && y === 0 ? pl.error.evaluation("undefined", thread.__call_indicator) : Math.atan2(x, y); }
 				},
 				"exp/1": {
 					type_args: null,
