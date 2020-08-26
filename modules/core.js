@@ -1838,7 +1838,7 @@
 					operator.indicator = this.indicator;
 					var lpar = cond ? "(" : "";
 					var rpar = cond ? ")" : "";
-					var space = /^[a-z][0-9a-zA-Z_]*$/.test( id ) ? " " : "";
+					var space = " ";
 					if( this.args.length === 0 ) {
 						return lpar + this.id + rpar;
 					} else if( ["fy","fx"].indexOf( operator.class) !== -1 ) {
@@ -7153,6 +7153,7 @@
 			} else {
 				var streams = [];
 				var states = [];
+				var propvar = pl.type.is_variable(property);
 				if( !pl.type.is_variable( stream ) )
 					streams.push( stream2 );
 				else
@@ -7160,26 +7161,42 @@
 						streams.push( thread.session.streams[key] );
 				for( var i = 0; i < streams.length; i++ ) {
 					var properties = [];
-					if( streams[i].filename )
+					// file_name/1
+					if( (propvar || property.indicator === "file_name/1") && streams[i].filename )
 						properties.push( new Term( "file_name", [new Term(streams[i].file_name, [])] ) );
-					properties.push( new Term( "mode", [new Term(streams[i].mode, [])] ) );
-					properties.push( new Term( streams[i].input ? "input" : "output", [] ) );
-					if( streams[i].alias )
+					// mode/1
+					if(propvar || property.indicator === "mode/1")
+						properties.push( new Term( "mode", [new Term(streams[i].mode, [])] ) );
+					// input/0 or output/0
+					if(propvar || property.indicator === "input/0" || property.indicator === "output/0")
+						properties.push( new Term( streams[i].input ? "input" : "output", [] ) );
+					// alias/1
+					if( (propvar || property.indicator === "alias/1") && streams[i].alias )
 						properties.push( new Term( "alias", [new Term(streams[i].alias, [])] ) );
-					properties.push( new Term( "position", [
-						new Term("position", [
-							new Num(streams[i].char_count, false),
-							new Num(streams[i].line_count, false),
-							new Num(streams[i].line_position, false)
-						])
-					] ) );
-					properties.push( new Term( "end_of_stream", [new Term(
-						streams[i].position === "end_of_stream" ? "at" :
-						streams[i].position === "past_end_of_stream" ? "past" :
-						"not", [])] ) );
-					properties.push( new Term( "eof_action", [new Term(streams[i].eof_action, [])] ) );
-					properties.push( new Term( "reposition", [new Term(streams[i].reposition ? "true" : "false", [])] ) );
-					properties.push( new Term( "type", [new Term(streams[i].type, [])] ) );
+					// position/1
+					if(propvar || property.indicator === "position/1")
+						properties.push( new Term( "position", [
+							new Term("position", [
+								new Num(streams[i].char_count, false),
+								new Num(streams[i].line_count, false),
+								new Num(streams[i].line_position, false)
+							])
+						] ) );
+					// end_of_stream/1
+					if(propvar || property.indicator === "end_of_stream/1")
+						properties.push( new Term( "end_of_stream", [new Term(
+							streams[i].position === "end_of_stream" ? "at" :
+							streams[i].position === "past_end_of_stream" ? "past" :
+							"not", [])] ) );
+					// eof_action/1
+					if(propvar || property.indicator === "eof_action/1")	
+						properties.push( new Term( "eof_action", [new Term(streams[i].eof_action, [])] ) );
+					// reposition/1
+					if(propvar || property.indicator === "reposition/1")
+						properties.push( new Term( "reposition", [new Term(streams[i].reposition ? "true" : "false", [])] ) );
+					// type/1
+					if(propvar || property.indicator === "type/1")
+						properties.push( new Term( "type", [new Term(streams[i].type, [])] ) );
 					for( var j = 0; j < properties.length; j++ ) {
 						states.push( new State(
 							point.goal.replace( new Term( ",", [
@@ -7206,36 +7223,22 @@
 			} else if(!pl.type.is_variable(value) && !pl.type.is_integer(value)) {
 				thread.throw_error(pl.error.type("integer", value, atom.indicator));
 			} else {
-				var fields;
-				if(pl.type.is_variable(field)) {
-					fields = ["char_count", "line_count", "line_position"];
-				} else {
-					fields = [field.id];
-				}
+				var fields = ["char_count", "line_count", "line_position"];
 				var states = [];
-				for(var i = 0; i < fields.length; i++) {
-					if(fields[i] === "char_count") {
+				var data_pos = {char_count: 0, line_count: 1, line_position: 2};
+				if(pl.type.is_variable(field)) {
+					for(var i = 0; i < fields.length; i++) {
 						states.push(new State(point.goal.replace(
 							new Term(",", [
-								new Term("=", [new Term("char_count"), field]),
-								new Term("=", [value, position.args[0]])
-							])
-						), point.substitution, point));
-					} else if(fields[i] === "line_count") {
-						states.push(new State(point.goal.replace(
-							new Term(",", [
-								new Term("=", [new Term("line_count"), field]),
-								new Term("=", [value, position.args[1]])
-							])
-						), point.substitution, point));
-					} else if(fields[i] === "line_position") {
-						states.push(new State(point.goal.replace(
-							new Term(",", [
-								new Term("=", [new Term("line_position"), field]),
-								new Term("=", [value, position.args[2]])
+								new Term("=", [new Term(fields[i]), field]),
+								new Term("=", [value, position.args[data_pos[fields[i]]]])
 							])
 						), point.substitution, point));
 					}
+				} else if(data_pos.hasOwnProperty(field.id)) {
+					states.push(new State(point.goal.replace(
+						new Term("=", [value, position.args[data_pos[field.id]]])
+					), point.substitution, point));
 				}
 				thread.prepend(states);
 			}
@@ -7810,13 +7813,17 @@
 					var last_token = null;
 					var lexical_error = false;
 					// Get term
-					while( lexical_error || last_token === null || last_token.name !== "atom" || last_token.value !== "." || tokens.length > 0 && expr.type === ERROR ) {
+					while( last_token === null || lexical_error || last_token.name !== "atom" || last_token.value !== "." || tokens.length > 0 && expr.type === ERROR ) {
 						char = stream2.stream.get( 1, stream2.position );
+						while(char !== null && char !== "." && char !== "end_of_file" && char !== "past_end_of_file") {
+							stream2.position++;
+							text += char;
+							char = stream2.stream.get( 1, stream2.position );
+						}
 						if( char === null ) {
 							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 							return;
-						}
-						if( char === "end_of_file" || char === "past_end_of_file" ) {
+						} else if( char === "end_of_file" || char === "past_end_of_file" ) {
 							if(tokens === null || tokens.length === 0) {
 								expr = {
 									value: new Term(char, []),
@@ -7831,9 +7838,10 @@
 								thread.throw_error( pl.error.syntax( last_token, "token not found", true ) );
 								return;
 							}
+						} else if(char === ".") {
+							stream2.position++;
+							text += char;
 						}
-						stream2.position++;
-						text += char;
 						tokenizer = new Tokenizer( thread );
 						tokenizer.new_text( text );
 						tokens = tokenizer.get_tokens();
