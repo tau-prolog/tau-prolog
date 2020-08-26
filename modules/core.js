@@ -2805,8 +2805,8 @@
 		this.current_point = point;
 		if(this.debugger)
 			this.debugger_states.push(point);
-		if(pl.type.is_term(point.goal) && (point.goal.indicator !== ":/2" || pl.type.is_term(point.goal.args[1]))) {
-			var atom = point.goal.select();
+		var atom = pl.type.is_term(point.goal) ? point.goal.select() : point.goal;
+		if(pl.type.is_term(atom) && (atom.indicator !== ":/2" || pl.type.is_term(atom.args[1]))) {
 			var context_module = null;
 			var states = [];
 			if(atom !== null) {
@@ -2888,7 +2888,7 @@
 				}
 			}
 		} else {
-			var term = pl.type.is_term(point.goal) ? point.goal.args[1] : point.goal;
+			var term = pl.type.is_term(atom) && atom.indicator === ":/2" ? atom.args[1] : atom;
 			if(pl.type.is_variable(term))
 				this.throw_error(pl.error.instantiation(this.level.indicator));
 			else
@@ -5227,8 +5227,20 @@
 			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
 				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
 			} else {
+				if(!pl.type.is_variable(instances)) {
+					var pointer = instances;
+					while(pl.type.is_term(pointer) && pointer.indicator === "./2")
+						pointer = pointer.args[1];
+					if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
+						thread.throw_error(pl.error.type("list", instances, atom.indicator));
+						return;
+					}
+				}
 				var variable = thread.next_free_variable();
-				var newGoal = new Term( ",", [goal, new Term( "=", [variable, template] )] );
+				var newGoal = new Term( ",", [
+					new Term("call", [goal]),
+					new Term( "=", [variable, template] )
+				]);
 				var nthread = new Thread(thread.session);
 				nthread.debugger = thread.debugger;
 				nthread.format_success = function(state) { return state.substitution; };
@@ -5445,15 +5457,15 @@
 			var subs;
 			var term = atom.args[0], name = atom.args[1], arity = atom.args[2];
 			if( pl.type.is_variable( term ) && (pl.type.is_variable( name ) || pl.type.is_variable( arity )) ) {
-				thread.throw_error( pl.error.instantiation( "functor/3" ) );
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_variable( arity ) && !pl.type.is_integer( arity ) ) {
-				thread.throw_error( pl.error.type( "integer", atom.args[2], "functor/3" ) );
+				thread.throw_error( pl.error.type( "integer", atom.args[2], atom.indicator ) );
 			} else if( !pl.type.is_variable( name ) && !pl.type.is_atomic( name ) ) {
-				thread.throw_error( pl.error.type( "atomic", atom.args[1], "functor/3" ) );
+				thread.throw_error( pl.error.type( "atomic", atom.args[1], atom.indicator ) );
 			} else if( pl.type.is_variable( term ) && !pl.type.is_atom( name ) && pl.type.is_integer( arity ) && arity.value > 0 ) {
-				thread.throw_error( pl.error.type( "atom", atom.args[1], "functor/3" ) );
+				thread.throw_error( pl.error.type( "atom", atom.args[1], atom.indicator ) );
 			} else if( pl.type.is_variable( term ) && pl.type.is_integer( arity ) && arity.value < 0 ) {
-				thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[2], "functor/3" ) );
+				thread.throw_error( pl.error.domain( "not_less_than_zero", atom.args[2], atom.indicator ) );
 			} else if( pl.type.is_variable( term ) ) {
 				if( atom.args[2].value >= 0 ) {
 					var args = [];
