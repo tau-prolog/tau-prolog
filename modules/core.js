@@ -4525,7 +4525,7 @@
 					return new Num( value, type );
 				}
 			} else {
-				return pl.error.type( "evaluable", obj.indicator, thread.__call_indicator );
+				return pl.error.type( "evaluable", obj, thread.__call_indicator );
 			}
 		},
 		
