@@ -4528,6 +4528,8 @@
 				}
 				args.push( thread );
 				value = pl.arithmetic.evaluation[obj.indicator].fn.apply( this, args );
+				if(obj.indicator === "^/2" && !type && value !== parseInt(value, 10))
+					return pl.error.type( "float", new Num(args[0],false), thread.__call_indicator );
 				type = op.type_result === null ? type : op.type_result;
 				if( pl.type.is_term( value ) ) {
 					return value;
