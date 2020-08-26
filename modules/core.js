@@ -2700,11 +2700,19 @@
 	};
 	
 	// Throw error
-	Session.prototype.throw_error = function( error ) {
-		return this.thread.throw_error( error );
+	Session.prototype.throw_error = function(error) {
+		return this.thread.throw_error(error);
 	};
-	Thread.prototype.throw_error = function( error ) {
-		this.prepend( [new State( new Term( "throw", [error] ), new Substitution(), null, null )] );
+	Thread.prototype.throw_error = function(error) {
+		if(pl.type.is_variable(error))
+			error = pl.error.instantiation(this.level.indicator);
+		var state = new State(
+			new Term("throw", [error]),
+			new Substitution(),
+			null
+		);
+		state.error = true;
+		this.prepend([state]);
 	};
 	
 	// Get the module of a predicate
@@ -2933,7 +2941,7 @@
 			this.warnings = [];
 			if(reset_limit !== false)
 				this.current_limit = this.session.limit;
-			while(this.current_limit > 0 && this.points.length > 0 && this.head_point().goal !== null && !pl.type.is_error(this.head_point().goal)) {
+			while(this.current_limit > 0 && this.points.length > 0 && this.head_point().goal !== null && !pl.type.is_error_state(this.head_point())) {
 				this.current_limit--;
 				if(this.step() === true) {
 					return;
@@ -3673,6 +3681,11 @@
 			// Is an error
 			is_error: function( obj ) {
 				return obj instanceof Term && obj.indicator === "throw/1";
+			},
+
+			// Is an error state
+			is_error_state: function( obj ) {
+				return pl.type.is_state( obj ) && obj.error && obj.error === true;
 			},
 			
 			// Is a predicate indicator
@@ -5032,10 +5045,11 @@
 		
 		// throw/1
 		"throw/1": function( thread, point, atom ) {
-			if( pl.type.is_variable( atom.args[0] ) ) {
-				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			var error = atom.args[0];
+			if(pl.type.is_variable(error)) {
+				thread.throw_error(pl.error.instantiation(thread.level.indicator));
 			} else {
-				thread.throw_error( atom.args[0] );
+				thread.throw_error(error);
 			}
 		},
 		
