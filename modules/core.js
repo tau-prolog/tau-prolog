@@ -3962,17 +3962,17 @@
 				"//2": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, y, thread ) { return y ? x / y : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? x / y : pl.error.evaluation( "zero_divisor", thread.__call_indicator ); }
 				},
 				"///2": {
 					type_args: false,
 					type_result: false,
-					fn: function( x, y, thread ) { return y ? Math.trunc( x / y ) : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? Math.trunc( x / y ) : pl.error.evaluation( "zero_divisor", thread.__call_indicator ); }
 				},
 				"div/2": {
 					type_args: false,
 					type_result: false,
-					fn: function( x, y, thread ) { return y ? Math.floor( x / y ) : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? Math.floor( x / y ) : pl.error.evaluation( "zero_divisor", thread.__call_indicator ); }
 				},
 				"**/2": {
 					type_args: null,
@@ -4012,12 +4012,12 @@
 				"rem/2": {
 					type_args: false,
 					type_result: false,
-					fn: function( x, y, thread ) { return y ? x % y : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? x % y : pl.error.evaluation( "zero_divisor", thread.__call_indicator ); }
 				},
 				"mod/2": {
 					type_args: false,
 					type_result: false,
-					fn: function( x, y, thread ) { return y ? x - Math.floor( x / y ) * y : pl.error.evaluation( "zero_division", thread.__call_indicator ); }
+					fn: function( x, y, thread ) { return y ? x - Math.floor( x / y ) * y : pl.error.evaluation( "zero_divisor", thread.__call_indicator ); }
 				},
 				"max/2": {
 					type_args: null,
