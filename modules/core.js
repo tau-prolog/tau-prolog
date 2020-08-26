@@ -6764,10 +6764,11 @@
 				thread.throw_error( pl.error.type( "integer", bet, atom.indicator ) );
 			} else {
 				if( pl.type.is_variable( bet ) ) {
-					var states = [new State( point.goal.replace( new Term( "=", [bet, lower] ) ), point.substitution, point )];
-					if( lower.value < upper.value )
+					if( lower.value <= upper.value ) {
+						var states = [new State( point.goal.replace( new Term( "=", [bet, lower] ) ), point.substitution, point )];
 						states.push( new State( point.goal.replace( new Term( "between", [new Num( lower.value+1, false ), upper, bet] ) ), point.substitution, point ) );
-					thread.prepend( states );
+						thread.prepend( states );
+					}
 				} else if( lower.value <= bet.value && upper.value >= bet.value ) {
 					thread.success( point );
 				}
