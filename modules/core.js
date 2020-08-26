@@ -292,7 +292,7 @@
 	
 	
 	
-	// PARSER
+	// COMPATITBILITY
 	
 	var indexOf;
 	if(!Array.prototype.indexOf) {
@@ -385,7 +385,9 @@
 			return str.replace(regexAstralSymbols, '_').length;
 		};
 
-
+	
+	
+	// PARSER
 
 	var ERROR = 0;
 	var SUCCESS = 1;
@@ -1488,6 +1490,13 @@
 		for( var i = str.length - 1; i >= 0; i-- )
 			if( str.charAt(i) === "/" )
 				return new Term( "/", [new Term( str.substring(0, i) ), new Num( parseInt(str.substring(i+1)), false )] );
+	}
+
+	// Greatest common divisor
+	function gcd(a, b) {
+		if(b === 0)
+			return a;
+		return Math.abs(gcd(b, a % b));
 	}
 	
 	
@@ -3957,6 +3966,16 @@
 					type_result: true,
 					fn: function( x, thread ) { return x > 0 ? Math.log( x ) : pl.error.evaluation( "undefined", thread.__call_indicator ); }
 				},
+				"log/2": {
+					type_args: null,
+					type_result: true,
+					fn: function( x, y, thread ) { return x > 0 && y > 0 ? Math.log(y)/Math.log(x) : pl.error.evaluation( "undefined", thread.__call_indicator ); }
+				},
+				"log10/1": {
+					type_args: null,
+					type_result: true,
+					fn: function( x, thread ) { return x > 0 ? Math.log(x)/Math.log(10) : pl.error.evaluation( "undefined", thread.__call_indicator ); }
+				},
 				"+/2": {
 					type_args: null,
 					type_result: null,
@@ -4041,6 +4060,11 @@
 					type_args: null,
 					type_result: null,
 					fn: function( x, y, _ ) { return Math.min( x, y ); }
+				},
+				"gcd/2": {
+					type_args: false,
+					type_result: false,
+					fn: function( x, y, _ ) { return gcd(x, y); }
 				}
 				
 			}
