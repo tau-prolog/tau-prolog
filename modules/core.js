@@ -6361,6 +6361,16 @@
 				thread.throw_error( pl.error.type( "atom", atom1, atom.indicator ) );
 			} else {
 				if( !pl.type.is_variable( atom1 ) ) {
+					if(!pl.type.is_variable(list)) {
+						var pointer = list;
+						while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+							if(!pl.type.is_character( pointer.args[0])) {
+								thread.throw_error(pl.error.type("character", pointer.args[0], atom.indicator));
+								return;
+							}
+							pointer = pointer.args[1];
+						}
+					}
 					var list1 = new Term( "[]" );
 					var unilen = stringLength(atom1.id);
 					for( var i = unilen-1; i >= 0; i-- ) {
