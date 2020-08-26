@@ -6970,11 +6970,14 @@
 		// current_input/1
 		"current_input/1": function( thread, point, atom ) {
 			var stream = atom.args[0];
-			if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
+			if(!pl.type.is_variable(stream)
+			&& (!pl.type.is_stream(stream) || !thread.get_stream_by_alias(stream.alias)
+			                               && !thread.get_stream_by_alias(stream.id))
+			&& (!pl.type.is_atom(stream) || !thread.get_stream_by_alias(stream.id))) {
 				thread.throw_error( pl.error.domain("stream", stream, atom.indicator) );
 			} else {
-				if( pl.type.is_atom( stream ) && thread.get_stream_by_alias( stream.id ) )
-					stream = thread.get_stream_by_alias( stream.id );
+				if(pl.type.is_atom(stream))
+					stream = thread.get_stream_by_alias(stream.id);
 				thread.prepend( [new State(
 					point.goal.replace(new Term("=", [stream, thread.get_current_input()])),
 					point.substitution,
@@ -6986,10 +6989,13 @@
 		// current_output/1
 		"current_output/1": function( thread, point, atom ) {
 			var stream = atom.args[0];
-			if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
-				thread.throw_error( pl.error.domain("stream_or_alias", stream, atom.indicator) );
+			if(!pl.type.is_variable(stream)
+			&& (!pl.type.is_stream(stream) || !thread.get_stream_by_alias(stream.alias)
+			                               && !thread.get_stream_by_alias(stream.id))
+			&& (!pl.type.is_atom(stream) || !thread.get_stream_by_alias(stream.id))) {
+				thread.throw_error( pl.error.domain("stream", stream, atom.indicator) );
 			} else {
-				if( pl.type.is_atom( stream ) && thread.get_stream_by_alias( stream.id ) )
+				if(pl.type.is_atom(stream))
 					stream = thread.get_stream_by_alias( stream.id );
 				thread.prepend( [new State(
 					point.goal.replace(new Term("=", [stream, thread.get_current_output()])),
@@ -7175,7 +7181,7 @@
 					} else if( stream2 === thread.session.current_output ) {
 						thread.session.current_output = thread.session.current_output;
 					}
-					if( stream2.alias !== null )
+					if( stream2.alias !== null && stream2.alias !== undefined )
 						delete thread.session.streams[stream2.alias];
 					else
 						delete thread.session.streams[stream2.id];
