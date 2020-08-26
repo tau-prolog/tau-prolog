@@ -2862,11 +2862,12 @@
 					this.prepend(states);
 				}
 			}
-		} else if(pl.type.is_variable(point.goal)) {
-			this.throw_error(pl.error.instantiation(this.level.indicator));
 		} else {
 			var term = pl.type.is_term(point.goal) ? point.goal.args[1] : point.goal;
-			this.throw_error(pl.error.type("callable", term, this.level.indicator));
+			if(pl.type.is_variable(term))
+				this.throw_error(pl.error.instantiation(this.level.indicator));
+			else
+				this.throw_error(pl.error.type("callable", term, this.level.indicator));
 		}
 		return asyn;
 	};
