@@ -1413,6 +1413,10 @@
 			return new Term( "call", [expr] );
 		else if( pl.type.is_term( expr ) && [",/2", ";/2", "->/2"].indexOf(expr.indicator) !== -1 )
 			return new Term( expr.id, [body_conversion( expr.args[0] ), body_conversion( expr.args[1] )] );
+		else if( pl.type.is_term(expr) && expr.indicator === ":/2" ) {
+			var body = body_conversion(expr.args[1]);
+			return new Term(":", [expr.args[0], body]);
+		}
 		return expr;
 	}
 	
@@ -1475,9 +1479,13 @@
 			if(pl.type.is_variable(closure)) {
 				thread.throw_error(pl.error.instantiation(atom.indicator));
 			} else if(!pl.type.is_callable(closure)) {
-				thread.throw_error( pl.error.type( "callable", closure, atom.indicator));
+				thread.throw_error(pl.error.type("callable", closure, atom.indicator));
 			} else {
-				var goal = new Term(closure.id, closure.args.concat(args));
+				var goal = body_conversion(new Term(closure.id, closure.args.concat(args)));
+				if(!pl.type.is_callable(goal)) {
+					thread.throw_error(pl.error.type("callable", goal, atom.indicator));
+					return;
+				}
 				if(module_atom)
 					goal = new Term(":", [module_atom, goal]);
 				thread.prepend([new State(point.goal.replace(goal), point.substitution, point)]);
@@ -3575,7 +3583,8 @@
 			is_callable: function( obj ) {
 				return obj instanceof Term
 				&& (indexOf([",/2",";/2","->/2"], obj.indicator) === -1
-				|| pl.type.is_callable(obj.args[0]) && pl.type.is_callable(obj.args[1]));
+				|| pl.type.is_callable(obj.args[0]) && pl.type.is_callable(obj.args[1]))
+				|| obj instanceof Var;
 			},
 			
 			// Is a number
