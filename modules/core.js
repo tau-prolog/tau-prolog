@@ -6936,7 +6936,8 @@
 		
 		// callable/1
 		"callable/1": function( thread, point, atom ) {
-			if( pl.type.is_callable( atom.args[0] ) ) {
+			var callable = atom.args[0];
+			if(pl.type.is_term(callable)) {
 				thread.success( point );
 			}
 		},
