@@ -5607,8 +5607,11 @@
 				thread.throw_error(pl.error.type("callable", head, atom.indicator));
 			} else if(!pl.type.is_variable(body) && !pl.type.is_callable(body)) {
 				thread.throw_error(pl.error.type("callable", body, atom.indicator));
+			} else if(head.indicator === ",/2" || thread.session.modules.system.rules.hasOwnProperty(head.indicator)) {
+				thread.throw_error(pl.error.permission("access", "private_procedure", str_indicator(head.indicator), atom.indicator));
 			} else if(pl.type.is_module(get_module) && get_module.rules[head.indicator]) {
 				if(get_module.is_public_predicate(head.indicator)) {
+					console.log(head+"");
 					var states = [];
 					if(typeof get_module.rules[head.indicator] === "function") {
 						thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
