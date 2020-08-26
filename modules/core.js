@@ -3925,12 +3925,12 @@
 				"asin/1": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, _ ) { return Math.asin( x ); }
+					fn: function( x, thread ) { return Math.abs(x) <= 1 ? Math.asin(x) : pl.error.evaluation("undefined", thread.__call_indicator); }
 				},
 				"acos/1": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, _ ) { return Math.acos( x ); }
+					fn: function( x, thread ) { return Math.abs(x) <= 1 ? Math.acos(x) : pl.error.evaluation("undefined", thread.__call_indicator); }
 				},
 				"atan/1": {
 					type_args: null,
