@@ -3573,7 +3573,9 @@
 			
 			// Is a callable term
 			is_callable: function( obj ) {
-				return obj instanceof Term;
+				return obj instanceof Term
+				&& (indexOf([",/2",";/2","->/2"], obj.indicator) === -1
+				|| pl.type.is_callable(obj.args[0]) && pl.type.is_callable(obj.args[1]));
 			},
 			
 			// Is a number
@@ -6006,7 +6008,7 @@
 					get_module.rules[head.indicator] = [new Rule(head, body, true)].concat(get_module.rules[head.indicator]);
 					thread.success(point);
 				} else {
-					thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
+					thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
 				}
 			}
 		},
@@ -6054,7 +6056,7 @@
 					get_module.rules[head.indicator].push(new Rule(head, body, true));
 					thread.success(point);
 				} else {
-					thread.throw_error(pl.error.permission("modify", "static_procedure", head.indicator, atom.indicator));
+					thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
 				}
 			}
 		},
