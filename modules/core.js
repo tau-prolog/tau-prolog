@@ -7227,8 +7227,8 @@
 				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
 			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
 				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
-			} else if( stream.input === true ) {
-				thread.throw_error( pl.error.permission( "output", "stream", output, atom.indicator ) );
+			} else if( stream2.input === true ) {
+				thread.throw_error( pl.error.permission( "output", "stream", stream, atom.indicator ) );
 			} else {
 				stream2.stream.flush();
 				thread.success( point );
