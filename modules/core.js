@@ -392,39 +392,39 @@
 	var ERROR = 0;
 	var SUCCESS = 1;
 
-	var regex_escape = /(\\a)|(\\b)|(\\f)|(\\n)|(\\r)|(\\t)|(\\v)|\\x([0-9a-fA-F]+)\\|\\([0-7]+)\\|(\\\\)|(\\')|('')|(\\")|(\\`)|(\\.)|(.)/g;
-	var escape_map = {"\\a": 7, "\\b": 8, "\\f": 12, "\\n": 10, "\\r": 13, "\\t": 9, "\\v": 11};
+	var regex_escape = /(\\a)|(\\b)|(\\d)|(\\e)|(\\f)|(\\n)|(\\r)|(\\s)|(\\t)|(\\v)|\\x([0-9a-fA-F]+)\\|\\([0-7]+)\\|(\\\\)|(\\')|('')|(\\")|(\\`)|(\\.)|(.)/g;
+	var escape_map = {"\\a": 7, "\\b": 8, "\\d": 127, "\\e": 27, "\\f": 12, "\\n": 10, "\\r": 13, "\\s": 32, "\\t": 9, "\\v": 11};
 	function escape(str) {
-		var s = [];
+		var stack = [];
 		var _error = false;
-		str.replace(regex_escape, function(match, a, b, f, n, r, t, v, hex, octal, back, single, dsingle, double, backquote, error, char) {
+		str.replace(regex_escape, function(match, a, b, d, e, f, n, r, s, t, v, hex, octal, back, single, dsingle, double, backquote, error, char) {
 			switch(true) {
 				case hex !== undefined:
-					s.push( parseInt(hex, 16) );
+					stack.push( parseInt(hex, 16) );
 					return "";
 				case octal !== undefined:
-					s.push( parseInt(octal, 8) );
+					stack.push( parseInt(octal, 8) );
 					return "";
 				case back !== undefined:
 				case single !== undefined:
 				case dsingle !== undefined:
 				case double !== undefined:
 				case backquote !== undefined:
-					s.push( codePointAt(match.substr(1),0) );
+					stack.push( codePointAt(match.substr(1),0) );
 					return "";
 				case char !== undefined:
-					s.push( codePointAt(char,0) );
+					stack.push( codePointAt(char,0) );
 					return "";
 				case error !== undefined:
 					_error = true;
 				default:
-					s.push(escape_map[match]);
+					stack.push(escape_map[match]);
 					return "";
 			}
 		});
 		if(_error)
 			return null;
-		return s;
+		return stack;
 	}
 
 	// Escape atoms
@@ -520,7 +520,7 @@
 		whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?(?:\*\/|$))|(?:\s+))\s*/,
 		variable: /^(?:[A-Z_][a-zA-Z0-9_]*)/,
 		atom: /^(\!|,|;|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+|'(?:(?:'')|(?:\\\\)|(?:\\')|[^'])*')/,
-		number: /^(?:0o[0-7]+|0x[0-9a-fA-F]+|0b[01]+|0'(?:''|\\[abfnrtv\\'"`]|\\x?\d+\\|[^\\])|\d+(?:\.\d+(?:[eE][+-]?\d+)?)?)/,
+		number: /^(?:0o[0-7]+|0x[0-9a-fA-F]+|0b[01]+|0'(?:''|\\[abdefnrstv\\'"`]|\\x?\d+\\|[^\\])|\d+(?:\.\d+(?:[eE][+-]?\d+)?)?)/,
 		string: /^(?:"([^"]|""|\\")*"|`([^`]|``|\\`)*`)/,
 		l_brace: /^(?:\[)/,
 		r_brace: /^(?:\])/,
