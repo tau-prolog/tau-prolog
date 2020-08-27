@@ -4605,6 +4605,11 @@
 				return new Term( "error", [new Term( "instantiation_error" ), str_indicator( indicator )] );
 			},
 			
+			// Uninstantation error
+			uninstantiation: function( found, indicator ) {
+				return new Term( "error", [new Term( "uninstantiation_error", [new Term( found )] ), str_indicator( indicator )] );
+			},
+			
 			// Domain error
 			domain: function( expected, found, indicator ) {
 				return new Term( "error", [new Term( "domain_error", [new Term( expected ), found]), str_indicator( indicator )] );
@@ -7078,7 +7083,7 @@
 			} else if( !pl.type.is_list( options ) ) {
 				thread.throw_error( pl.error.type( "list", options, atom.indicator ) );
 			} else if( !pl.type.is_variable( stream ) ) {
-				thread.throw_error( pl.error.type( "variable", stream, atom.indicator ) );
+				thread.throw_error( pl.error.uninstantiation( stream, atom.indicator ) );
 			} else if( !pl.type.is_atom( dest ) && !pl.type.is_streamable( dest ) ) {
 				thread.throw_error( pl.error.domain( "source_sink", dest, atom.indicator ) );
 			} else if( !pl.type.is_io_mode( mode ) ) {
