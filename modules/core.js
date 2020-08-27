@@ -7725,7 +7725,7 @@
 			} else {
 				var stream_byte;
 				if( stream2.position === "end_of_stream" ) {
-					stream_byte = "end_of_file";
+					stream_byte = -1;
 					stream2.position = "past_end_of_stream";
 				} else {
 					stream_byte = stream2.stream.get_byte( stream2.position );
@@ -7774,7 +7774,7 @@
 			} else {
 				var stream_byte;
 				if( stream2.position === "end_of_stream" ) {
-					stream_byte = "end_of_file";
+					stream_byte = -1;
 					stream2.position = "past_end_of_stream";
 				} else {
 					stream_byte = stream2.stream.get_byte( stream2.position );
