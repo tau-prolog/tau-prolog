@@ -433,10 +433,10 @@
 		if( str === "\\" ) return null;
 		if( str.length < 2 ) return str;
 		try {
-			str = str.replace(/\\([0-7]+)\\/g, function(match, g1) {
+			str = str.replace(/(?:(?:^|[^\\])(?:\\\\)*)\\([0-7]+)\\/g, function(match, g1) {
 				return fromCodePoint(parseInt(g1, 8));
 			});
-			str = str.replace(/\\x([0-9a-fA-F]+)\\/g, function(match, g1) {
+			str = str.replace(/(?:(?:^|[^\\])(?:\\\\)*)\\x([0-9a-fA-F]+)\\/g, function(match, g1) {
 				return fromCodePoint(parseInt(g1, 16));
 			});
 		} catch(error) {
@@ -632,7 +632,7 @@
 				case "atom":
 					token.raw = token.value;
 					if(token.value.charAt(0) === "'") {
-						token.value = escapeAtom( token.value.substr(1, token.value.length - 2), "'" );
+						token.value = escapeAtom( token.value.substring(1, token.value.length - 1), "'" );
 						if( token.value === null ) {
 							token.name = "lexical";
 							token.value = "unknown escape sequence";
@@ -647,7 +647,7 @@
 					break;
 				case "string":
 					var del = token.value.charAt(0);
-					token.value = escapeAtom( token.value.substr(1, token.value.length - 2), del );
+					token.value = escapeAtom( token.value.substring(1, token.value.length - 1), del );
 					if( token.value === null ) {
 						token.name = "lexical";
 						token.value = "unknown escape sequence";
