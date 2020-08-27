@@ -3,8 +3,8 @@
 ## Testing Prolog standards compliance
 
 Using the latest git versions of both Tau Prolog and Logtalk, is now possible
-to manually use Logtalk's Prolog compliance test suite to check Tau Prolog. We
-expect to enable autmated testing soon.
+to use Logtalk's Prolog compliance test suite to check Tau Prolog. Tests can
+be run automated or manually.
 
 Assuming a POSIX system, follow this [guide](https://logtalk.org/running_developer_versions.html)
 to install the Logtalk git version, which includes a `taulgt.sh`
@@ -45,13 +45,14 @@ followed by tips on developer tools. Something like:
 ```text
 $ taulgt.sh
 
-Logtalk 3.40.0(-)b01
-Copyright (c) 1998(-)2020 Paulo Moura
+Logtalk 3.41.0-b03
+Copyright (c) 1998-2020 Paulo Moura
 
-% Default lint compilation flags(:)
+% Default lint compilation flags: 
+%   unknown_predicates: warning, undefined_predicates: warning
 ...
-% For Logtalk compiler warnings(/)errors explanations and fix suggestions(,) use(:)
-% (?)(-) {tutor(loader)}. or (?)(-) logtalk_load(tutor(loader)).
+% For Logtalk compiler warnings/errors explanations and fix suggestions, use:
+% ?- {tutor(loader)}. or ?- logtalk_load(tutor(loader)).
 % 
 ?-
 ```
@@ -71,14 +72,23 @@ the setting of the `clean` flag to `off`, subsequent runs will be
 much faster as they will use the pre-compiled libraries and tools
 from the first run.
 
+To run tests automatically, change to the intended directory and use the
+`logtalk_tester.sh` script. For example:
+
+```text
+$ cd $LOGTALKHOME/tests/prolog/
+$ logtalk_tester.sh -p tau -o minimal
+...
+```
+
 When you get a failed test, check the Tau Prolog current open issues
 before reporting it. Note that different failed tests may have a common
-cause. Also, keep in mind that standards complaince is hard work.
+cause. Also, keep in mind that standards compliance is hard work.
 Prioritize your bug reports. For example, failed tests due to an
 exception being different from the one specified by the standards are
 likely not as important at this point as failed tests where a goal
 that is expected to succeed fails or a goal that is expected to fail
-suceeds. For the actual goal of a failed test, use the test identifier
+succeeds. For the actual goal of a failed test, use the test identifier
 to locate the test in the `tests.lgt` file in the directory.
 
 This guide will be updated for Tau Prolog standards compliance progress
