@@ -510,6 +510,11 @@
 		}
 	}
 
+	// Is graphic token
+	function is_graphic_token(string) {
+		return /^[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+/.test(string);
+	}
+
 	// Regular expressions for tokens
 	var rules = {
 		whitespace: /^\s*(?:(?:%.*)|(?:\/\*(?:\n|\r|.)*?(?:\*\/|$))|(?:\s+))\s*/,
@@ -1807,6 +1812,7 @@
 		options.numbervars = options.numbervars === undefined ? false : options.numbervars;
 		priority = priority === undefined ? {priority: 1200, class: "", indicator: ""} : priority;
 		from = from === undefined ? "" : from;
+		var arg_priority = {priority: 999, class: "", indicator: ""};
 		if( options.numbervars && this.indicator === "$VAR/1" && pl.type.is_integer( this.args[0] ) && this.args[0].value >= 0 ) {
 			var i = this.args[0].value;
 			var number = Math.floor( i/26 );
@@ -1822,14 +1828,14 @@
 				return "{" + this.args[0].toString( options ) + "}";
 			case "./2":
 				if( options.ignore_ops === false ) {
-					var list = "[" + this.args[0].toString( options );
+					var list = "[" + this.args[0].toString( options, arg_priority );
 					var pointer = this.args[1];
 					while( pointer.indicator === "./2" ) {
-						list += ", " + pointer.args[0].toString( options );
+						list += "," + pointer.args[0].toString( options, arg_priority );
 						pointer = pointer.args[1];
 					}
 					if( pointer.indicator !== "[]/0" ) {
-						list += "|" + pointer.toString( options );
+						list += "|" + pointer.toString( options, arg_priority );
 					}
 					list += "]";
 					return list;
@@ -1840,9 +1846,11 @@
 				if( options.session === undefined || options.ignore_ops || operator === null ) {
 					if( options.quoted && (! /^(!|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+)$/.test( id ) && id !== "{}" && id !== "[]" || indexOf([".",",",";"], id) !== -1 ) )
 						id = "'" + redoEscape(id) + "'";
+					if( this.args.length === 0 && is_graphic_token(this.id) && priority.indicator !== "")
+						return "(" + id + ")";
 					return id + (this.args.length > 0 ? "(" + map( this.args,
-						function(x) { return x.toString(options); }
-					).join(", ") + ")" : "");
+						function(x) { return x.toString(options, arg_priority); }
+					).join(",") + ")" : "");
 				} else {
 					var priority_op = parseInt(operator.priority);
 					var priority_arg = parseInt(priority.priority);
@@ -1851,17 +1859,21 @@
 						operator.class === "xfy" && this.indicator !== priority.indicator ||
 						operator.class === "yfx" && this.indicator !== priority.indicator ||
 						this.indicator === priority.indicator && operator.class === "yfx" && from === "right" ||
-						this.indicator === priority.indicator && operator.class === "xfy" && from === "left");
+						this.indicator === priority.indicator && operator.class === "xfy" && from === "left" ||
+						this.indicator === priority.indicator && operator.class === "xf" && from === "left" ||
+						this.indicator === priority.indicator && operator.class === "fx" && from === "right");
 					operator.indicator = this.indicator;
 					var lpar = cond ? "(" : "";
 					var rpar = cond ? ")" : "";
-					var space = " ";
+					var space = !(is_graphic_token(this.id) || this.id === "," || this.id === ";")
+						|| operator.class.length === 2
+						|| operator.class.length === 3 && pl.type.is_number(this.args[1]) && this.args[1].value < 0 ? " " : "";
 					if( this.args.length === 0 ) {
 						return lpar + this.id + rpar;
 					} else if( ["fy","fx"].indexOf( operator.class) !== -1 ) {
-						return lpar + id + space + this.args[0].toString( options, operator ) + rpar;
+						return lpar + id + space + this.args[0].toString( options, operator, "right" ) + rpar;
 					} else if( ["yf","xf"].indexOf( operator.class) !== -1 ) {
-						return lpar + this.args[0].toString( options, operator ) + space + id + rpar;
+						return lpar + this.args[0].toString( options, operator, "left" ) + space + id + rpar;
 					} else {
 						return lpar + this.args[0].toString( options, operator, "left" ) + space + this.id + space + this.args[1].toString( options, operator, "right" ) +  rpar;
 					}
