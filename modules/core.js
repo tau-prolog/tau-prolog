@@ -7048,9 +7048,10 @@
 			var stream = pl.type.is_stream( input ) ? input : thread.get_stream_by_alias( input.id );
 			if( pl.type.is_variable( input ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_variable( input ) && !pl.type.is_stream( input ) && !pl.type.is_atom( input ) ) {
+			} else if( !pl.type.is_stream( input ) && !pl.type.is_atom( input ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", input, atom.indicator ) );
-			} else if( !pl.type.is_stream( stream ) ) {
+			} else if( !pl.type.is_stream( stream ) || !thread.get_stream_by_alias(input.alias)
+			                                        && !thread.get_stream_by_alias(input.id) ) {
 				thread.throw_error( pl.error.existence( "stream", input, atom.indicator ) );
 			} else if( stream.output === true ) {
 				thread.throw_error( pl.error.permission( "input", "stream", input, atom.indicator ) );
@@ -7066,9 +7067,10 @@
 			var stream = pl.type.is_stream( output ) ? output : thread.get_stream_by_alias( output.id );
 			if( pl.type.is_variable( output ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_variable( output ) && !pl.type.is_stream( output ) && !pl.type.is_atom( output ) ) {
+			} else if( !pl.type.is_stream( output ) && !pl.type.is_atom( output ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", output, atom.indicator ) );
-			} else if( !pl.type.is_stream( stream ) ) {
+			} else if( !pl.type.is_stream( stream ) || !thread.get_stream_by_alias(output.alias)
+			                                        && !thread.get_stream_by_alias(output.id) ) {
 				thread.throw_error( pl.error.existence( "stream", output, atom.indicator ) );
 			} else if( stream.input === true ) {
 				thread.throw_error( pl.error.permission( "output", "stream", output, atom.indicator ) );
