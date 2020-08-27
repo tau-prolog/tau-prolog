@@ -5986,6 +5986,21 @@
 				} else if( !pl.type.is_empty_list( pointer ) ) {
 					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 				} else {
+					if(!pl.type.is_variable(expected)) {
+						var pointer = expected;
+						while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+							var head = pointer.args[0];
+							if(!pl.type.is_variable(head) && (!pl.type.is_term(head) || head.indicator !== "-/2")) {
+								thread.throw_error( pl.error.type( "pair", head, atom.indicator ) );
+								return;
+							}
+							pointer = pointer.args[1];
+						}
+						if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
+							thread.throw_error( pl.error.type( "list", expected, atom.indicator ) );
+							return;
+						}
+					}
 					var sorted_arr = arr.sort( pl.compare );
 					var sorted_list = new pl.type.Term( "[]" );
 					for( var i = sorted_arr.length - 1; i >= 0; i-- ) {
