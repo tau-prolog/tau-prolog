@@ -4975,7 +4975,7 @@
 			var context_left = left.args[0];
 			var free_left = left.indicator === ":/2" ? left.args[1] : left;
 			if(pl.type.is_term( free_left ) && free_left.indicator === "->/2") {
-				var cond = left.indicator === ":/2" ? new Term(":", [context_left, free_left.args[0]]) : free_left.args[0];
+				var cond = left.indicator === ":/2" ? new Term(":", [context_left, new Term("call", [free_left.args[0]])]) : free_left.args[0];
 				var then = left.indicator === ":/2" ? new Term(":", [context_left, free_left.args[1]]) : free_left.args[1];
 				var otherwise = right;
 				var goal_fst = point.goal.replace(new Term( ",", [cond, new Term(",", [new Term("!"), then])] ) );
@@ -5065,7 +5065,10 @@
 		// ->/2 (implication)
 		"->/2": function( thread, point, atom ) {
 			var cond = atom.args[0], then = atom.args[1];
-			var goal = point.goal.replace( new Term( ",", [cond, new Term( ",", [new Term( "!" ), then] )] ) );
+			var goal = point.goal.replace(new Term(",", [
+				new Term("call", [cond]),
+				new Term(",", [new Term("!"), then])
+			]));
 			thread.prepend( [new State( goal, point.substitution, point )] );
 		},
 		
