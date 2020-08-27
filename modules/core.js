@@ -433,11 +433,11 @@
 		if( str === "\\" ) return null;
 		if( str.length < 2 ) return str;
 		try {
-			str = str.replace(/(?:(?:^|[^\\])(?:\\\\)*)\\([0-7]+)\\/g, function(match, g1) {
-				return fromCodePoint(parseInt(g1, 8));
+			str = str.replace(/((?:^|[^\\])(?:\\\\)*)\\([0-7]+)\\/g, function(match, g1, g2) {
+				return g1 + fromCodePoint(parseInt(g2, 8));
 			});
-			str = str.replace(/(?:(?:^|[^\\])(?:\\\\)*)\\x([0-9a-fA-F]+)\\/g, function(match, g1) {
-				return fromCodePoint(parseInt(g1, 16));
+			str = str.replace(/((?:^|[^\\])(?:\\\\)*)\\x([0-9a-fA-F]+)\\/g, function(match, g1, g2) {
+				return g1 + fromCodePoint(parseInt(g2, 16));
 			});
 		} catch(error) {
 			return null;
@@ -5655,7 +5655,6 @@
 				thread.throw_error(pl.error.permission("access", "private_procedure", str_indicator(head.indicator), atom.indicator));
 			} else if(pl.type.is_module(get_module) && get_module.rules[head.indicator]) {
 				if(get_module.is_public_predicate(head.indicator)) {
-					console.log(head+"");
 					var states = [];
 					if(typeof get_module.rules[head.indicator] === "function") {
 						thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
