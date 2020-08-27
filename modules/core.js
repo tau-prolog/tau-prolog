@@ -3750,7 +3750,14 @@
 
 			// Is a stream position
 			is_stream_position: function( obj ) {
-				return pl.type.is_integer( obj ) && obj.value >= 0 || pl.type.is_atom( obj ) && (obj.id === "end_of_stream" || obj.id === "past_end_of_stream");
+				return pl.type.is_term(obj) && (
+					obj.indicator === "end_of_stream/0" ||
+					obj.indicator === "past_end_of_stream/0" ||
+					obj.indicator === "position/3"
+						&& pl.type.is_integer(obj.args[0])
+						&& pl.type.is_integer(obj.args[1])
+						&& pl.type.is_integer(obj.args[2])
+				)
 			},
 
 			// Is a stream property
@@ -7416,8 +7423,8 @@
 			} else if( stream2.reposition === false ) {
 				thread.throw_error( pl.error.permission( "reposition", "stream", stream, atom.indicator ) );
 			} else {
-				if( pl.type.is_integer( position ) )
-					stream2.position = position.value;
+				if( position.indicator === "position/3" )
+					stream2.position = position.args[0].value;
 				else
 					stream2.position = position.id;
 				thread.success( point );
