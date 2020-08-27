@@ -3682,6 +3682,11 @@
 			is_byte: function( obj ) {
 				return obj instanceof Num && !obj.is_float && obj.value >= 0 && obj.value <= 255;
 			},
+
+			// Is a in_byte
+			is_in_byte: function( obj ) {
+				return obj instanceof Num && !obj.is_float && obj.value >= -1 && obj.value <= 255;
+			},
 			
 			// Is an operator
 			is_operator: function( obj ) {
@@ -7710,7 +7715,7 @@
 			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
 			if( pl.type.is_variable( stream ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_variable( byte ) && !pl.type.is_byte( byte ) ) {
+			} else if( !pl.type.is_variable( byte ) && !pl.type.is_in_byte( byte ) ) {
 				thread.throw_error( pl.error.type( "in_byte", byte, atom.indicator ) );
 			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
@@ -7759,7 +7764,7 @@
 			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
 			if( pl.type.is_variable( stream ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_variable( byte ) && !pl.type.is_byte( byte ) ) {
+			} else if( !pl.type.is_variable( byte ) && !pl.type.is_in_byte( byte ) ) {
 				thread.throw_error( pl.error.type( "in_byte", byte, atom.indicator ) );
 			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
