@@ -181,6 +181,8 @@ var pl;
 				var list = atom.args[0], length = atom.args[1];
 				if( !pl.type.is_variable( length ) && !pl.type.is_integer( length ) ) {
 					thread.throw_error( pl.error.type( "integer", length, atom.indicator ) );
+				} else if( !pl.type.is_variable( list ) && !pl.type.is_fully_list( list ) ) {
+					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
 				} else if( pl.type.is_integer( length ) && length.value < 0 ) {
 					thread.throw_error( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
 				} else {
