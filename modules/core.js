@@ -7240,7 +7240,7 @@
 					} else if( stream2 === thread.session.current_input ) {
 						thread.session.current_input = thread.session.standard_input;
 					} else if( stream2 === thread.session.current_output ) {
-						thread.session.current_output = thread.session.current_output;
+						thread.session.current_output = thread.session.standard_output;
 					}
 					if( stream2.alias !== null && stream2.alias !== undefined )
 						delete thread.session.streams[stream2.alias];
