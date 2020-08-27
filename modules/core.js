@@ -6614,7 +6614,7 @@
 							if( pl.type.is_variable( pointer.args[0] ) ) {
 								total = false;
 							} else if( !pl.type.is_variable( pointer.args[0] ) ) {
-								thread.throw_error( pl.error.type( "character_code", pointer.args[0], atom.indicator ) );
+								thread.throw_error( pl.error.representation( "character_code", atom.indicator ) );
 								return;
 							}
 						} else {
