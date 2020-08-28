@@ -4400,59 +4400,80 @@
 			
 			// op/3
 			"op/3": function( thread, atom ) {
-				var priority = atom.args[0], type = atom.args[1], operator = atom.args[2];
-				if( pl.type.is_variable( priority ) || pl.type.is_variable( type ) || pl.type.is_variable( operator ) ) {
+				var priority = atom.args[0], type = atom.args[1], operators = atom.args[2];
+				if(pl.type.is_atom(operators))
+					operators = new Term(".", [operators, new Term("[]")]);
+				if( pl.type.is_variable( priority ) || pl.type.is_variable( type ) || pl.type.is_variable( operators ) ) {
 					thread.throw_warning( pl.error.instantiation( atom.indicator ) );
 				} else if( !pl.type.is_integer( priority ) ) {
 					thread.throw_warning( pl.error.type( "integer", priority, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
 					thread.throw_warning( pl.error.type( "atom", type, atom.indicator ) );
-				} else if( !pl.type.is_atom( operator ) ) {
-					thread.throw_warning( pl.error.type( "atom", operator, atom.indicator ) );
-				} else if( priority.value < 0 || priority.value > 1200 ) {
-					thread.throw_warning( pl.error.domain( "operator_priority", priority, atom.indicator ) );
-				} else if( operator.id === "," ) {
-					thread.throw_warning( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
-				} else if( operator.id === "|" && (priority.value < 1001 || type.id.length !== 3 ) ) {
-					thread.throw_warning( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
-				} else if( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"].indexOf( type.id ) === -1 ) {
-					thread.throw_warning( pl.error.domain( "operator_specifier", type, atom.indicator ) );
+				} else if( !pl.type.is_list( operators ) ) {
+					thread.throw_warning( pl.error.type( "list", operators, atom.indicator ) );
 				} else {
-					var fix = { prefix: null, infix: null, postfix: null };
-					for( var p in thread.session.__operators ) {
-						if(!thread.session.__operators.hasOwnProperty(p)) continue;
-						var classes = thread.session.__operators[p][operator.id];
-						if( classes ) {
-							if( indexOf( classes, "fx" ) !== -1 ) { fix.prefix = { priority: p, type: "fx" }; }
-							if( indexOf( classes, "fy" ) !== -1 ) { fix.prefix = { priority: p, type: "fy" }; }
-							if( indexOf( classes, "xf" ) !== -1 ) { fix.postfix = { priority: p, type: "xf" }; }
-							if( indexOf( classes, "yf" ) !== -1 ) { fix.postfix = { priority: p, type: "yf" }; }
-							if( indexOf( classes, "xfx" ) !== -1 ) { fix.infix = { priority: p, type: "xfx" }; }
-							if( indexOf( classes, "xfy" ) !== -1 ) { fix.infix = { priority: p, type: "xfy" }; }
-							if( indexOf( classes, "yfx" ) !== -1 ) { fix.infix = { priority: p, type: "yfx" }; }
-						}
-					}
-					var current_class;
-					switch( type.id ) {
-						case "fy": case "fx": current_class = "prefix"; break;
-						case "yf": case "xf": current_class = "postfix"; break;
-						default: current_class = "infix"; break;
-					}
-					if( ((fix.prefix && current_class === "prefix" || fix.postfix && current_class === "postfix" || fix.infix && current_class === "infix")
-						&& fix[current_class].type !== type.id || fix.infix && current_class === "postfix" || fix.postfix && current_class === "infix") && priority.value !== 0 ) {
-						thread.throw_warning( pl.error.permission( "create", "operator", operator, atom.indicator ) );
-					} else {
-						if( fix[current_class] ) {
-							remove( thread.session.__operators[fix[current_class].priority][operator.id], type.id );
-							if( thread.session.__operators[fix[current_class].priority][operator.id].length === 0 ) {
-								delete thread.session.__operators[fix[current_class].priority][operator.id];
+					var pointer = operators;
+					while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+						var operator = pointer.args[0];
+						pointer = pointer.args[1];
+						if( pl.type.is_variable( operator ) ) {
+							thread.throw_warning( pl.error.instantiation( atom.indicator ) );
+						} else if( !pl.type.is_atom( operator ) ) {
+							thread.throw_warning( pl.error.type( "atom", operator, atom.indicator ) );
+						} else if( priority.value < 0 || priority.value > 1200 ) {
+							thread.throw_warning( pl.error.domain( "operator_priority", priority, atom.indicator ) );
+						} else if( operator.id === "," ) {
+							thread.throw_error( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
+						} else if( operator.id === "{}" ) {
+							thread.throw_warning( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+						} else if( operator.id === "|" && priority.value !== 0 && (priority.value < 1001 || type.id.length !== 3 ) ) {
+							thread.throw_warning( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+						} else if( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"].indexOf( type.id ) === -1 ) {
+							thread.throw_warning( pl.error.domain( "operator_specifier", type, atom.indicator ) );
+						} else {
+							var fix = { prefix: null, infix: null, postfix: null };
+							for( var p in thread.session.__operators ) {
+								if(!thread.session.__operators.hasOwnProperty(p)) continue;
+								var classes = thread.session.__operators[p][operator.id];
+								if( classes ) {
+									if( indexOf( classes, "fx" ) !== -1 ) { fix.prefix = { priority: p, type: "fx" }; }
+									if( indexOf( classes, "fy" ) !== -1 ) { fix.prefix = { priority: p, type: "fy" }; }
+									if( indexOf( classes, "xf" ) !== -1 ) { fix.postfix = { priority: p, type: "xf" }; }
+									if( indexOf( classes, "yf" ) !== -1 ) { fix.postfix = { priority: p, type: "yf" }; }
+									if( indexOf( classes, "xfx" ) !== -1 ) { fix.infix = { priority: p, type: "xfx" }; }
+									if( indexOf( classes, "xfy" ) !== -1 ) { fix.infix = { priority: p, type: "xfy" }; }
+									if( indexOf( classes, "yfx" ) !== -1 ) { fix.infix = { priority: p, type: "yfx" }; }
+								}
+							}
+							var current_class;
+							switch( type.id ) {
+								case "fy": case "fx": current_class = "prefix"; break;
+								case "yf": case "xf": current_class = "postfix"; break;
+								default: current_class = "infix"; break;
+							}
+							if(fix.infix && current_class === "postfix" || fix.postfix && current_class === "infix") {
+								thread.throw_warning( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+							} else {
+								if( fix[current_class] ) {
+									remove( thread.session.__operators[fix[current_class].priority][operator.id], fix[current_class].type );
+									if( thread.session.__operators[fix[current_class].priority][operator.id].length === 0 ) {
+										delete thread.session.__operators[fix[current_class].priority][operator.id];
+									}
+								}
+								if( priority.value > 0 ) {
+									if( !thread.session.__operators[priority.value] ) thread.session.__operators[priority.value.toString()] = {};
+									if( !thread.session.__operators[priority.value][operator.id] ) thread.session.__operators[priority.value][operator.id] = [];
+									thread.session.__operators[priority.value][operator.id].push( type.id );
+								}
 							}
 						}
-						if( priority.value > 0 ) {
-							if( !thread.session.__operators[priority.value] ) thread.session.__operators[priority.value.toString()] = {};
-							if( !thread.session.__operators[priority.value][operator.id] ) thread.session.__operators[priority.value][operator.id] = [];
-							thread.session.__operators[priority.value][operator.id].push( type.id );
-						}
+					}
+					if(pl.type.is_variable(pointer)) {
+						thread.throw_warning( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if(!pl.type.is_term(pointer) || pointer.indicator !== "[]/0") {
+						thread.throw_warning( pl.error.type( "list", operators, atom.indicator ) );
+						return;
 					}
 				}
 			},
@@ -4963,60 +4984,90 @@
 		// INPUT AND OUTPUT
 		
 		// op/3
-		"op/3": function(thread, point, atom) {
-			var priority = atom.args[0], type = atom.args[1], operator = atom.args[2];
-			if( pl.type.is_variable( priority ) || pl.type.is_variable( type ) || pl.type.is_variable( operator ) ) {
+		"op/3": function( thread, point, atom ) {
+			var priority = atom.args[0], type = atom.args[1], operators = atom.args[2];
+			if(pl.type.is_atom(operators))
+				operators = new Term(".", [operators, new Term("[]")]);
+			if( pl.type.is_variable( priority ) || pl.type.is_variable( type ) || pl.type.is_variable( operators ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_integer( priority ) ) {
 				thread.throw_error( pl.error.type( "integer", priority, atom.indicator ) );
 			} else if( !pl.type.is_atom( type ) ) {
 				thread.throw_error( pl.error.type( "atom", type, atom.indicator ) );
-			} else if( !pl.type.is_atom( operator ) ) {
-				thread.throw_error( pl.error.type( "atom", operator, atom.indicator ) );
-			} else if( priority.value < 0 || priority.value > 1200 ) {
-				thread.throw_error( pl.error.domain( "operator_priority", priority, atom.indicator ) );
-			} else if( operator.id === "," ) {
-				thread.throw_error( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
-			} else if( operator.id === "|" && (priority.value < 1001 || type.id.length !== 3 ) ) {
-				thread.throw_error( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
-			} else if( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"].indexOf( type.id ) === -1 ) {
-				thread.throw_error( pl.error.domain( "operator_specifier", type, atom.indicator ) );
+			} else if( !pl.type.is_list( operators ) ) {
+				thread.throw_error( pl.error.type( "list", operators, atom.indicator ) );
 			} else {
-				var fix = { prefix: null, infix: null, postfix: null };
-				for( var p in thread.session.__operators ) {
-					if(!thread.session.__operators.hasOwnProperty(p)) continue;
-					var classes = thread.session.__operators[p][operator.id];
-					if( classes ) {
-						if( indexOf( classes, "fx" ) !== -1 ) { fix.prefix = { priority: p, type: "fx" }; }
-						if( indexOf( classes, "fy" ) !== -1 ) { fix.prefix = { priority: p, type: "fy" }; }
-						if( indexOf( classes, "xf" ) !== -1 ) { fix.postfix = { priority: p, type: "xf" }; }
-						if( indexOf( classes, "yf" ) !== -1 ) { fix.postfix = { priority: p, type: "yf" }; }
-						if( indexOf( classes, "xfx" ) !== -1 ) { fix.infix = { priority: p, type: "xfx" }; }
-						if( indexOf( classes, "xfy" ) !== -1 ) { fix.infix = { priority: p, type: "xfy" }; }
-						if( indexOf( classes, "yfx" ) !== -1 ) { fix.infix = { priority: p, type: "yfx" }; }
-					}
-				}
-				var current_class;
-				switch( type.id ) {
-					case "fy": case "fx": current_class = "prefix"; break;
-					case "yf": case "xf": current_class = "postfix"; break;
-					default: current_class = "infix"; break;
-				}
-				if( ((fix.prefix && current_class === "prefix" || fix.postfix && current_class === "postfix" || fix.infix && current_class === "infix")
-					&& fix[current_class].type !== type.id || fix.infix && current_class === "postfix" || fix.postfix && current_class === "infix") && priority.value !== 0 ) {
-					thread.throw_error( pl.error.permission( "create", "operator", operator, atom.indicator ) );
-				} else {
-					if( fix[current_class] ) {
-						remove( thread.session.__operators[fix[current_class].priority][operator.id], type.id );
-						if( thread.session.__operators[fix[current_class].priority][operator.id].length === 0 ) {
-							delete thread.session.__operators[fix[current_class].priority][operator.id];
+				var pointer = operators;
+				while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+					var operator = pointer.args[0];
+					pointer = pointer.args[1];
+					if( pl.type.is_variable( operator ) ) {
+						thread.throw_error( pl.error.instantiation( atom.indicator ) );
+						return;
+					} else if( !pl.type.is_atom( operator ) ) {
+						thread.throw_error( pl.error.type( "atom", operator, atom.indicator ) );
+						return;
+					} else if( priority.value < 0 || priority.value > 1200 ) {
+						thread.throw_error( pl.error.domain( "operator_priority", priority, atom.indicator ) );
+						return;
+					} else if( operator.id === "," ) {
+						thread.throw_error( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
+						return;
+					} else if( operator.id === "{}" ) {
+						thread.throw_error( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+						return;
+					} else if( operator.id === "|" && priority.value !== 0 && (priority.value < 1001 || type.id.length !== 3 ) ) {
+						thread.throw_error( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+						return;
+					} else if( ["fy", "fx", "yf", "xf", "xfx", "yfx", "xfy"].indexOf( type.id ) === -1 ) {
+						thread.throw_error( pl.error.domain( "operator_specifier", type, atom.indicator ) );
+						return;
+					} else {
+						var fix = { prefix: null, infix: null, postfix: null };
+						for( var p in thread.session.__operators ) {
+							if(!thread.session.__operators.hasOwnProperty(p)) continue;
+							var classes = thread.session.__operators[p][operator.id];
+							if( classes ) {
+								if( indexOf( classes, "fx" ) !== -1 ) { fix.prefix = { priority: p, type: "fx" }; }
+								if( indexOf( classes, "fy" ) !== -1 ) { fix.prefix = { priority: p, type: "fy" }; }
+								if( indexOf( classes, "xf" ) !== -1 ) { fix.postfix = { priority: p, type: "xf" }; }
+								if( indexOf( classes, "yf" ) !== -1 ) { fix.postfix = { priority: p, type: "yf" }; }
+								if( indexOf( classes, "xfx" ) !== -1 ) { fix.infix = { priority: p, type: "xfx" }; }
+								if( indexOf( classes, "xfy" ) !== -1 ) { fix.infix = { priority: p, type: "xfy" }; }
+								if( indexOf( classes, "yfx" ) !== -1 ) { fix.infix = { priority: p, type: "yfx" }; }
+							}
+						}
+						var current_class;
+						switch( type.id ) {
+							case "fy": case "fx": current_class = "prefix"; break;
+							case "yf": case "xf": current_class = "postfix"; break;
+							default: current_class = "infix"; break;
+						}
+						if(fix.infix && current_class === "postfix" || fix.postfix && current_class === "infix") {
+							thread.throw_error( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+							return;
+						} else {
+							if( fix[current_class] ) {
+								remove( thread.session.__operators[fix[current_class].priority][operator.id], fix[current_class].type );
+								if( thread.session.__operators[fix[current_class].priority][operator.id].length === 0 ) {
+									delete thread.session.__operators[fix[current_class].priority][operator.id];
+								}
+							}
+							if( priority.value > 0 ) {
+								if( !thread.session.__operators[priority.value] ) thread.session.__operators[priority.value.toString()] = {};
+								if( !thread.session.__operators[priority.value][operator.id] ) thread.session.__operators[priority.value][operator.id] = [];
+								thread.session.__operators[priority.value][operator.id].push( type.id );
+							}
 						}
 					}
-					if( priority.value > 0 ) {
-						if( !thread.session.__operators[priority.value] ) thread.session.__operators[priority.value.toString()] = {};
-						if( !thread.session.__operators[priority.value][operator.id] ) thread.session.__operators[priority.value][operator.id] = [];
-						thread.session.__operators[priority.value][operator.id].push( type.id );
-					}
+				}
+				if(pl.type.is_variable(pointer)) {
+					thread.throw_error( pl.error.instantiation( atom.indicator ) );
+					return;
+				} else if(!pl.type.is_term(pointer) || pointer.indicator !== "[]/0") {
+					thread.throw_error( pl.error.type( "list", operators, atom.indicator ) );
+					return;
+				} else {
 					thread.success(point);
 				}
 			}
