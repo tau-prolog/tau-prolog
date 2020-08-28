@@ -249,10 +249,25 @@
 					return true;
 				},
 				get_byte: function( position ) {
-					return null;
+					try {
+						var buffer = new Buffer(1);
+						fs.readSync(fd, buffer, 0, 1, position);
+						var text = buffer.toString();
+						var end_of_file = text[0] === "\u0000";
+						return end_of_file ? "end_of_stream" : buffer.readUInt8(0);
+					} catch(ex) {
+						return "end_of_stream";
+					}
 				},
-				put_byte: function( byte, position ) {
-					return null;
+				put_byte: function(byte, position) {
+					var buffer = Buffer.from([byte]);
+					if(position === "end_of_stream")
+						fs.writeSync(fd, buffer);
+					else if(position === "past_end_of_stream")
+						return null;
+					else
+						fs.writeSync(fd, buffer, 0, buffer.length, position);
+					return true;
 				},
 				flush: function() {
 					return true;
