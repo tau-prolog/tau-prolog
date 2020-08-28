@@ -8125,8 +8125,9 @@
 							return;
 						} else if( char === "end_of_stream" || char === "past_end_of_stream" ) {
 							if(tokens === null || tokens.length === 0) {
+								stream2.position = "past_end_of_stream";
 								expr = {
-									value: new Term(char, []),
+									value: new Term("end_of_file", []),
 									type: SUCCESS,
 									len: -1
 								};
