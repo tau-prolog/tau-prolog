@@ -28,6 +28,10 @@
 		}
 	};
 
+	TauFile.prototype.eof = function(position) {
+		return position === this.text.length;
+	};
+
 	TauFile.prototype.put = function(text, position) {
 		if(position === "end_of_stream") {
 			this.text += text;
@@ -180,6 +184,9 @@
 			text = tau_user_input.buffer.substr( 0, length );
 			tau_user_input.buffer = tau_user_input.buffer.substr( length );
 			return text;
+		},
+		eof: function(_) {
+			return false;
 		}
 	};
 
@@ -227,6 +234,10 @@
 						end_of_file = text[i] === "\u0000";
 					return end_of_file ? "end_of_stream" : buffer.toString();
 				},
+				eof: function(position) {
+					var stats = fs.statSync(path)
+					return position === stats["size"];
+				},
 				put: function( text, position ) {
 					var buffer = Buffer.from( text );
 					if( position === "end_of_stream" )
@@ -265,6 +276,9 @@
 			text = nodejs_user_input.buffer.substr( 0, length );
 			nodejs_user_input.buffer = nodejs_user_input.buffer.substr( length );
 			return text;
+		},
+		eof: function(length) {
+			return false;
 		}
 	};
 
@@ -7403,7 +7417,7 @@
 					// end_of_stream/1
 					if(propvar || property.indicator === "end_of_stream/1")
 						properties.push( new Term( "end_of_stream", [new Term(
-							streams[i].position === "end_of_stream" ? "at" :
+							streams[i].position === "end_of_stream" || streams[i].stream.eof(streams[i].position) ? "at" :
 							streams[i].position === "past_end_of_stream" ? "past" :
 							"not", [])] ) );
 					// eof_action/1
@@ -7512,10 +7526,14 @@
 			} else if( stream2.reposition === false ) {
 				thread.throw_error( pl.error.permission( "reposition", "stream", stream, atom.indicator ) );
 			} else {
-				if( position.indicator === "position/3" )
+				if( position.indicator === "position/3" ) {
 					stream2.position = position.args[0].value;
-				else
+					stream2.char_count = position.args[0].value;
+					stream2.line_count = position.args[1].value;
+					stream2.line_position = position.args[2].value;
+				} else {
 					stream2.position = position.id;
+				}
 				thread.success( point );
 			}
 		},
@@ -7567,6 +7585,12 @@
 						stream2.position = "past_end_of_stream";
 					} else {
 						stream2.position++;
+						stream2.char_count++;
+						stream2.line_position++;
+						if(stream_char === "\n") {
+							stream2.line_count++;
+							stream2.line_position = 0;
+						}
 					}
 				}
 				thread.prepend( [new State(
@@ -7623,6 +7647,12 @@
 					} else {
 						stream_code = codePointAt( stream_code, 0 );
 						stream2.position++;
+						stream2.char_count++;
+						stream2.line_position++;
+						if(stream_code === 10) {
+							stream2.line_count++;
+							stream2.line_position = 0;
+						}
 					}
 				}
 				thread.prepend( [new State(
@@ -7673,7 +7703,6 @@
 						return;
 					} else if(stream_char === "end_of_stream") {
 						stream_char = "end_of_file";
-						stream2.position = "past_end_of_stream";
 					}
 				}
 				thread.prepend( [new State(
@@ -7726,7 +7755,6 @@
 						return;
 					} else if(stream_code === "end_of_stream") {
 						stream_code = -1;
-						stream2.position = "past_end_of_stream";
 					} else {
 						stream_code = codePointAt( stream_code, 0 );
 					}
@@ -7769,6 +7797,12 @@
 				if( stream2.stream.put( char.id, stream2.position ) ) {
 					if(typeof stream2.position === "number")
 						stream2.position++;
+					stream2.char_count++;
+					stream2.line_position++;
+					if(char.id === "\n") {
+						stream2.line_count++;
+						stream2.line_position = 0;
+					}
 					thread.success( point );
 				}
 			}
@@ -7806,6 +7840,12 @@
 				if( stream2.stream.put( fromCodePoint( code.value ), stream2.position ) ) {
 					if(typeof stream2.position === "number")
 						stream2.position++;
+					stream2.char_count++;
+					stream2.line_position++;
+					if(code.value === 10) {
+						stream2.line_count++;
+						stream2.line_position = 0;
+					}
 					thread.success( point );
 				}
 			}
@@ -7877,6 +7917,8 @@
 						stream2.position = "past_end_of_stream";
 					} else {
 						stream2.position++;
+						stream2.char_count++;
+						stream2.line_position++;
 					}
 				}
 				thread.prepend( [new State(
@@ -7927,7 +7969,6 @@
 						return;
 					} else if(stream_byte === "end_of_stream") {
 						stream_byte = -1;
-						stream2.position = "past_end_of_stream";
 					}
 				}
 				thread.prepend( [new State(
@@ -7968,6 +8009,8 @@
 				if( stream2.stream.put_byte( byte.value, stream2.position ) ) {
 					if(typeof stream2.position === "number")
 						stream2.position++;
+					stream2.char_count++;
+					stream2.line_position++;
 					thread.success( point );
 				}
 			}
