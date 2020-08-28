@@ -20,19 +20,19 @@
 
 	TauFile.prototype.get = function(length, position) {
 		if(position === this.text.length) {
-			return "end_of_file";
+			return "end_of_stream";
 		} else if(position > this.text.length) {
-			return "end_of_file";
+			return "end_of_stream";
 		} else {
 			return this.text.substring(position, position+length);
 		}
 	};
 
 	TauFile.prototype.put = function(text, position) {
-		if(position === "end_of_file") {
+		if(position === "end_of_stream") {
 			this.text += text;
 			return true;
-		} else if(position === "past_end_of_file") {
+		} else if(position === "past_end_of_stream") {
 			return null;
 		} else {
 			this.text = this.text.substring(0, position) + text + this.text.substring(position+text.length);
@@ -172,7 +172,7 @@
 			while( tau_user_input.buffer.length < length ) {
 				text = window.prompt();
 				if( text.length === 0 )
-					return "end_of_file";
+					return "end_of_stream";
 				if( text ) {
 					tau_user_input.buffer += text;
 				}
@@ -225,13 +225,13 @@
 					var text = buffer.toString();
 					for(var i = 0; i < length && end_of_file; i++)
 						end_of_file = text[i] === "\u0000";
-					return end_of_file ? "end_of_file" : buffer.toString();
+					return end_of_file ? "end_of_stream" : buffer.toString();
 				},
 				put: function( text, position ) {
 					var buffer = Buffer.from( text );
-					if( position === "end_of_file" )
+					if( position === "end_of_stream" )
 						fs.writeSync( fd, buffer );
-					else if( position === "past_end_of_file" )
+					else if( position === "past_end_of_stream" )
 						return null;
 					else
 						fs.writeSync( fd, buffer, 0, buffer.length, position );
@@ -5513,20 +5513,16 @@
 						} else if( thread.current_limit > 0 ) {
 							var states = [];
 							for( var i = 0; i < answers.length; i++ ) {
-								answer = answers[i].answers.sort( pl.compare );
-								var list = arrayToList(answer);
-								if(list.indicator === "./2") {
-									var pointer = list;
-									var last = pointer.args[0];
-									while(pointer.args[1].indicator === "./2") {
-										if(last.compare(pointer.args[1].args[0]) === 0) {
-											pointer.args[1] = pointer.args[1].args[1];
-										} else {
-											last = pointer.args[1].args[0];
-											pointer = pointer.args[1];
-										}
+								var arr_sorted = answers[i].answers.sort( pl.compare );
+								var arr_filter = [];
+								var last = null;
+								for(var j = 0; j < arr_sorted.length; j++) {
+									if(!last || pl.compare(last, arr_sorted[j]) !== 0) {
+										last = arr_sorted[j];
+										arr_filter.push(last);
 									}
 								}
+								var list = arrayToList(arr_filter);
 								states.push( new State(
 									point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
 									point.substitution,
@@ -7554,8 +7550,12 @@
 					if( stream_char === null ) {
 						thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 						return;
+					} else if(stream_char === "end_of_stream") {
+						stream_char = "end_of_file";
+						stream2.position = "past_end_of_stream";
+					} else {
+						stream2.position++;
 					}
-					stream2.position++;
 				}
 				thread.prepend( [new State(
 					point.goal.replace( new Term( "=", [new Term(stream_char,[]), char] ) ),
@@ -7603,9 +7603,13 @@
 					if( stream_code === null ) {
 						thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 						return;
+					} else if(stream_code === "end_of_stream") {
+						stream_code = -1;
+						stream2.position = "past_end_of_stream";
+					} else {
+						stream_code = codePointAt( stream_code, 0 );
+						stream2.position++;
 					}
-					stream_code = codePointAt( stream_code, 0 );
-					stream2.position++;
 				}
 				thread.prepend( [new State(
 					point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
@@ -7653,6 +7657,9 @@
 					if( stream_char === null ) {
 						thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 						return;
+					} else if(stream_char === "end_of_stream") {
+						stream_char = "end_of_file";
+						stream2.position = "past_end_of_stream";
 					}
 				}
 				thread.prepend( [new State(
@@ -7703,8 +7710,12 @@
 					if( stream_code === null ) {
 						thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 						return;
+					} else if(stream_code === "end_of_stream") {
+						stream_code = -1;
+						stream2.position = "past_end_of_stream";
+					} else {
+						stream_code = codePointAt( stream_code, 0 );
 					}
-					stream_code = codePointAt( stream_code, 0 );
 				}
 				thread.prepend( [new State(
 					point.goal.replace( new Term( "=", [new Num(stream_code, false), code] ) ),
@@ -7847,8 +7858,12 @@
 					if( stream_byte === null ) {
 						thread.throw_error( pl.error.representation( "byte", atom.indicator ) );
 						return;
+					} else if(stream_byte === "end_of_stream") {
+						stream_byte = -1;
+						stream2.position = "past_end_of_stream";
+					} else {
+						stream2.position++;
 					}
-					stream2.position++;
 				}
 				thread.prepend( [new State(
 					point.goal.replace( new Term( "=", [new Num(stream_byte,false), byte] ) ),
@@ -7896,6 +7911,9 @@
 					if( stream_byte === null ) {
 						thread.throw_error( pl.error.representation( "byte", atom.indicator ) );
 						return;
+					} else if(stream_byte === "end_of_stream") {
+						stream_byte = -1;
+						stream2.position = "past_end_of_stream";
 					}
 				}
 				thread.prepend( [new State(
@@ -8025,7 +8043,7 @@
 					// Get term
 					while( last_token === null || lexical_error || last_token.name !== "atom" || last_token.value !== "." || tokens.length > 0 && expr.type === ERROR ) {
 						char = stream2.stream.get( 1, stream2.position );
-						while(char !== null && char !== "." && char !== "end_of_file" && char !== "past_end_of_file") {
+						while(char !== null && char !== "." && char !== "end_of_stream" && char !== "past_end_of_stream") {
 							stream2.position++;
 							text += char;
 							char = stream2.stream.get( 1, stream2.position );
@@ -8033,7 +8051,7 @@
 						if( char === null ) {
 							thread.throw_error( pl.error.representation( "character", atom.indicator ) );
 							return;
-						} else if( char === "end_of_file" || char === "past_end_of_file" ) {
+						} else if( char === "end_of_stream" || char === "past_end_of_stream" ) {
 							if(tokens === null || tokens.length === 0) {
 								expr = {
 									value: new Term(char, []),
