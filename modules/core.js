@@ -2124,6 +2124,44 @@
 	Rule.prototype.rename = function( thread ) {
 		return new Rule( this.head.rename( thread ), this.body !== null ? this.body.rename( thread ) : null );
 	};
+
+
+
+	// CHECK IF RENAME
+
+	// Variables
+	Var.prototype.is_rename = function(obj, links) {
+		links = links || {};
+		if(!pl.type.is_variable(obj)
+		|| links.hasOwnProperty(this.id) && links[this.id] !== obj.id
+		|| links.hasOwnProperty(obj.id) && links[obj.id] !== this.id)
+			return false;
+		links[this.id] = obj.id;
+		links[obj.id] = this.id;
+		return true;
+	};
+	
+	// Numbers
+	Num.prototype.is_rename = function(obj, _links) {
+		return this.equals(obj);
+	};
+	
+	// Terms
+	Term.prototype.is_rename = function(obj, links) {
+		links = links || {};
+		if(!pl.type.is_term(obj) || this.indicator !== obj.indicator)
+			return false;
+		for(var i = 0; i < this.args.length; i++) {
+			if(!pl.is_rename(this.args[i], obj.args[i], links))
+				return false;
+		}
+		return true;
+	};
+
+	// Streams
+	Stream.prototype.is_rename = function(obj, _links) {
+		return this.equals(obj);
+	};
 	
 	
 	
@@ -4546,6 +4584,17 @@
 			}
 			return new Substitution( links );
 		},
+
+		// Is rename
+		is_rename: function(obj1, obj2, links) {
+			links = links || {};
+			if(obj1.is_rename && obj2.is_rename)
+				return obj1.is_rename(obj2, links);
+			else if(obj1.equals && obj2.equals)
+				return obj1.equals(obj2);
+			else
+				return false;
+		},
 		
 		// Compare
 		compare: function( obj1, obj2 ) {
@@ -5320,6 +5369,15 @@
 			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
 				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
 			} else {
+				if(!pl.type.is_variable(instances)) {
+					var pointer = instances;
+					while(pl.type.is_term(pointer) && pointer.indicator === "./2")
+						pointer = pointer.args[1];
+					if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
+						thread.throw_error(pl.error.type("list", instances, atom.indicator));
+						return;
+					}
+				}
 				var variable = thread.next_free_variable();
 				var template_vars = [];
 				while( goal.indicator === "^/2" ) {
@@ -5350,7 +5408,7 @@
 						for( var _elem in answers ) {
 							if(!answers.hasOwnProperty(_elem)) continue;
 							var elem = answers[_elem];
-							if( elem.variables.equals( arg_vars ) ) {
+							if( pl.is_rename(elem.variables, arg_vars) ) {
 								elem.answers.push( arg_template );
 								match = true;
 								break;
@@ -5400,6 +5458,15 @@
 			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
 				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
 			} else {
+				if(!pl.type.is_variable(instances)) {
+					var pointer = instances;
+					while(pl.type.is_term(pointer) && pointer.indicator === "./2")
+						pointer = pointer.args[1];
+					if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
+						thread.throw_error(pl.error.type("list", instances, atom.indicator));
+						return;
+					}
+				}
 				var variable = thread.next_free_variable();
 				var template_vars = [];
 				while( goal.indicator === "^/2" ) {
@@ -5430,7 +5497,7 @@
 						for( var _elem in answers ) {
 							if(!answers.hasOwnProperty(_elem)) continue;
 							var elem = answers[_elem];
-							if( elem.variables.equals( arg_vars ) ) {
+							if( pl.is_rename(elem.variables, arg_vars) ) {
 								elem.answers.push( arg_template );
 								match = true;
 								break;
