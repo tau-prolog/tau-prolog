@@ -3398,7 +3398,8 @@
 	// RULES
 	
 	// Return singleton variables in the session
-	Rule.prototype.singleton_variables = function() {
+	Rule.prototype.singleton_variables = function(include_named) {
+		include_named = include_named || false;
 		var variables = this.head.variables();
 		var count = {};
 		var singleton = [];
@@ -3414,8 +3415,9 @@
 				continue;
 			if(count[key] === 1) {
 				var charcode = codePointAt(key, 1);
-				if(key === "_" || key[0] === "_" && (charcode === 95 || charcode >= 65 && charcode <= 90))
-					continue;
+				if(!include_named || key === "_")
+					if(key === "_" || key[0] === "_" && (charcode === 95 || charcode >= 65 && charcode <= 90))
+						continue;
 				singleton.push(key);
 			}
 		}
@@ -8203,17 +8205,21 @@
 						}
 						// Singletons
 						if( obj_options.singletons ) {
-							var vars = arrayToList( map( new Rule( expr, null ).singleton_variables(), function(v) {
-								var prop;
-								for( prop in thread.session.renamed_variables ) {
+							var vars = nub(new Rule(expr, null).singleton_variables(true));
+							var plvars = [];
+							for(var i = 0; i < vars.length; i++) {
+								var v = vars[i];
+								for( var prop in thread.session.renamed_variables ) {
 									if( thread.session.renamed_variables.hasOwnProperty( prop ) ) {
-										if( thread.session.renamed_variables[ prop ] === v )
+										if( thread.session.renamed_variables[ prop ] === v ) {
+											plvars.push(new Term( "=", [new Term( prop, []), new Var(v)] ));
 											break;
+										}
 									}
 								}
-								return new Term( "=", [new Term( prop, []), new Var(v)] );
-							} ) );
-							eq = new Term( ",", [eq, new Term( "=", [obj_options.singletons, vars] )] )
+							}
+							plvars = arrayToList(plvars);
+							eq = new Term( ",", [eq, new Term( "=", [obj_options.singletons, plvars] )] );
 						}
 						thread.prepend( [new State( point.goal.replace( eq ), point.substitution, point )] );
 					// Failed analyzing term
