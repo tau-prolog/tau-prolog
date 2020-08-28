@@ -3723,9 +3723,20 @@
 				return obj instanceof Term && obj.args.length === 0 && (obj.id.length === 1 || obj.id.length > 0 && obj.id.length <= 2 && codePointAt( obj.id, 0 ) >= 65536);
 			},
 			
-			// Is a character
+			// Is a in_character
+			is_in_character: function( obj ) {
+				return obj instanceof Term && obj.args.length === 0 &&
+				(obj.args.id === "end_of_file" || (obj.id.length === 1 || obj.id.length > 0 && obj.id.length <= 2 && codePointAt( obj.id, 0 ) >= 65536));
+			},
+			
+			// Is a character_code
 			is_character_code: function( obj ) {
 				return obj instanceof Num && !obj.is_float && obj.value >= 0 && obj.value <= 1114111;
+			},
+			
+			// Is a in_character_code
+			is_in_character_code: function( obj ) {
+				return obj instanceof Num && !obj.is_float && obj.value >= -1 && obj.value <= 1114111;
 			},
 
 			// Is a byte
@@ -7532,7 +7543,7 @@
 			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
 			if( pl.type.is_variable( stream ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
+			} else if( !pl.type.is_variable( char ) && !pl.type.is_in_character( char ) ) {
 				thread.throw_error( pl.error.type( "in_character", char, atom.indicator ) );
 			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
@@ -7583,6 +7594,8 @@
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
 				thread.throw_error( pl.error.type( "integer", code, atom.indicator ) );
+			} else if( pl.type.is_integer( code ) && !pl.type.is_in_character_code( code ) ) {
+				thread.throw_error( pl.error.representation( "in_character_code", atom.indicator ) );
 			} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
 			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
@@ -7631,7 +7644,7 @@
 			var stream2 = pl.type.is_stream( stream ) ? stream : thread.get_stream_by_alias( stream.id );
 			if( pl.type.is_variable( stream ) ) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_variable( char ) && !pl.type.is_character( char ) ) {
+			} else if( !pl.type.is_variable( char ) && !pl.type.is_in_character( char ) ) {
 				thread.throw_error( pl.error.type( "in_character", char, atom.indicator ) );
 			} else if( !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
@@ -7681,7 +7694,7 @@
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if( !pl.type.is_variable( code ) && !pl.type.is_integer( code ) ) {
 				thread.throw_error( pl.error.type( "integer", code, atom.indicator ) );
-			} else if( !pl.type.is_variable( code ) && code.value < -1 ) {
+			} else if( pl.type.is_integer( code ) && !pl.type.is_in_character_code( code ) ) {
 				thread.throw_error( pl.error.representation( "in_character_code", atom.indicator ) );
 			} else if( !pl.type.is_variable( stream ) && !pl.type.is_stream( stream ) && !pl.type.is_atom( stream ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", stream, atom.indicator ) );
