@@ -3726,7 +3726,7 @@
 			// Is a in_character
 			is_in_character: function( obj ) {
 				return obj instanceof Term && obj.args.length === 0 &&
-				(obj.args.id === "end_of_file" || (obj.id.length === 1 || obj.id.length > 0 && obj.id.length <= 2 && codePointAt( obj.id, 0 ) >= 65536));
+				(obj.args.id === "end_of_file" || obj.id.length === 1 || obj.id.length > 0 && obj.id.length <= 2 && codePointAt( obj.id, 0 ) >= 65536);
 			},
 			
 			// Is a character_code
