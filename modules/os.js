@@ -675,13 +675,38 @@ var pl;
 						thread.success(point);
 					}
 				}
+			},
+
+			// pid/1
+			"pid/1": function(thread, point, atom) {
+				var pid = atom.args[0];
+				if(!pl.type.is_variable(pid) && !pl.type.is_integer(pid)) {
+					thread.throw_error(pl.error.type("integer", pid, atom.indicator));
+				} else {
+					var points = [];
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var process = require('process');
+						points.push(new pl.type.State(
+							point.goal.replace( new pl.type.Term("=", [pid, new pl.type.Num(process.pid, false)]) ),
+							point.substitution,
+							point
+						));
+					} else {
+						points.push(new pl.type.State(
+							point.goal.replace( new pl.type.Term("=", [pid, new pl.type.Num(0, false)]) ),
+							point.substitution,
+							point
+						));
+					}
+					thread.prepend(points);
+				}
 			}
 		
 		};
 		
 	};
 	
-	var exports = ["sleep/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "file_permission/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1"];
+	var exports = ["sleep/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "file_permission/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1", "pid/1"];
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
