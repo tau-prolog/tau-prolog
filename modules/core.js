@@ -1212,7 +1212,7 @@
 			var goal_expansion = thread.session.modules.user.rules["goal_expansion/2"];
 			if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
 				async = true;
-				thread.renamed_variables = {};
+				thread.session.renamed_variables = {};
 				var origin = {
 					head: function() { return expr.value.head; },
 					term: function() { return expr.value.body; },
@@ -5507,6 +5507,22 @@
 						var match = false;
 						var arg_vars = answer.links[variable.id].args[0];
 						var arg_template = answer.links[variable.id].args[1];
+						var var_template = arg_template.variables();
+						var sub_template = new Substitution();
+						for(var prop in answer.links) {
+							if(!answer.links.hasOwnProperty(prop))
+								continue;
+							var value = answer.links[prop];
+							var index = indexOf(var_template, value.id);
+							if(pl.type.is_variable(value) && index !== -1
+							&& !sub_template.links.hasOwnProperty(var_template[index])
+							&& indexOf(template_vars, prop) === -1
+							&& indexOf(free_vars, var_template[index]) === -1) {
+								sub_template.add(var_template[index], new Var(prop));
+							}
+						}
+						arg_vars = arg_vars.apply(sub_template);
+						arg_template = arg_template.apply(sub_template);
 						for( var _elem in answers ) {
 							if(!answers.hasOwnProperty(_elem)) continue;
 							var elem = answers[_elem];
@@ -5596,6 +5612,22 @@
 						var match = false;
 						var arg_vars = answer.links[variable.id].args[0];
 						var arg_template = answer.links[variable.id].args[1];
+						var var_template = arg_template.variables();
+						var sub_template = new Substitution();
+						for(var prop in answer.links) {
+							if(!answer.links.hasOwnProperty(prop))
+								continue;
+							var value = answer.links[prop];
+							var index = indexOf(var_template, value.id);
+							if(pl.type.is_variable(value) && index !== -1
+							&& !sub_template.links.hasOwnProperty(var_template[index])
+							&& indexOf(template_vars, prop) === -1
+							&& indexOf(free_vars, var_template[index]) === -1) {
+								sub_template.add(var_template[index], new Var(prop));
+							}
+						}
+						arg_vars = arg_vars.apply(sub_template);
+						arg_template = arg_template.apply(sub_template);
 						for( var _elem in answers ) {
 							if(!answers.hasOwnProperty(_elem)) continue;
 							var elem = answers[_elem];
@@ -5744,6 +5776,7 @@
 		
 		// copy_term/2
 		"copy_term/2": function( thread, point, atom ) {
+			thread.session.renamed_variables = {};
 			var renamed = atom.args[0].rename( thread );
 			thread.prepend( [new State( point.goal.replace( new Term( "=", [renamed, atom.args[1]] ) ), point.substitution, point.parent )] );
 		},
