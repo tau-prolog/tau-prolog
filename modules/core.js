@@ -3048,18 +3048,26 @@
 			this.cpu_time += this.cpu_time_last;
 			var options = this.__calls.shift();
 			if(this.current_limit <= 0) {
-				options.limit(null);
+				setTimeout(function() {
+					options.limit(null);
+				}, 0);
 			} else if(this.points.length === 0) {
-				options.fail(false);
+				setTimeout(function() {
+					options.fail(false);
+				}, 0);
 			} else if(pl.type.is_error(this.head_point().goal)) {
 				answer = this.format_error(this.points.pop());
 				this.points = [];
-				options.error(answer);
+				setTimeout(function() {
+					options.error(answer);
+				}, 0);
 			} else {
 				if(this.debugger)
 					this.debugger_states.push(this.head_point());
 				answer = this.format_success(this.points.pop());
-				options.success(answer);
+				setTimeout(function() {
+					options.success(answer);
+				}, 0);
 			}
 		}
 	};
@@ -5252,7 +5260,7 @@
 		"repeat/0": function( thread, point, _ ) {
 			thread.prepend( [new State( point.goal.replace( null ), point.substitution, point ), point] );
 		},
-		
+
 		// EXCEPTIONS
 		
 		// throw/1
