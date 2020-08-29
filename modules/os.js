@@ -555,6 +555,52 @@ var pl;
 					}
 				}
 			},
+			
+			// file_permission/2
+			"file_permission/2": function(thread, point, atom) {
+				var path = atom.args[0];
+				var permission = atom.args[1];
+				if(pl.type.is_variable(path) || pl.type.is_variable(permission)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(path)) {
+					thread.throw_error(pl.error.type("atom", path, atom.indicator));
+				} else if(!pl.type.is_atom(permission)) {
+					thread.throw_error(pl.error.type("atom", permission, atom.indicator));
+				} else {
+					var absolute = thread.absolute_file_name(path.id);
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var fs = require('fs');
+						if(permission.indicator === "read/0") {
+							fs.access(absolute, fs.constants.R_OK, function(error, stat) {
+								if(!error)
+									thread.success(point);
+								thread.again();
+							});
+							return true;
+						} else if(permission.indicator === "write/0") {
+							fs.access(absolute, fs.constants.W_OK, function(error, stat) {
+								if(!error)
+									thread.success(point);
+								thread.again();
+							});
+							return true;
+						} else if(permission.indicator === "execute/0") {
+							fs.access(absolute, fs.constants.X_OK, function(error, stat) {
+								if(!error)
+									thread.success(point);
+								thread.again();
+							});
+							return true;
+						} else {
+							thread.throw_error(pl.error.domain( "file_permission", permission, atom.indicator ));
+						}
+					} else {
+						var file = thread.session.file_system.get(absolute);
+						if(pl.type.is_file(file))
+							thread.success(point);
+					}
+				}
+			},
 
 			// getenv/2
 			"getenv/2": function(thread, point, atom) {
@@ -635,7 +681,7 @@ var pl;
 		
 	};
 	
-	var exports = ["sleep/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1"];
+	var exports = ["sleep/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "file_permission/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1"];
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
