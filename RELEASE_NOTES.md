@@ -21,20 +21,16 @@ From version 0.3.0, you must do it in the following way:
 var session = pl.create();
 var show = answer => console.log(session.format_answer(answer))
 session.consult("foo(a). foo(b).", {
-    success: function(warnings) {
+    success: function() {
         session.query("foo(X).", {
             success: function(goal) {
                 session.answer(show); // X = a.
                 session.answer(show); // X = b.
             },
-            error: function(err) {
-                // Error parsing query
-            }
+            error: function(err) { /* Error parsing query */ }
         })
     },
-    error: function(err) {
-        // Error parsing program
-    }
+    error: function(err) { /* Error parsing program */ }
 }
 ```
 
@@ -42,18 +38,10 @@ In addition, you can pass an object with the following properties instead of a g
 
 ```js
 {
-    success: function(answer) {
-        // Successful answer
-    },
-    fail: function {
-        // Failure
-    },
-    error: function(err) {
-        // Uncaught exception
-    },
-    limit: function {
-        // Limit exceeded
-    }
+    success: function(answer) { /* Successful answer */ },
+    fail:    function { /* Failure */ },
+    error:   function(err) { /* Uncaught exception */ },
+    limit:   function { /* Limit exceeded */ }
 }
 ```
 
@@ -61,6 +49,7 @@ In addition, you can pass an object with the following properties instead of a g
 
 - ADDED: `system` module for built-in predicates.
 - ADDED: `os` module for operating system interaction.
+- ADDED: `charsio` module for I/O on lists of character codes.
 - ADDED: `format` module for formatted write.
 - ADDED: support for user-defined modules.
 - ADDED: support for `meta_predicate/1` directive.
@@ -88,7 +77,6 @@ In addition, you can pass an object with the following properties instead of a g
 - ADDED: `numbervars/3` built-in predicate.
 - ADDED: `predicate_property/2` built-in predicate.
 - ADDED: `current_module/1` built-in predicate.
-- ADDED: `write_to_chars/2`, `writeq_to_chars/2`, `write_canonical_to_chars/2`, `write_term_to_chars/3` built-in predicates.
 - ADDED: `time_property/2` built-in predicate.
 - ADDED: `stream_position_data/3` built-in predicate.
 - ADDED: `call_cleanup/2` and `setup_call_cleanup/3` built-in predicates.

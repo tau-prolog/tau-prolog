@@ -174,7 +174,7 @@ var pl;
 	var exports = ["format_/4", "format/2", "format/3"];
 	var options = function() {
 		return {
-			dependencies: ["lists"]
+			dependencies: ["lists", "charsio"]
 		};
     };
 	if(typeof module !== 'undefined') {
