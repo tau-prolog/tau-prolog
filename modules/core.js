@@ -2360,6 +2360,14 @@
 	
 	// PROLOG SESSIONS AND THREADS
 
+	// Format answer
+	Session.prototype.format_answer = function(answer, options) {
+		return this.thread.format_answer(answer, options);
+	};
+	Thread.prototype.format_answer = function(answer, options) {
+		return pl.format_answer(answer, this, options);
+	};
+
 	// Get current input
 	Session.prototype.get_current_input = function() {
 		return this.current_input;
@@ -2989,21 +2997,22 @@
 		return this.thread.answer(options);
 	}
 	Thread.prototype.answer = function(options) {
+		var opts = {};
 		options = options || function() {};
 		if(typeof options === "function") {
-			options = {
+			opts = {
 				success: options,
 				error: options,
 				fail: options,
 				limit: options
 			};
 		} else {
-			options.success = options.success === undefined ? function() {} : options.success;
-			options.error = options.error === undefined ? function() {} : options.error;
-			options.fail = options.fail === undefined ? function() {} : options.fail;
-			options.limit = options.limit === undefined ? function() {} : options.limit;
+			opts.success = options.success === undefined ? function() {} : options.success;
+			opts.error = options.error === undefined ? function() {} : options.error;
+			opts.fail = options.fail === undefined ? function() {} : options.fail;
+			opts.limit = options.limit === undefined ? function() {} : options.limit;
 		}
-		this.__calls.push(options);
+		this.__calls.push(opts);
 		if( this.__calls.length > 1 ) {
 			return;
 		}
@@ -3027,7 +3036,7 @@
 			if( answer !== false ) {
 				setTimeout( function() {
 					thread.answers( callback, max-1, after );
-				}, 1 );
+				}, 0 );
 			} else if(after) {
 				after();
 			}
@@ -3039,7 +3048,6 @@
 		return this.thread.again(reset_limit);
 	};
 	Thread.prototype.again = function(reset_limit) {
-		var answer;
 		var t0 = Date.now();
 		while(this.__calls.length > 0) {
 			this.warnings = [];
@@ -3064,18 +3072,22 @@
 					options.fail(false);
 				}, 0);
 			} else if(pl.type.is_error(this.head_point().goal)) {
-				answer = this.format_error(this.points.pop());
+				var answer = this.format_error(this.points.pop());
 				this.points = [];
-				setTimeout(function() {
-					options.error(answer);
-				}, 0);
+				(function(answer) {
+					return setTimeout(function() {
+						options.error(answer);
+					}, 0);
+				})(answer);
 			} else {
 				if(this.debugger)
 					this.debugger_states.push(this.head_point());
-				answer = this.format_success(this.points.pop());
-				setTimeout(function() {
-					options.success(answer);
-				}, 0);
+				var answer = this.format_success(this.points.pop());
+				(function(answer) {
+					return setTimeout(function() {
+						options.success(answer);
+					}, 0);
+				})(answer);
 			}
 		}
 	};
