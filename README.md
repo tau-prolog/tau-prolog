@@ -35,22 +35,65 @@ session.consult(`
     likes(dean, pie).
     likes(sam, apples).
     likes(dean, whiskey).
-`);
+`, {
+    success: function() { /* Program loaded correctly */ },
+    error: function(err) { /* Error parsing program */ }
+});
 ```
 or
 ```javascript
-session.consult("path/to/src.pl");
+session.consult("path/to/src.pl" {
+    success: function() { /* Program loaded correctly */ },
+    error: function(err) { /* Error parsing program */ }
+});
 ```
 4. **Query a goal**
 ```javascript
-session.query("likes(sam, X).");
+session.query("likes(sam, X).", {
+    success: function(goal) { /* Goal loaded correctly */ },
+    error: function(err) { /* Error parsing program */ }
+});
 ```
 5. **Look for answers**
 ```javascript
-var callback = console.log;
-session.answer(callback); // X = salad ;
-session.answer(callback); // X = apples ;
-session.answer(callback); // false.
+session.answer({
+    success: function(answer) {
+        console.log(session.format_answer(answer)); // X = salad ;
+        session.answer({
+            success: function(answer) {
+                console.log(session.format_answer(answer)); // X = apples ;
+            },
+            // ...
+        });
+    },
+    fail: function() { /* No more answers */ },
+    error: function(err) { /* Uncaught exception */ },
+    limit: function() { /* Limit exceeded */ }
+});
+```
+
+This is a general scheme of how to use Tau Prolog:
+
+```javascript
+// Consult
+session.consult(program, {
+    success: function() {
+        // Query
+        session.query(goal, {
+            success: function(goal) {
+                // Answers
+                session.answer({
+                    success: function(answer) { /* Answer */ },
+                    error:   function(err) { /* Uncaught error */ },
+                    fail:    function() { /* Fail */ },
+                    limit:   function() { /* Limit exceeded */ }
+                })
+            },
+            error: function(err) { /* Error parsing goal */ }
+        });
+    },
+    error: function(err) { /* Error parsing program */ }
+});
 ```
 
 For further information, check the [Documentation](http://tau-prolog.org/documentation).
@@ -78,6 +121,8 @@ $ npm install tau-prolog
 * [Statistics module](http://tau-prolog.org/documentation#statistics)
 * [JavaScript module](http://tau-prolog.org/documentation#js)
 * [OS module](http://tau-prolog.org/documentation#os)
+* [CharsIO module](http://tau-prolog.org/documentation#charsio)
+* [Format module](http://tau-prolog.org/documentation#format)
 
 ## License
 Tau Prolog source code is released under the terms of the [BSD 3-Clause License](http://tau-prolog.org/license).
