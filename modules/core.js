@@ -4264,7 +4264,8 @@
 			},
 
 			// meta_predicate/1
-			"meta_predicate/1": function(thread, atom) {
+			"meta_predicate/1": function(thread, atom, options) {
+				var options = options === undefined ? {} : options;
 				var head = atom.args[0];
 				if( pl.type.is_variable(head) ) {
 					thread.throw_warning(pl.error.instantiation(atom.indicator));
