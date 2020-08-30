@@ -1046,40 +1046,43 @@
 
 	// Parse a program
 	function parseProgram(thread, string, options) {
+		var opts = {};
 		options = options ? options : {};
-		options.from = options.from ? options.from : "$tau-js";
-		options.reconsult = options.reconsult !== undefined ? options.reconsult : true;
-		options.reconsulted = options.reconsulted === undefined ? {} : options.reconsulted;
-		options.context_module = options.context_module === undefined ? "user" : options.context_module;
-		options.initialization = options.initialization === undefined ? [] : options.initialization;
-		options.current_token = options.current_token === undefined ? 0 : options.current_token;
-		options.tokenizer = options.tokenizer === undefined ? null : options.tokenizer;
-		options.tokens = options.tokens === undefined ? null : options.tokens;
-		options.string = string;
-		options.term_expansion = false;
-		var reconsulted = options.reconsulted;
-		var tokenizer = options.tokenizer;
-		var tokens = options.tokens;
+		opts.success = options.success ? options.success : function(){};
+		opts.error = options.error ? options.error : function(){};
+		opts.from = options.from ? options.from : "$tau-js";
+		opts.reconsult = options.reconsult !== undefined ? options.reconsult : true;
+		opts.reconsulted = options.reconsulted === undefined ? {} : options.reconsulted;
+		opts.context_module = options.context_module === undefined ? "user" : options.context_module;
+		opts.initialization = options.initialization === undefined ? [] : options.initialization;
+		opts.current_token = options.current_token === undefined ? 0 : options.current_token;
+		opts.tokenizer = options.tokenizer === undefined ? null : options.tokenizer;
+		opts.tokens = options.tokens === undefined ? null : options.tokens;
+		opts.string = string;
+		opts.term_expansion = false;
+		var reconsulted = opts.reconsulted;
+		var tokenizer = opts.tokenizer;
+		var tokens = opts.tokens;
 		if(tokenizer === null) {
 			tokenizer = new Tokenizer(thread);
 			tokenizer.new_text(string);
-			options.tokenizer = tokenizer;
+			opts.tokenizer = tokenizer;
 			tokens = tokenizer.get_tokens(0);
-			options.tokens = tokens;
+			opts.tokens = tokens;
 		}
-		var n = options.current_token;
+		var n = opts.current_token;
 		while(tokens !== null && tokens[n]) {
 			var expr = parseRule(thread, tokens, n);
-			options.current_token = expr.len;
+			opts.current_token = expr.len;
 			if(expr.type === ERROR) {
-				if(options.error !== undefined)
-					options.error(new Term("throw", [expr.value]));
+				if(opts.error !== undefined)
+				opts.error(new Term("throw", [expr.value]));
 				return;
 			} else {
 				// Term expansion
 				var term_expansion = thread.session.modules.user.rules["term_expansion/2"];
 				if(term_expansion && term_expansion.length > 0) {
-					options.term_expansion = true;
+					opts.term_expansion = true;
 					var n_thread = new Thread(thread.session);
 					var term = expr.value.body ? new Term(":-", [expr.value.head, expr.value.body]) : expr.value.head;
 					term = term.rename(thread.session);
@@ -1090,15 +1093,15 @@
 						if(answer && !pl.type.is_error(answer) && pl.type.is_term(answer.links['X'])) {
 							var term = answer.links['X'];
 							var rule = term.indicator === ":-/2" ? new Rule(term.args[0], term.args[1]) : new Rule( term, null ) ;
-							parseProgramExpansion(thread, options, reconsulted, {value: rule, len: expr.len, type: expr.type});
+							parseProgramExpansion(thread, opts, reconsulted, {value: rule, len: expr.len, type: expr.type});
 						} else {
-							parseProgramExpansion(thread, options, reconsulted, expr);
+							parseProgramExpansion(thread, opts, reconsulted, expr);
 						}
 					});
 					return;
 				} else {
-					options.term_expansion = false;
-					var async = parseProgramExpansion(thread, options, reconsulted, expr);
+					opts.term_expansion = false;
+					var async = parseProgramExpansion(thread, opts, reconsulted, expr);
 					if(async)
 						return;
 					n = expr.len;
@@ -1106,26 +1109,25 @@
 			}
 		}
 		// run goals from initialization/1 directive
-		var callback = options.success || function() {};
+		var callback = opts.success;
 		var nthread = new Thread(thread.session);
-		for(var i = options.initialization.length-1; i > 0; i--) {
+		for(var i = opts.initialization.length-1; i > 0; i--) {
 			var next_callback = (function(init, callback) {
 				return function(answer) {
 					if(answer === null) {
 						nthread.answer();
 					} else if(pl.type.is_error(answer)) {
-						if(options.error)
-							options.error(answer);
+						opts.error(answer);
 					} else {
 						nthread.add_goal(init);
 						nthread.answer(callback);
 					}
 				};
-			})(options.initialization[i], callback);
+			})(opts.initialization[i], callback);
 			callback = next_callback;
 		}
-		if(options.initialization.length > 0) {
-			nthread.add_goal(options.initialization[0]);
+		if(opts.initialization.length > 0) {
+			nthread.add_goal(opts.initialization[0]);
 			nthread.answer(callback);
 		} else {
 			callback();
@@ -1233,17 +1235,19 @@
 	
 	// Parse a query
 	function parseQuery(thread, string, options) {
-		options = options === undefined ? {} : options;
-		options.success = options.success === undefined ? function(){} : options.success;
-		options.error = options.error === undefined ? function(){} : options.error;
-		options.tokenizer = options.tokenizer === undefined ? null : options.tokenizer;
-		options.current_token = options.current_token === undefined ? 0 : options.current_token;
-		options.string = string;
-		var tokenizer = options.tokenizer;
-		var n = options.current_token;
+		var opts = {};
+		var callback = typeof options === "function" ? options : function(){};
+		options = options === undefined || typeof options === "function" ? {} : options;
+		opts.success = options.success === undefined ? callback : options.success;
+		opts.error = options.error === undefined ? callback : options.error;
+		opts.tokenizer = options.tokenizer === undefined ? null : options.tokenizer;
+		opts.current_token = options.current_token === undefined ? 0 : options.current_token;
+		opts.string = string;
+		var tokenizer = opts.tokenizer;
+		var n = opts.current_token;
 		if(tokenizer === null) {
 			tokenizer = new Tokenizer(thread);
-			options.tokenizer = tokenizer;
+			opts.tokenizer = tokenizer;
 			tokenizer.new_text(string);
 		}
 		do {
@@ -1254,21 +1258,21 @@
 			if(expr.type !== ERROR) {
 				var expr_position = expr.len;
 				n = expr.len + 1;
-				options.current_token = n;
+				opts.current_token = n;
 				if(tokens[expr_position] && tokens[expr_position].name === "atom" && tokens[expr_position].raw === ".") {
 					expr.value = body_conversion(expr.value);
 					// Goal expansion
 					var goal_expansion = thread.session.modules.user.rules["goal_expansion/2"];
 					if(!thread.__goal_expansion && goal_expansion && goal_expansion.length > 0) {
-						parseQueryExpansion(thread, expr.value, options);
+						parseQueryExpansion(thread, expr.value, opts);
 						return;
 					} else {
 						thread.add_goal(expr.value);
-						options.success(expr.value);
+						opts.success(expr.value);
 					}
 				} else {
 					var token = tokens[expr_position];
-					options.error(
+					opts.error(
 						new Term("throw", [
 							pl.error.syntax(
 								token ? token : tokens[expr_position-1],
@@ -1280,7 +1284,7 @@
 					return;
 				}
 			} else {
-				options.error(new Term("throw", [expr.value]));
+				opts.error(new Term("throw", [expr.value]));
 				return;
 			}
 		} while(true);
@@ -2610,19 +2614,22 @@
 	};
 	Thread.prototype.consult = function(program, options) {
 		var string = "", success = false;
-		options = options === undefined ? {} : options;
-		options.context_module = options.context_module === undefined ? "user" : options.context_module;
-		options.text = options.text === undefined ? true : options.text;
-		options.html = options.html === undefined ? true : options.html;
-		options.url = options.url === undefined ? true : options.url;
-		options.file = options.file === undefined ? true : options.file;
-		options.script = options.script === undefined ? true : options.script;
-		options.error = options.error === undefined ? function(){} : options.error;
+		var opts = {};
+		var callback = typeof options === "function" ? options : callback;
+		options = options === undefined || typeof options === "function" ? {} : options;
+		opts.context_module = options.context_module === undefined ? "user" : options.context_module;
+		opts.text = options.text === undefined ? true : options.text;
+		opts.html = options.html === undefined ? true : options.html;
+		opts.url = options.url === undefined ? true : options.url;
+		opts.file = options.file === undefined ? true : options.file;
+		opts.script = options.script === undefined ? true : options.script;
+		opts.success = options.success === undefined ? callback : options.success;
+		opts.error = options.error === undefined ? callback : options.error;
 		// string
 		if(typeof program === "string") {
 			string = program;
 			// script id
-			if(options.script && this.get_flag("nodejs").indicator === "false/0" && program != "" && document.getElementById(string)) {
+			if(opts.script && this.get_flag("nodejs").indicator === "false/0" && program != "" && document.getElementById(string)) {
 				var script = document.getElementById(string);
 				var type = script.getAttribute("type");
 				if(type !== null && type.replace(/ /g, "").toLowerCase() === "text/prolog") {
@@ -2631,21 +2638,21 @@
 				}
 			}
 			// file (node.js)
-			if(!success && options.file && this.get_flag("nodejs").indicator === "true/0") {
+			if(!success && opts.file && this.get_flag("nodejs").indicator === "true/0") {
 				var fs = require("fs");
 				var thread = this;
 				fs.readFile(program, function(error, data) {
 					if(error) {
-						options.file = false;
-						thread.consult(program, options);
+						opts.file = false;
+						thread.consult(program, opts);
 					} else {
-						parseProgram(thread, data.toString(), options);
+						parseProgram(thread, data.toString(), opts);
 					}
 				});
 				return;
 			}
 			// http request
-			if(!success && this.get_flag("nodejs").indicator === "false/0" && options.url && program !== "" && !(/\s/.test(program))) {
+			if(!success && this.get_flag("nodejs").indicator === "false/0" && opts.url && program !== "" && !(/\s/.test(program))) {
 				try {
 					var xhttp = new XMLHttpRequest();
 					var thread = this;
@@ -2654,10 +2661,10 @@
 							if(this.status == 200) {
 								string = xhttp.responseText;
 								success = true;
-								parseProgram(thread, string, options);
+								parseProgram(thread, string, opts);
 							} else {
-								options.url = false;
-								thread.consult(program, options);
+								opts.url = false;
+								thread.consult(program, opts);
 							}
 						}
 					}
@@ -2665,16 +2672,16 @@
 					xhttp.send();
 					return;
 				} catch(ex) {
-					options.error(ex);
+					opts.error(ex);
 					return;
 				}
 			}
 			// text
-			if(!success && options.text) {
+			if(!success && opts.text) {
 				success = true;
 			}
 		// html
-		} else if(options.html && program.nodeName) {
+		} else if(opts.html && program.nodeName) {
 			switch(program.nodeName.toLowerCase()) {
 				case "input":
 				case "textarea":
@@ -2687,10 +2694,10 @@
 					break;
 			}
 		} else {
-			options.error(pl.error.existence("source_sink", new Term(string), "top_level/0"));
+			opts.error(pl.error.existence("source_sink", new Term(string), "top_level/0"));
 		}
 		this.warnings = [];
-		parseProgram(this, string, options);
+		parseProgram(this, string, opts);
 	};
 
 	// Query goal from a string (without ?-)
