@@ -7614,13 +7614,9 @@
 		},
 
 		// flush_output/0
-		"flush_output/0": function( thread, point, atom ) {
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("flush_output", [new Var("S")])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"flush_output/0": [
+			new Rule(new Term("flush_output", []), new Term(",", [new Term("current_output", [new Var("S")]),new Term("flush_output", [new Var("S")])]))
+		],
 
 		// flush_output/1
 		"flush_output/1": function( thread, point, atom ) {
@@ -7745,18 +7741,9 @@
 		},
 
 		// at_end_of_stream/0
-		"at_end_of_stream/0": function( thread, point, atom ) {
-			thread.prepend( [new State(
-				point.goal.replace(
-					new Term(",", [new Term("current_input", [new Var("S")]),new Term(",", [
-						new Term("stream_property", [new Var("S"),new Term("end_of_stream", [new Var("E")])]),
-						new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),
-						new Term("at", [])]),new Term("=", [new Var("E"),new Term("past", [])])])])])])
-				),
-				point.substitution,
-				point
-			)] );
-		},
+		"at_end_of_stream/0": [
+			new Rule(new Term("at_end_of_stream", []), new pl.type.Term(",", [new Term("current_input", [new Var("S")]),new Term(",", [new Term("stream_property", [new Var("S"),new Term("end_of_stream", [new Var("E")])]),new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),new Term("at", [])]),new Term("=", [new Var("E"),new Term("past", [])])])])])]))
+		],
 
 		// at_end_of_stream/1
 		"at_end_of_stream/1": function( thread, point, atom ) {
@@ -7811,14 +7798,9 @@
 		//  CHARACTER INPUT OUTPUT
 		
 		// get_char/1
-		"get_char/1": function( thread, point, atom ) {
-			var char = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_char", [new Var("S"),char])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"get_char/1": [
+			new Rule(new Term("get_char", [new Var("C")]), new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_char", [new Var("S"),new Var("C")])]))
+		],
 
 		// get_char/2
 		"get_char/2": function( thread, point, atom ) {
@@ -7870,14 +7852,9 @@
 		},
 
 		// get_code/1
-		"get_code/1": function( thread, point, atom ) {
-			var code = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_code", [new Var("S"),code])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"get_code/1": [
+			new Rule(new Term("get_code", [new Var("C")]), new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_code", [new Var("S"),new Var("C")])]))
+		],
 
 		// get_code/2
 		"get_code/2": function( thread, point, atom ) {
@@ -7932,14 +7909,9 @@
 		},
 
 		// peek_char/1
-		"peek_char/1": function( thread, point, atom ) {
-			var char = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_char", [new Var("S"),char])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"peek_char/1": [
+			new Rule(new Term("peek_char", [new Var("C")]), new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_char", [new Var("S"),new Var("C")])]))
+		],
 
 		// peek_char/2
 		"peek_char/2": function( thread, point, atom ) {
@@ -7982,14 +7954,9 @@
 		},
 
 		// peek_code/1
-		"peek_code/1": function( thread, point, atom ) {
-			var code = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_code", [new Var("S"),code])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"peek_code/1": [
+			new Rule(new Term("peek_code", [new Var("C")]), new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_code", [new Var("S"),new Var("C")])]))
+		],
 
 		// peek_code/2
 		"peek_code/2": function( thread, point, atom ) {
@@ -8036,14 +8003,9 @@
 		},
 
 		// put_char/1
-		"put_char/1": function( thread, point, atom ) {
-			var char = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"),char])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"put_char/1": [
+			new Rule(new Term("put_char", [new Var("C")]), new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"),new Var("C")])]))
+		],
 
 		// put_char/2
 		"put_char/2": function( thread, point, atom ) {
@@ -8077,14 +8039,9 @@
 		},
 
 		// put_code/1
-		"put_code/1": function( thread, point, atom ) {
-			var code = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_code", [new Var("S"),code])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"put_code/1": [
+			new Rule(new Term("put_code", [new Var("C")]), new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_code", [new Var("S"),new Var("C")])]))
+		],
 
 		// put_code/2
 		"put_code/2": function( thread, point, atom ) {
@@ -8120,13 +8077,9 @@
 		},
 
 		// nl/0
-		"nl/0": function( thread, point, atom ) {
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"), new Term("\n", [])])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"nl/0": [
+			new Rule(new Term("nl"), new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_char", [new Var("S"),new Term("\n")])]))
+		],
 
 		// nl/1
 		"nl/1": function( thread, point, atom ) {
@@ -8143,14 +8096,9 @@
 		// BYTE INPUT/OUTPUT
 
 		// get_byte/1
-		"get_byte/1": function( thread, point, atom ) {
-			var byte = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_byte", [new Var("S"),byte])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"get_byte/1": [
+			new Rule(new Term("get_byte", [new Var("B")]), new Term(",", [new Term("current_input", [new Var("S")]),new Term("get_byte", [new Var("S"),new Var("B")])]))
+		],
 
 		// get_byte/2
 		"get_byte/2": function( thread, point, atom ) {
@@ -8198,14 +8146,9 @@
 		},
 		
 		// peek_byte/1
-		"peek_byte/1": function( thread, point, atom ) {
-			var byte = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_byte", [new Var("S"),byte])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"peek_byte/1": [
+			new Rule(new Term("peek_byte", [new Var("B")]), new Term(",", [new Term("current_input", [new Var("S")]),new Term("peek_byte", [new Var("S"),new Var("B")])]))
+		],
 
 		// peek_byte/2
 		"peek_byte/2": function( thread, point, atom ) {
@@ -8248,14 +8191,9 @@
 		},
 
 		// put_byte/1
-		"put_byte/1": function( thread, point, atom ) {
-			var byte = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_byte", [new Var("S"),byte])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"put_byte/1": [
+			new Rule(new Term("put_byte", [new Var("B")]), new Term(",", [new Term("current_output", [new Var("S")]),new Term("put_byte", [new Var("S"),new Var("B")])]))
+		],
 
 		// put_byte/2
 		"put_byte/2": function( thread, point, atom ) {
@@ -8289,34 +8227,19 @@
 		// TERM INPUT/OUTPUT
 
 		// read/1
-		"read/1": function( thread, point, atom ) {
-			var term = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),term,new Term("[]",[])])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"read/1": [
+			new Rule(new Term("read", [new Var("T")]), new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),new Var("T"),new Term("[]")])]))
+		],
 
 		// read/2
-		"read/2": function( thread, point, atom ) {
-			var stream = atom.args[0], term = atom.args[1];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term("read_term", [stream,term,new Term("[]",[])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"read/2": [
+			new Rule(new Term("read", [new Var("S"), new Var("T")]), new Term("read_term", [new Var("S"),new Var("T"),new Term("[]")]))
+		],
 
 		// read_term/2
-		"read_term/2": function( thread, point, atom ) {
-			var term = atom.args[0], options = atom.args[1];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),term,options])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"read_term/2": [
+			new Rule(new Term("read_term", [new Var("T"),new Var("O")]), new Term(",", [new Term("current_input", [new Var("S")]),new Term("read_term", [new Var("S"),new Var("T"),new Var("O")])]))
+		],
 
 		// read_term/3
 		"read_term/3": function( thread, point, atom ) {
@@ -8485,14 +8408,9 @@
 		},
 
 		// write/1
-		"write/1": function( thread, point, atom ) {
-			var term = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("write", [new Var("S"),term])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"write/1": [
+			new Rule(new Term("write", [new Var("T")]), new Term(",", [new Term("current_output", [new Var("S")]),new Term("write", [new Var("S"),new Var("T")])]))
+		],
 		
 		// write/2
 		"write/2": function( thread, point, atom ) {
@@ -8508,14 +8426,9 @@
 		},
 		
 		// writeq/1
-		"writeq/1": function( thread, point, atom ) {
-			var term = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("writeq", [new Var("S"),term])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"writeq/1": [
+			new Rule(new Term("writeq", [new Var("T")]), new Term(",", [new Term("current_output", [new Var("S")]),new Term("writeq", [new Var("S"),new Var("T")])]))
+		],
 		
 		// writeq/2
 		"writeq/2": function( thread, point, atom ) {
@@ -8531,14 +8444,9 @@
 		},
 		
 		// write_canonical/1
-		"write_canonical/1": function( thread, point, atom ) {
-			var term = atom.args[0];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("write_canonical", [new Var("S"),term])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"write_canonical/1": [
+			new Rule(new Term("write_canonical", [new Var("T")]), new Term(",", [new Term("current_output", [new Var("S")]),new Term("write_canonical", [new Var("S"),new Var("T")])]))
+		],
 		
 		// write_canonical/2
 		"write_canonical/2": function( thread, point, atom ) {
@@ -8554,14 +8462,9 @@
 		},
 
 		// write_term/2
-		"write_term/2": function( thread, point, atom ) {
-			var term = atom.args[0], options = atom.args[1];
-			thread.prepend( [new State( 
-				point.goal.replace( new Term(",", [new Term("current_output", [new Var("S")]),new Term("write_term", [new Var("S"),term,options])]) ),
-				point.substitution,
-				point
-			)] );
-		},
+		"write_term/2": [
+			new Rule(new Term("write_term", [new Var("T"),new Var("O")]), new Term(",", [new Term("current_output", [new Var("S")]),new Term("write_term", [new Var("S"),new Var("T"),new Var("O")])]))
+		],
 		
 		// write_term/3
 		"write_term/3": function( thread, point, atom ) {
