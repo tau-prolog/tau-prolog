@@ -123,3 +123,8 @@ In addition, you can pass an object with the following properties instead of a g
 
 - ADDED: [TESTING.md](TESTING.md) documentation for testing Tau Prolog with [Logtalk](https://github.com/LogtalkDotOrg/logtalk3).
 - UPDATED: [fruit.js](examples/nodejs/fruit.js) example to v0.3.0.
+
+### Acknowledgments (0.3.0)
+
+- Thanks to **Paulo Moura** for his help in detecting and correcting errors, for adding new predicates to the `os` module, and for his work in the integration of Tau Prolog with [Logtalk](https://github.com/LogtalkDotOrg/logtalk3).
+- Thanks to **Markus Triska** for allowing us to adapt the `format` module from his original package of [Scryer Prolog](https://github.com/mthom/scryer-prolog/blob/master/src/lib/format.pl).
