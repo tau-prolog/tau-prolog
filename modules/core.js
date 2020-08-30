@@ -5939,8 +5939,6 @@
 				thread.throw_error(pl.error.type("integer", start, atom.indicator));
 			} else if(!pl.type.is_variable(end) && !pl.type.is_integer(end)) {
 				thread.throw_error(pl.error.type("integer", end, atom.indicator));
-			} else if(start.value < 0) {
-				thread.throw_error(pl.error.domain("not_less_than_zero", start, atom.indicator));
 			} else {
 				var variables = nub(term.variables());
 				var value = start.value;
