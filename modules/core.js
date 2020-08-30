@@ -1664,6 +1664,7 @@
 		this.__char_conversion = {};
 		this.__operators = {
 			1200: { ":-": ["fx", "xfx"],  "-->": ["xfx"], "?-": ["fx"] },
+			1150: { "meta_predicate": ["fx"] },
 			1100: { ";": ["xfy"] },
 			1050: { "->": ["xfy"] },
 			1000: { ",": ["xfy"] },
@@ -6095,33 +6096,33 @@
 				var points = [];
 				// all predicates
 				if(pl.type.is_variable(head)) {
-					// built-in predicates (built_in + static + native_code)
+					// built-in predicates (built_in + static + native_code + meta_predicate?)
 					if(!module_id) {
 						for(var prop in pl.builtin.rules) {
 							if(!pl.builtin.rules.hasOwnProperty(prop))
 								continue;
 							var indicator = str_indicator(prop);
-							var unif_head = indicator.args[0];
+							var args = [];
 							for(var i = 0; i < indicator.args[1].value; i++)
-								unif_head.args.push(thread.next_free_variable());
-							var current_properties = ["static", "built_in", "native_code"];
-							// all predicates, all properties
-							if(pl.type.is_variable(property)) {
-								for(var i = 0; i < current_properties.length; i++) {
+								args.push(thread.next_free_variable());
+							var unif_head = new Term(indicator.args[0].id, args);
+							var current_properties = [
+								new Term("static"),
+								new Term("built_in"),
+								new Term("native_code")
+							];
+							if(pl.builtin.meta_predicates.hasOwnProperty(prop))
+								current_properties.push(new Term("meta_predicate", [
+									pl.builtin.meta_predicates[prop]
+								]));
+							// all predicates, one property / all properties
+							for(var i = 0; i < current_properties.length; i++) {
+								if(pl.type.is_variable(property) || current_properties[i].indicator === property.indicator) {
 									points.push(new State(
 										point.goal.replace(new Term(",", [
 											new Term("=", [head, unif_head]),
-											new Term("=", [property, new Term(current_properties[i])])
+											new Term("=", [property, current_properties[i]])
 										])),
-										point.substitution,
-										point
-									));
-								}
-							// all predicates, one property
-							} else {
-								if(indexOf(current_properties, property.id) !== -1) {
-									points.push(new State(
-										point.goal.replace(new Term("=", [head, unif_head])),
 										point.substitution,
 										point
 									));
@@ -6135,35 +6136,31 @@
 							if(!get_module.rules.hasOwnProperty(prop))
 								continue;
 							var indicator = str_indicator(prop);
-							var unif_head = indicator.args[0];
+							var args = [];
 							for(var i = 0; i < indicator.args[1].value; i++)
-								unif_head.args.push(thread.next_free_variable());
+								args.push(thread.next_free_variable());
+							var unif_head = new Term(indicator.args[0].id, args);
 							var current_properties = [];
 							if(thread.is_public_predicate(prop, module_id))
-								current_properties.push("dynamic");
+								current_properties.push(new Term("dynamic"));
 							else
-								current_properties.push("static");
+								current_properties.push(new Term("static"));
 							if(get_module.rules[prop] instanceof Function)
-								current_properties.push("native_code");
+								current_properties.push(new Term("native_code"));
 							if(thread.is_multifile_predicate(prop, module_id))
-								current_properties.push("multifile");
-							// all predicates, all properties
-							if(pl.type.is_variable(property)) {
-								for(var i = 0; i < current_properties.length; i++) {
+								current_properties.push(new Term("multifile"));
+							if(get_module.meta_predicates.hasOwnProperty(prop))
+								current_properties.push(new Term("meta_predicate", [
+									get_module.meta_predicates[prop]
+								]));
+							// all predicates, one property / all properties
+							for(var i = 0; i < current_properties.length; i++) {
+								if(pl.type.is_variable(property) || current_properties[i].indicator === property.indicator) {
 									points.push(new State(
 										point.goal.replace(new Term(",", [
 											new Term("=", [head, unif_head]),
-											new Term("=", [property, new Term(current_properties[i])])
+											new Term("=", [property, current_properties[i]])
 										])),
-										point.substitution,
-										point
-									));
-								}
-							// all predicates, one property
-							} else {
-								if(indexOf(current_properties, property.id) !== -1) {
-									points.push(new State(
-										point.goal.replace(new Term("=", [head, unif_head])),
 										point.substitution,
 										point
 									));
@@ -6175,35 +6172,42 @@
 				} else {
 					var builtin = !module_id && pl.type.is_builtin(head);
 					var predicate = builtin ? pl.builtin.rules[head.indicator] : get_module.rules[head.indicator];
+					get_module = builtin ? pl.builtin : get_module;
 					if(predicate) {
 						var current_properties;
 						if(builtin) {
-							current_properties = ["static", "built_in", "native_code"];
+							current_properties = [
+								new Term("static"),
+								new Term("built_in"),
+								new Term("native_code")
+							];
 						} else {
 							current_properties = [];
 							if(thread.is_public_predicate(head.indicator, module_id))
-								current_properties.push("dynamic");
+								current_properties.push(new Term("dynamic"));
 							else
-								current_properties.push("static");
+								current_properties.push(new Term("static"));
 							if(predicate instanceof Function)
-								current_properties.push("native_code");
+								current_properties.push(new Term("native_code"));
 							if(thread.is_multifile_predicate(head.indicator, module_id))
-								current_properties.push("multifile");
+								current_properties.push(new Term("multifile"));
 						}
-						// one predicate, all properties
-						if(pl.type.is_variable(property)) {
-							for(var i = 0; i < current_properties.length; i++) {
+						if(get_module.meta_predicates.hasOwnProperty(head.indicator))
+							current_properties.push(new Term("meta_predicate", [
+								get_module.meta_predicates[head.indicator]
+							]));
+						var args = [];
+						for(var i = 0; i < head.args.length; i++)
+							args.push(thread.next_free_variable());
+						var unif_head = new Term(head.id, args);
+						// one predicate, one property / all properties
+						for(var i = 0; i < current_properties.length; i++) {
+							if(pl.type.is_variable(property) || current_properties[i].indicator === property.indicator) {
 								points.push(new State(
-									point.goal.replace(new Term("=", [property, new Term(current_properties[i])])),
-									point.substitution,
-									point
-								));
-							}
-						// one predicate, one property
-						} else {
-							if(indexOf(current_properties, property.id) !== -1) {
-								points.push(new State(
-									point.goal.replace(null),
+									point.goal.replace(new Term(",", [
+										new Term("=", [head, unif_head]),
+										new Term("=", [property, current_properties[i]])
+									])),
 									point.substitution,
 									point
 								));
