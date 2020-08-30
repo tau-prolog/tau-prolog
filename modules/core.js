@@ -5161,6 +5161,7 @@
 					}
 				}
 			}
+			var setup_call_cleanup = null;
 			for( var i = thread.points.length-1; i >= 0; i-- ) {
 				var state = thread.points[i];
 				var node = state.parent;
@@ -5169,9 +5170,15 @@
 				}
 				if( node === null && node !== parent_cut.parent )
 					states.push( state );
+				else if(state.setup_call_cleanup_goal)
+					setup_call_cleanup = state.setup_call_cleanup_goal
 			}
 			thread.points = states.reverse();
-			thread.success( point );
+			thread.prepend([new State(
+				point.goal.replace(setup_call_cleanup),
+				point.substitution,
+				point
+			)]);
 		},
 		
 		// \+ (negation)
@@ -5269,6 +5276,25 @@
 			if(pl.type.is_variable(error)) {
 				thread.throw_error(pl.error.instantiation(thread.level.indicator));
 			} else {
+				for(var i = 0; i < thread.points.length; i++) {
+					var state = thread.points[i];
+					if(state.setup_call_cleanup_catch) {
+						thread.points = [new State(
+							new Term(",", [
+								new Term("catch", [
+									state.setup_call_cleanup_catch,
+									new Var("_"),
+									new Term("throw", [error])
+								]),
+								new Term("throw", [error])
+							]),
+							point.substitution,
+							point
+						)];
+						return;
+					}
+					
+				}
 				thread.throw_error(error);
 			}
 		},
@@ -5315,6 +5341,115 @@
 			};
 			nthread.answer(callback);
 			return true;
+		},
+
+		// call_cleanup/2
+		"call_cleanup/2": function(thread, point, atom) {
+			var call = atom.args[0], cleanup = atom.args[1];
+			if(pl.type.is_variable(call) || pl.type.is_variable(cleanup)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(call)) {
+				thread.throw_error(pl.error.type("callable", call, atom.indicator));
+			} else if(!pl.type.is_callable(cleanup)) {
+				thread.throw_error(pl.error.type("callable", cleanup, atom.indicator));
+			} else {
+				var nthread, callback;
+				if(point.hasOwnProperty("setup_call_cleanup_thread")) {
+					nthread = point.setup_call_cleanup_thread;
+					callback = point.setup_call_cleanup_callback;
+				} else {
+					var goal = new Term("call", [call]);
+					nthread = new Thread(thread.session);
+					nthread.add_goal(goal, true, point);
+					callback = function(answer) {
+						if(answer === null) {
+							var state = new State(
+								point.goal,
+								point.substitution,
+								point
+							);
+							state.setup_call_cleanup_thread = nthread;
+							state.setup_call_cleanup_callback = callback;
+							thread.prepend([state]);
+						} else if(answer === false) {
+							var cleanup_and_fail = new Term(",", [
+								new Term("call", [cleanup]),
+								new Term("fail")
+							]);
+							var state = new State(
+								point.goal.replace(cleanup_and_fail),
+								point.substitution,
+								point
+							);
+							thread.prepend([state]);
+						} else if(pl.type.is_error(answer)) {
+							var cleanup_and_throw = new Term(",", [
+								new Term("call", [cleanup]),
+								answer
+							]);
+							var state = new State(
+								point.goal.replace(cleanup_and_throw),
+								point.substitution,
+								point
+							);
+							thread.prepend([state]);
+						} else {
+							if(nthread.points.length === 0) {
+								var state = new State(
+									point.goal.replace(
+										new Term("call", [cleanup])
+									).apply(answer),
+									point.substitution.apply(answer),
+									point
+								);
+								thread.prepend([state]);
+							} else {
+								var state1 = new State(
+									point.goal.apply(answer).replace(null),
+									point.substitution.apply(answer),
+									point
+								);
+								var state2 = new State(
+									point.goal,
+									point.substitution,
+									point
+								);
+								state2.setup_call_cleanup_thread = nthread;
+								state2.setup_call_cleanup_callback = callback;
+								state2.setup_call_cleanup_goal = cleanup.apply(answer);
+								state2.setup_call_cleanup_catch = cleanup;
+								thread.prepend([state1, state2]);
+							}
+						}
+						thread.again();
+					}
+				}
+				nthread.answer(callback);
+				return true;
+			}
+		},
+
+		// setup_call_cleanup/3
+		"setup_call_cleanup/3": function(thread, point, atom) {
+			var setup = atom.args[0], call = atom.args[1], cleanup = atom.args[2];
+			if(pl.type.is_variable(setup) || pl.type.is_variable(call) || pl.type.is_variable(cleanup)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(setup)) {
+				thread.throw_error(pl.error.type("callable", setup, atom.indicator));
+			} else if(!pl.type.is_callable(call)) {
+				thread.throw_error(pl.error.type("callable", call, atom.indicator));
+			} else if(!pl.type.is_callable(cleanup)) {
+				thread.throw_error(pl.error.type("callable", cleanup, atom.indicator));
+			} else {
+				thread.prepend([new State(
+					point.goal.replace(new Term(",", [
+						new Term("once", [setup]),
+						new Term("call_cleanup", [call, cleanup])
+					])),
+					point.substitution,
+					point
+				)]);
+			}
 		},
 		
 		// UNIFICATION
@@ -8877,6 +9012,8 @@
 			"call/7": new Term("call", [new Num(6, false), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?")]),
 			// call(7, ?, ?, ?, ?, ?, ?, ?)
 			"call/8": new Term("call", [new Num(6, false), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?"), new Term("?")]),
+			// call_cleanup(0, 0)
+			"call_cleanup/2": new Term("call_cleanup", [new Num(0, false), new Num(0, false)]),
 			// catch(0, ?, 0)
 			"catch/3": new Term("catch", [new Num(0, false), new Term("?"), new Num(0, false)]),
 			// consult(:)
@@ -8901,6 +9038,8 @@
 			"retract/1": new Term("retract", [new Term(":")]),
 			// retractall(:)
 			"retractall/1": new Term("retractall", [new Term(":")]),
+			// setup_call_cleanup(0, 0, 0)
+			"setup_call_cleanup/3": new Term("setup_call_cleanup", [new Num(0, false), new Num(0, false), new Num(0, false)]),
 			// setof(?, ^, -)
 			"setof/3": new Term("setof", [new Term("?"), new Term("^"), new Term("-")])
 		}
