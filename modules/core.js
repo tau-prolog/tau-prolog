@@ -7681,7 +7681,7 @@
 					// end_of_stream/1
 					if(propvar || property.indicator === "end_of_stream/1")
 						properties.push( new Term( "end_of_stream", [new Term(
-							streams[i].position === "end_of_stream" || streams[i].stream.eof(streams[i].position) ? "at" :
+							streams[i].position === "end_of_stream" || streams[i].stream.eof && streams[i].stream.eof(streams[i].position) ? "at" :
 							streams[i].position === "past_end_of_stream" ? "past" :
 							"not", [])] ) );
 					// eof_action/1
@@ -7754,11 +7754,12 @@
 			} else if( !pl.type.is_stream( stream2 ) || stream2.stream === null ) {
 				thread.throw_error( pl.error.existence( "stream", stream, atom.indicator ) );
 			} else {
+				var e = thread.next_free_variable();
 				thread.prepend( [new State(
 					point.goal.replace(
-						new Term(",", [new Term("stream_property", [stream2,new Term("end_of_stream", [new Var("E")])]),
-						new Term(",", [new Term("!", []),new Term(";", [new Term("=", [new Var("E"),new Term("at", [])]),
-						new Term("=", [new Var("E"),new Term("past", [])])])])])
+						new Term(",", [new Term("stream_property", [stream2,new Term("end_of_stream", [e])]),
+						new Term(",", [new Term("!", []),new Term(";", [new Term("=", [e,new Term("at", [])]),
+						new Term("=", [e,new Term("past", [])])])])])
 					),
 					point.substitution,
 					point
