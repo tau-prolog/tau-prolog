@@ -8353,6 +8353,7 @@
 					}
 					// Succeed analyzing term
 					if( expr.type === SUCCESS && (expr.len === -1 || expr.len === tokens.length-1 && last_token.value === "." )) {
+						thread.session.renamed_variables = {};
 						expr = expr.value.rename( thread );
 						var eq = new Term( "=", [term, expr] );
 						// Variables
