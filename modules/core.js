@@ -1085,6 +1085,7 @@
 					opts.term_expansion = true;
 					var n_thread = new Thread(thread.session);
 					var term = expr.value.body ? new Term(":-", [expr.value.head, expr.value.body]) : expr.value.head;
+					thread.session.renamed_variables = {};
 					term = term.rename(thread.session);
 					n_thread.query("term_expansion(" + term.toString({
 						quoted: true
@@ -1203,8 +1204,8 @@
 		} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
 			var result = thread.run_directive(expr.value.head.args[0], options);
 			async = async || (result === true);
-			if(async)
-				parseProgram(thread, options.string, options);
+			/*if(async)
+				parseProgram(thread, options.string, options);*/
 		} else {
 			indicator = expr.value.head.indicator;
 			if(options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate(indicator)) {
@@ -1226,8 +1227,8 @@
 				parseGoalExpansion(thread, options, expr, body_conversion(expr.value.body), origin.set, origin);
 			} else {
 				thread.add_rule(expr.value, options);
-				if(async)
-					parseProgram(thread, options.string, options);
+				/*if(async)
+					parseProgram(thread, options.string, options);*/
 			}
 		}
 		return async;
