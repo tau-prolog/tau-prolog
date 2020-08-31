@@ -30,7 +30,7 @@
 	},
 	"homepage": "http://tau-prolog.org/",
 	"dependencies": {
-		"qunit": "^2.8.0",
+		"qunit": "^2.11.1",
 		"readline-sync": "1.4.9"
 	}
 }

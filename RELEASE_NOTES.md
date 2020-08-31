@@ -111,6 +111,7 @@ In addition, you can pass an object with the following properties instead of a g
 
 - ADDED: [TESTING.md](TESTING.md) documentation for testing Tau Prolog with [Logtalk](https://github.com/LogtalkDotOrg/logtalk3).
 - UPDATED: [fruit.js](examples/nodejs/fruit.js) example to v0.3.0.
+- UPDATED: [doge.js](examples/doge/doge.js) example to v0.3.0.
 
 ### Acknowledgments (0.3.0)
 
