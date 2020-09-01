@@ -49,7 +49,7 @@ In addition, you can pass an object with the following properties instead of a g
 
 - ADDED: `system` module for built-in predicates.
 - ADDED: `os` module for operating system interaction.
-- ADDED: `charsio` module for I/O on lists of character codes.
+- ADDED: `charsio` module for I/O on lists of characters.
 - ADDED: `format` module for formatted write.
 - ADDED: support for user-defined modules.
 - ADDED: support for `meta_predicate/1` directive.
