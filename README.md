@@ -51,7 +51,7 @@ session.consult("path/to/src.pl" {
 ```javascript
 session.query("likes(sam, X).", {
     success: function(goal) { /* Goal loaded correctly */ },
-    error: function(err) { /* Error parsing program */ }
+    error: function(err) { /* Error parsing goal */ }
 });
 ```
 5. **Look for answers**
