@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 3, patch: 0, status: "beta" };
+	var version = { major: 0, minor: 3, patch: 1, status: "beta" };
 
 
 
@@ -5900,14 +5900,14 @@
 			} else if( pl.type.is_variable( atom.args[0] ) && pl.type.is_empty_list( atom.args[1] ) ) {
 				thread.throw_error( pl.error.domain( "non_empty_list", atom.args[1], atom.indicator ) );
 			} else if( !pl.type.is_variable( atom.args[0] ) ) {
-				if( pl.type.is_atomic( atom.args[0] ) ) {
-					list = new Term( ".", [atom.args[0], new Term( "[]" )] );
-				} else {
+				if( pl.type.is_term( atom.args[0] ) && atom.args[0].args.length > 0 ) {
 					list = new Term( "[]" );
 					for( var i = atom.args[0].args.length - 1; i >= 0; i-- ) {
 						list = new Term( ".", [atom.args[0].args[i], list] );
 					}
 					list = new Term( ".", [new Term( atom.args[0].id ), list] );
+				} else {
+					list = new Term( ".", [atom.args[0], new Term( "[]" )] );
 				}
 				thread.prepend( [new State( point.goal.replace( new Term( "=", [list, atom.args[1]] ) ), point.substitution, point )] );
 			} else if( !pl.type.is_variable( atom.args[1] ) ) {
