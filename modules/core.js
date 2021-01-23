@@ -2624,7 +2624,7 @@
 	Thread.prototype.consult = function(program, options) {
 		var string = "", success = false;
 		var opts = {};
-		var callback = typeof options === "function" ? options : callback;
+		var callback = typeof options === "function" ? options : undefined;
 		options = options === undefined || typeof options === "function" ? {} : options;
 		opts.context_module = options.context_module === undefined ? "user" : options.context_module;
 		opts.text = options.text === undefined ? true : options.text;
@@ -2706,7 +2706,19 @@
 			opts.error(pl.error.existence("source_sink", new Term(string), "top_level/0"));
 		}
 		this.warnings = [];
-		parseProgram(this, string, opts);
+
+		if (!opts.success && !opts.error) {
+			return new Promise((resolve, reject) => {
+				var promiseOpts = Object.assign({}, opts, {
+					success: resolve,
+					error: (term) => reject({ type: 'consult_throw', term })
+				})
+				parseProgram(this, string, promiseOpts);
+			})
+		}
+		else {
+			parseProgram(this, string, opts);
+		}
 	};
 
 	// Query goal from a string (without ?-)
@@ -2717,7 +2729,22 @@
 		this.points = [];
 		this.debugger_states = [];
 		this.level = new Term("top_level");
-		return parseQuery(this, string, options);
+
+		if (
+			options === undefined ||
+			options && !options.success && !options.error
+		) {
+			return new Promise((resolve, reject) => {
+				var promiseOpts = Object.assign({}, options, {
+					success: resolve,
+					error: (term) => reject({ type: 'query_throw', term }),
+				});
+				parseQuery(this, string, promiseOpts);
+			})
+		}
+		else {
+			return parseQuery(this, string, options);
+		}
 	};
 	
 	// Get first choice point
@@ -2998,6 +3025,21 @@
 		return this.thread.answer(options);
 	}
 	Thread.prototype.answer = function(options) {
+		if (options === undefined) {
+			return new Promise((resolve, reject) => {
+				this.__calls.push({
+					success: resolve,
+					fail: () => resolve(false),
+					error: (term) => reject({ type: 'answer_throw', term }),
+					limit: () => reject({ type: 'answer_limit' }),
+				})
+				if( this.__calls.length > 1 ) {
+					return;
+				}
+				this.again();
+			})
+		}
+
 		var opts = {};
 		options = options || function() {};
 		if(typeof options === "function") {
