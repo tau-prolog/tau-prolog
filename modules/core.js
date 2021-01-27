@@ -2711,7 +2711,7 @@
 			return new Promise((resolve, reject) => {
 				var promiseOpts = Object.assign({}, opts, {
 					success: resolve,
-					error: (term) => reject({ type: 'consult_throw', term })
+					error: (term) => reject(new pl.errors.TermThrow('consult_throw', term)),
 				})
 				parseProgram(this, string, promiseOpts);
 			})
@@ -2737,7 +2737,7 @@
 			return new Promise((resolve, reject) => {
 				var promiseOpts = Object.assign({}, options, {
 					success: resolve,
-					error: (term) => reject({ type: 'query_throw', term }),
+					error: (term) => reject(new pl.errors.TermThrow('query_throw', term)),
 				});
 				parseQuery(this, string, promiseOpts);
 			})
@@ -3030,8 +3030,8 @@
 				this.__calls.push({
 					success: resolve,
 					fail: () => resolve(false),
-					error: (term) => reject({ type: 'answer_throw', term }),
-					limit: () => reject({ type: 'answer_limit' }),
+					error: (term) => reject(new pl.errors.TermThrow('answer_throw', term)),
+					limit: () => reject(new pl.errors.TermThrow('answer_limit')),
 				})
 				if( this.__calls.length > 1 ) {
 					return;
@@ -3663,6 +3663,17 @@
 			}
 		},
 		
+		// Errors
+		errors: {
+			TermThrow: class TermThrow extends Error {
+				constructor(type, term) {
+					super(`Thrown term (${type}): ${JSON.stringify(term.toJavaScript())}`)
+					this.type = type
+					this.term = term
+				}
+			}
+		},
+
 		// Types
 		type: {
 			
