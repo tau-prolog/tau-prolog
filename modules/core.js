@@ -4256,9 +4256,9 @@
 			},
 
 			// dynamic/[2..]
-			"dynamic/*": function( thread, atom ) {
+			"dynamic/*": function( thread, atom, options ) {
 				for(var i = 0; i < atom.args.length; i++) {
-					pl.directive["dynamic/1"](thread, new Term("dynamic", [atom.args[i]]));
+					pl.directive["dynamic/1"](thread, new Term("dynamic", [atom.args[i]]), options );
 				}
 			},
 			
