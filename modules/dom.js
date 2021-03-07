@@ -869,7 +869,7 @@ var pl;
 				else
 					text = this.object.innerHTML;
 				if( position >= text.length )
-					return "end_of_html";
+					return "end_of_stream";
 				return text.substring( position, position+length );
 			},
 			put: function( text, position ) {
