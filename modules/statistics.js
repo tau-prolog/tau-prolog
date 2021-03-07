@@ -124,7 +124,12 @@ var pl;
 		
 		// Total cpu time
 		cputime: function( thread ) {
-			return new pl.type.Num( thread.cpu_time , false );
+			return new pl.type.Num( thread.cpu_time, false );
+		},
+		
+		// wall time
+		walltime: function( thread ) {
+			return new pl.type.Num( Date.now(), false );
 		},
 		
 		// Time stamp when thread was started

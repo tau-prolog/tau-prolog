@@ -2,9 +2,10 @@
 <html>
 	<head>
 		<title>Tau Prolog - Example: My little doge</title>
+		<meta charset="utf-8">
 		<link href="doge.css" rel="stylesheet">
-		<script type="text/javascript" src="tau-prolog/core.js"></script>
-		<script type="text/javascript" src="tau-prolog/dom.js"></script>
+		<script type="text/javascript" src="../../modules/core.js"></script>
+		<script type="text/javascript" src="../../modules/dom.js"></script>
 		<script type="text/prolog" id="doge.pl">
 :- use_module(library(dom)).
 
@@ -93,11 +94,17 @@ init :-
 			// Create session
 			var session = pl.create(1000);
 			// Consult program
-			session.consult("doge.pl");
-			// Query goal
-			session.query("init.");
-			// Find answers
-			session.answer(console.log);
+			session.consult("doge.pl", {
+				success: function() {
+					// Query goal
+					session.query("init.", {
+						success: function() {
+							// Find answers
+							session.answer();
+						}
+					});
+				}
+			});
 		</script>
 
 	</body>

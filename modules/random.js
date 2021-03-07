@@ -4,10 +4,41 @@ var pl;
 	var predicates = function() {
 		
 		return {
+
+			// get_seed/1
+			"get_seed/1": function(thread, point, atom) {
+				var seed = atom.args[0];
+				if(!pl.type.is_variable(seed) && !pl.type.is_integer(seed)) {
+					thread.throw_error(pl.error.type("integer", seed, atom.indicator));
+				} else {
+					var current_seed = thread.get_random_generator().get_seed();
+					thread.prepend([new pl.type.State(
+						point.goal.replace(new pl.type.Term("=", [
+							new pl.type.Num(current_seed, false),
+							seed
+						])),
+						point.substitution,
+						point
+					)]);
+				}
+			},
+
+			// set_seed/1
+			"set_seed/1": function(thread, point, atom) {
+				var seed = atom.args[0];
+				if(pl.type.is_variable(seed)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_integer(seed)) {
+					thread.throw_error(pl.error.type("integer", seed, atom.indicator));
+				} else {
+					thread.get_random_generator().set_seed(seed.value);
+					thread.success(point);
+				}
+			},
 			
 			// maybe/0
 			"maybe/0": function( thread, point, _ ) {
-				if( Math.random() < 0.5 ) {
+				if( thread.get_random_generator().next() < 0.5 ) {
 					thread.success( point );
 				}
 			},
@@ -15,7 +46,7 @@ var pl;
 			// maybe/1
 			"maybe/1": function( thread, point, atom ) {
 				var num = atom.args[0];
-				if( Math.random() < num.value ) {
+				if( thread.get_random_generator().next() < num.value ) {
 					thread.success( point );
 				}
 			},
@@ -26,7 +57,7 @@ var pl;
 				if( !pl.type.is_variable( rand ) && !pl.type.is_number( rand ) ) {
 					thread.throw_error( pl.error.type( "number", rand, atom.indicator ) );
 				} else {
-					var gen = Math.random();
+					var gen = thread.get_random_generator().next();
 					thread.prepend( [new pl.type.State(
 						point.goal.replace( new pl.type.Term( "=", [rand, new pl.type.Num( gen, true )] ) ),
 						point.substitution, point 
@@ -48,7 +79,7 @@ var pl;
 				} else {
 					if( lower.value < upper.value ) {
 						var float = lower.is_float || upper.is_float;
-						var gen = lower.value + Math.random() * (upper.value - lower.value);
+						var gen = lower.value + thread.get_random_generator().next() * (upper.value - lower.value);
 						if( !float )
 							gen = Math.floor( gen );
 						thread.prepend( [new pl.type.State(
@@ -72,7 +103,7 @@ var pl;
 					thread.throw_error( pl.error.type( "integer", rand, atom.indicator ) );
 				} else {
 					if( lower.value < upper.value ) {
-						var gen = Math.floor(lower.value + Math.random() * (upper.value - lower.value + 1));
+						var gen = Math.floor(lower.value + thread.get_random_generator().next() * (upper.value - lower.value + 1));
 						thread.prepend( [new pl.type.State(
 							point.goal.replace( new pl.type.Term( "=", [rand, new pl.type.Num( gen, false )] ) ),
 							point.substitution, point 
@@ -94,7 +125,7 @@ var pl;
 						pointer = pointer.args[1];
 					}
 					if( array.length > 0 ) {
-						var gen = Math.floor(Math.random() * array.length);
+						var gen = Math.floor(thread.get_random_generator().next() * array.length);
 						thread.prepend( [new pl.type.State(
 							point.goal.replace( new pl.type.Term( "=", [member, array[gen]] ) ),
 							point.substitution, point 
@@ -123,7 +154,7 @@ var pl;
 						pointer = pointer.args[1];
 					}
 					for( i = 0; i < array.length; i++ ) {
-						var rand = Math.floor( Math.random() * array.length );
+						var rand = Math.floor( thread.get_random_generator().next() * array.length );
 						var tmp = array[i];
 						array[i] = array[rand];
 						array[rand] = tmp;
@@ -142,15 +173,51 @@ var pl;
 		
 	};
 	
-	var exports = ["maybe/0", "maybe/1", "random/1", "random/3", "random_between/3", "random_member/2", "random_permutation/2"];
+	var exports = ["get_seed/1", "set_seed/1", "maybe/0", "maybe/1", "random/1", "random/3", "random_between/3", "random_member/2", "random_permutation/2"];
 
+	// Mulberry32 random generator
+	var mulberry32 = function(seed) {
+		this.set_seed(seed);
+	};
 
+	mulberry32.prototype.next = function() {
+		var t = this.get_seed() + 0x6D2B79F5;
+		this.set_seed(t);
+		t = Math.imul(t ^ t >>> 15, t | 1);
+		t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+		return ((t ^ t >>> 14) >>> 0) / 4294967296;
+	};
+
+	mulberry32.prototype.set_seed = function(seed) {
+		this.seed = seed;
+	};
+
+	mulberry32.prototype.get_seed = function() {
+		return this.seed;
+	};
+
+	// Extend Tau Prolog prototypes
+	var extend = function(pl) {
+		// Get the random generator of the session
+		pl.type.Session.prototype.get_random_generator = function() {
+			if(!this.random_generator)
+				this.random_generator = new mulberry32(Date.now());
+			return this.random_generator;
+		};
+		// Get the random generator of the thread
+		pl.type.Thread.prototype.get_random_generator = function() {
+			return this.session.get_random_generator();
+		};
+	};
+	
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
 			pl = p;
+			extend(p);
 			new pl.type.Module( "random", predicates(), exports );
 		};
 	} else {
+		extend(pl);
 		new pl.type.Module( "random", predicates(), exports );
 	}
 
