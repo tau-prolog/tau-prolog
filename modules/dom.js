@@ -865,7 +865,7 @@ var pl;
 			get: function( length, position ) {
 				var text;
 				if( this.object instanceof HTMLInputElement )
-					text = this.object.value.substring( position, position+length );
+					text = this.object.value;
 				else
 					text = this.object.innerHTML;
 				if( position >= text.length )
