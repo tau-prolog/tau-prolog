@@ -1822,7 +1822,18 @@
 	// PROLOG OBJECTS TO STRING
 	
 	// Variables
-	Var.prototype.toString = function( _ ) {
+	Var.prototype.toString = function( options ) {
+		if(options.variable_names) {
+			var pointer = options.variable_names;
+			while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+				var head = pointer.args[0];
+				if(pl.type.is_term(head) && head.indicator === "=/2"
+				&& pl.type.is_variable(head.args[1]) && head.args[1].id === this.id
+				&& pl.type.is_atom(head.args[0]))
+					return head.args[0].id;
+				pointer = pointer.args[1];
+			}
+		}
 		return this.id;
 	};
 	
@@ -1845,6 +1856,7 @@
 		options.quoted = options.quoted === undefined ? false: options.quoted;
 		options.ignore_ops = options.ignore_ops === undefined ? false : options.ignore_ops;
 		options.numbervars = options.numbervars === undefined ? false : options.numbervars;
+		options.variable_names = options.variable_names === undefined ? false : options.variable_names;
 		priority = priority === undefined ? {priority: 1200, class: "", indicator: ""} : priority;
 		from = from === undefined ? "" : from;
 		var arg_priority = {priority: 999, class: "", indicator: ""};
@@ -3919,7 +3931,8 @@
 				return pl.type.is_term( obj ) && (
 					obj.indicator === "quoted/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "true" || obj.args[0].id === "false") ||
 					obj.indicator === "ignore_ops/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "true" || obj.args[0].id === "false") ||
-					obj.indicator === "numbervars/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "true" || obj.args[0].id === "false")
+					obj.indicator === "numbervars/1" && pl.type.is_atom(obj.args[0]) && (obj.args[0].id === "true" || obj.args[0].id === "false") ||
+					obj.indicator === "variable_names/1" && pl.type.is_fully_list(obj.args[0])
 				);
 			},
 
@@ -8501,7 +8514,10 @@
 						thread.throw_error( pl.error.domain( "write_option", property, atom.indicator ) );
 						return;
 					}
-					obj_options[property.id] = property.args[0].id === "true";
+					if(property.indicator === "variable_names/1")
+						obj_options[property.id] = property.args[0];
+					else
+						obj_options[property.id] = property.args[0].id === "true";
 					pointer = pointer.args[1];
 				}
 				if( pointer.indicator !== "[]/0" ) {
