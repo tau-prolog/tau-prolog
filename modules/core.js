@@ -6805,7 +6805,7 @@
 					if(!pl.type.is_variable(list)) {
 						var pointer = list;
 						while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
-							if(!pl.type.is_character( pointer.args[0])) {
+							if(!pl.type.is_character(pointer.args[0]) && !pl.type.is_variable(pointer.args[0])) {
 								thread.throw_error(pl.error.type("character", pointer.args[0], atom.indicator));
 								return;
 							}
@@ -6859,7 +6859,7 @@
 					if(!pl.type.is_variable(list)) {
 						var pointer = list;
 						while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
-							if(!pl.type.is_character_code( pointer.args[0])) {
+							if(!pl.type.is_character_code(pointer.args[0]) && !pl.type.is_variable(pointer.args[0])) {
 								thread.throw_error(pl.error.type("integer", pointer.args[0], atom.indicator));
 								return;
 							}
