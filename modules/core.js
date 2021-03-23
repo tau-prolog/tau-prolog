@@ -462,14 +462,14 @@
 		if( str === "\\" ) return null;
 		if( str.length < 2 ) return str;
 		try {
-			str = str.replace(/((?:^|[^\\])(?:\\\\)*)\\([0-7]+)\\/g, function(match, g1, g2) {
-				return g1 + fromCodePoint(parseInt(g2, 8));
+			str = str.replace(/((?:\\\\)+)|\\([0-7]+)\\/g, function(match, g1, g2) {
+				return g1 || fromCodePoint(parseInt(g2, 8));
 			});
-			str = str.replace(/((?:^|[^\\])(?:\\\\)*)\\x([0-9a-fA-F]+)\\/g, function(match, g1, g2) {
-				return g1 + fromCodePoint(parseInt(g2, 16));
+			str = str.replace(/((?:\\\\)+)|\\x([0-9a-fA-F]+)\\/g, function(match, g1, g2) {
+				return g1 || fromCodePoint(parseInt(g2, 16));
 			});
-			str = str.replace(/((?:^|[^\\])(?:\\\\)*)\\u([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])/g, function(match, g1, g2) {
-				return g1 + fromCodePoint(parseInt(g2, 16));
+			str = str.replace(/((?:\\\\)+)|\\u([0-9a-fA-F]{4})/g, function(match, g1, g2) {
+				return g1 || fromCodePoint(parseInt(g2, 16));
 			});
 		} catch(error) {
 			return null;
