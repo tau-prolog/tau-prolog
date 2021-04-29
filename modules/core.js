@@ -2639,7 +2639,7 @@
 	Thread.prototype.consult = function(program, options) {
 		var string = "", success = false;
 		var opts = {};
-		var callback = typeof options === "function" ? options : callback;
+		var callback = typeof options === "function" ? options : function(){};
 		options = options === undefined || typeof options === "function" ? {} : options;
 		opts.context_module = options.context_module === undefined ? "user" : options.context_module;
 		opts.text = options.text === undefined ? true : options.text;
@@ -3011,7 +3011,7 @@
 	// Find next computed answer
 	Session.prototype.answer = function(options) {
 		return this.thread.answer(options);
-	}
+	};
 	Thread.prototype.answer = function(options) {
 		var opts = {};
 		options = options || function() {};
@@ -3040,9 +3040,9 @@
 		return this.thread.answers( callback, max, after );
 	}
 	Thread.prototype.answers = function( callback, max, after ) {
-		var answers = max || 1000;
+		var answers = max === undefined ? 1000 : max;
 		var thread = this;
-		if( max <= 0 ) {
+		if( answers <= 0 ) {
 			if(after)
 				after();
 			return;
@@ -3051,7 +3051,7 @@
 			callback( answer );
 			if( answer !== false ) {
 				setTimeout( function() {
-					thread.answers( callback, max-1, after );
+					thread.answers( callback, answers-1, after );
 				}, 0 );
 			} else if(after) {
 				after();
