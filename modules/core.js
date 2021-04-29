@@ -2467,7 +2467,7 @@
 			}
 			absolute = dirs2.join("/").replace(/\/\.$/, "/");
 		}
-        return absolute;
+		return absolute;
 	};
 	Thread.prototype.absolute_file_name = function(path, cwd) {
 		return this.session.absolute_file_name(path, cwd);
@@ -7404,7 +7404,7 @@
 			var stream = atom.args[0];
 			if(!pl.type.is_variable(stream)
 			&& (!pl.type.is_stream(stream) || !thread.get_stream_by_alias(stream.alias)
-			                               && !thread.get_stream_by_alias(stream.id))
+										   && !thread.get_stream_by_alias(stream.id))
 			&& (!pl.type.is_atom(stream) || !thread.get_stream_by_alias(stream.id))) {
 				thread.throw_error( pl.error.domain("stream", stream, atom.indicator) );
 			} else {
@@ -7423,7 +7423,7 @@
 			var stream = atom.args[0];
 			if(!pl.type.is_variable(stream)
 			&& (!pl.type.is_stream(stream) || !thread.get_stream_by_alias(stream.alias)
-			                               && !thread.get_stream_by_alias(stream.id))
+										   && !thread.get_stream_by_alias(stream.id))
 			&& (!pl.type.is_atom(stream) || !thread.get_stream_by_alias(stream.id))) {
 				thread.throw_error( pl.error.domain("stream", stream, atom.indicator) );
 			} else {
@@ -7446,7 +7446,7 @@
 			} else if( !pl.type.is_stream( input ) && !pl.type.is_atom( input ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", input, atom.indicator ) );
 			} else if( !pl.type.is_stream( stream ) || !thread.get_stream_by_alias(input.alias)
-			                                        && !thread.get_stream_by_alias(input.id) ) {
+													&& !thread.get_stream_by_alias(input.id) ) {
 				thread.throw_error( pl.error.existence( "stream", input, atom.indicator ) );
 			} else if( stream.output === true ) {
 				thread.throw_error( pl.error.permission( "input", "stream", input, atom.indicator ) );
@@ -7465,7 +7465,7 @@
 			} else if( !pl.type.is_stream( output ) && !pl.type.is_atom( output ) ) {
 				thread.throw_error( pl.error.domain( "stream_or_alias", output, atom.indicator ) );
 			} else if( !pl.type.is_stream( stream ) || !thread.get_stream_by_alias(output.alias)
-			                                        && !thread.get_stream_by_alias(output.id) ) {
+													&& !thread.get_stream_by_alias(output.id) ) {
 				thread.throw_error( pl.error.existence( "stream", output, atom.indicator ) );
 			} else if( stream.input === true ) {
 				thread.throw_error( pl.error.permission( "output", "stream", output, atom.indicator ) );
