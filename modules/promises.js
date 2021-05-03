@@ -5,11 +5,11 @@ var pl;
 	var extend = function(pl) {
 
 		// Consult a program from a string
-		pl.type.Session.prototype.asyncConsult = function(program, options) {
-			return this.thread.asyncConsult(program, options);
+		pl.type.Session.prototype.promiseConsult = function(program, options) {
+			return this.thread.promiseConsult(program, options);
 		};
 
-		pl.type.Thread.prototype.asyncConsult = function(program, options) {
+		pl.type.Thread.prototype.promiseConsult = function(program, options) {
 			var thread = this;
 			return new Promise(function(resolve, reject) {
 				var opts = {};
@@ -27,11 +27,11 @@ var pl;
 		};
 
 		// Query goal from a string (without ?-)
-		pl.type.Session.prototype.asyncQuery = function(string) {
-			return this.thread.asyncQuery(string);
+		pl.type.Session.prototype.promiseQuery = function(string) {
+			return this.thread.promiseQuery(string);
 		};
 
-		pl.type.Thread.prototype.asyncQuery = function(string) {
+		pl.type.Thread.prototype.promiseQuery = function(string) {
 			var thread = this;
 			return new Promise(function(resolve, reject) {
 				thread.query(string, {
@@ -42,11 +42,11 @@ var pl;
 		};
 
 		// Find next computed answer
-		pl.type.Session.prototype.asyncAnswer = function() {
-			return this.thread.asyncAnswer();
+		pl.type.Session.prototype.promiseAnswer = function() {
+			return this.thread.promiseAnswer();
 		};
 
-		pl.type.Thread.prototype.asyncAnswer = function() {
+		pl.type.Thread.prototype.promiseAnswer = function() {
 			var thread = this;
 			return new Promise(function(resolve, reject) {
 				thread.answer({
@@ -59,12 +59,12 @@ var pl;
 		};
 
 		// Find all computed answers (asynchronous generator function)
-		pl.type.Session.prototype.asyncAnswers = function() {
-			return this.thread.asyncAnswers();
+		pl.type.Session.prototype.promiseAnswers = function() {
+			return this.thread.promiseAnswers();
 		};
-		pl.type.Thread.prototype.asyncAnswers = async function*() {
+		pl.type.Thread.prototype.promiseAnswers = async function*() {
 			while(true) {
-				var answer = await this.asyncAnswer();
+				var answer = await this.promiseAnswer();
 				if(answer !== false)
 					yield answer;
 				else
