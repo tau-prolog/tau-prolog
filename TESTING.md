@@ -31,11 +31,9 @@ drwxr-xr-x   9 johndoe  staff  288 May 21 09:42 tau-prolog
 ```
 
 For good performance when testing, edit the `$LOGTALKHOME/core/core.pl`
-and `$LOGTALKHOME/adapters/tau.pl` files to turn off the `clean` flag.
-In the `core.pl` file, search for the definition of the predicate
-`'$lgt_load_built_in_entity'/4` (near the end of the file) and
-change `clean(on)` to `clean(off)`. In the `tau.pl` file, search for
-`'$lgt_default_flag'(clean, on)` and change it to `'$lgt_default_flag'(clean, off)`.
+file to turn off the `clean` flag. Search for the definition of the
+predicate `'$lgt_load_built_in_entity'/4` (near the end of the file)
+and change `clean(on)` to `clean(off)`.
 
 Next, test the setup by running the `taulgt.sh` integration script.
 First run will be slow but you should get the default Logtalk startup
@@ -45,8 +43,8 @@ followed by tips on developer tools. Something like:
 ```text
 $ taulgt.sh
 
-Logtalk 3.41.0-b03
-Copyright (c) 1998-2020 Paulo Moura
+Logtalk 3.46.0
+Copyright (c) 1998-2021 Paulo Moura
 
 % Default lint compilation flags: 
 %   unknown_predicates: warning, undefined_predicates: warning
@@ -77,7 +75,7 @@ To run tests automatically, change to the intended directory and use the
 
 ```text
 $ cd $LOGTALKHOME/tests/prolog/
-$ logtalk_tester.sh -p tau -o minimal
+$ logtalk_tester.sh -p tau -g "set_logtalk_flag(clean,off)" -w
 ...
 ```
 
