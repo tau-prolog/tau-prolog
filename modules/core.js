@@ -1618,7 +1618,7 @@
 
 	// Session
 	function Session( limit ) {
-		limit = limit === undefined || limit <= 0 ? 1000 : limit;
+		limit = typeof limit === "number" && limit > 0 ? limit : null;
 		this.rename = 0;
 		this.modules = {};
 		this.modules.user = new Module("user", {}, "all", {
@@ -1709,6 +1709,7 @@
 		this.debugger_states = [];
 		this.level = new Term("top_level");
 		this.current_limit = this.session.limit;
+		this.has_limit = this.session.limit !== null;
 		this.warnings = [];
 		this.__calls = [];
 		this.__goal_expansion = false;
@@ -2375,6 +2376,16 @@
 	
 	
 	// PROLOG SESSIONS AND THREADS
+
+	// Set max inferences
+	Session.prototype.setMaxInferences = function(max) {
+		this.limit = typeof max === "number" && max > 0 ? max : null;
+	};
+	Thread.prototype.setMaxInferences = function(max) {
+		this.session.setMaxInferences(max);
+		this.current_limit = this.session.limit;
+		this.has_limit = this.session.limit !== null;
+	};
 
 	// Format answer
 	Session.prototype.format_answer = function(answer, options) {
@@ -3069,17 +3080,17 @@
 			this.warnings = [];
 			if(reset_limit !== false)
 				this.current_limit = this.session.limit;
-			while(this.current_limit > 0 && this.points.length > 0 && this.head_point().goal !== null && !pl.type.is_error_state(this.head_point())) {
-				this.current_limit--;
-				if(this.step() === true) {
+			while((!this.has_limit || this.current_limit > 0) && this.points.length > 0 && this.head_point().goal !== null && !pl.type.is_error_state(this.head_point())) {
+				if(this.has_limit)
+					this.current_limit--;
+				if(this.step() === true)
 					return;
-				}
 			}
 			var t1 = Date.now();
 			this.cpu_time_last = t1-t0;
 			this.cpu_time += this.cpu_time_last;
 			var options = this.__calls.shift();
-			if(this.current_limit <= 0) {
+			if(this.has_limit && this.current_limit <= 0) {
 				setTimeout(function() {
 					options.limit(null);
 				}, 0);
@@ -5375,7 +5386,8 @@
 					thread.prepend([state, point]);
 				} else if(answer === null) {
 					thread.prepend([point]);
-					thread.current_limit = 0;
+					if(thread.has_limit)
+						thread.current_limit = 0;
 				}
 				thread.again(answer !== null);
 			};
@@ -5614,7 +5626,7 @@
 						var reset_limit = true;
 						if( pl.type.is_error( answer ) ) {
 							thread.throw_error( answer.args[0] );
-						} else if( nthread.current_limit > 0 ) {
+						} else if( !nthread.has_limit || nthread.current_limit > 0 ) {
 							var list = arrayToList(answers, tail);
 							thread.prepend( [new State(
 								point.goal.replace( new Term( "=", [instances, list] ) ),
@@ -5623,7 +5635,8 @@
 							)] );
 						} else {
 							thread.prepend( [point] );
-							thread.current_limit = 0;
+							if(thread.has_limit)
+								thread.current_limit = 0;
 							reset_limit = false;
 						}
 						if(reset_limit && nthread.debugger)
@@ -5714,7 +5727,7 @@
 						reset_limit = true;
 						if( pl.type.is_error( answer ) ) {
 							thread.throw_error( answer.args[0] );
-						} else if( thread.current_limit > 0 ) {
+						} else if( !nthread.has_limit || nthread.current_limit > 0 ) {
 							var states = [];
 							for( var i = 0; i < answers.length; i++ ) {
 								answer = answers[i].answers;
@@ -5728,7 +5741,8 @@
 							thread.prepend( states );
 						} else {
 							thread.prepend( [point] );
-							thread.current_limit = 0;
+							if(thread.has_limit)
+								thread.current_limit = 0;
 							reset_limit = false;
 						}
 						if(reset_limit && nthread.debugger)
@@ -5819,7 +5833,7 @@
 						reset_limit = true;
 						if( pl.type.is_error( answer ) ) {
 							thread.throw_error( answer.args[0] );
-						} else if( thread.current_limit > 0 ) {
+						} else if( !nthread.has_limit || nthread.current_limit > 0 ) {
 							var states = [];
 							for( var i = 0; i < answers.length; i++ ) {
 								var arr_sorted = answers[i].answers.sort( pl.compare );
@@ -5841,7 +5855,8 @@
 							thread.prepend( states );
 						} else {
 							thread.prepend( [point] );
-							thread.current_limit = 0;
+							if(thread.has_limit)
+								thread.current_limit = 0;
 							reset_limit = false;
 						}
 						if(reset_limit && nthread.debugger)
