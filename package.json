@@ -5,8 +5,7 @@
 	"main": "./modules/core.js",
 	"scripts": {
 		"example:fruit": "node examples/nodejs/fruit",
-		"example:promises": "node examples/nodejs/promises",
-		"test": "node_modules/.bin/qunit test"
+		"example:promises": "node examples/nodejs/promises"
 	},
 	"repository": {
 		"type": "git",
@@ -21,8 +20,7 @@
 	],
 	"files": [
 		"modules",
-		"examples",
-		"test"
+		"examples"
 	],
 	"author": "José Antonio Riaza Valverde <riazavalverde@gmail.com> (http://jariaza.es)",
 	"license": "BSD-3-Clause",
