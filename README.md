@@ -111,6 +111,7 @@ $ npm install tau-prolog
 * [Compatibility with Node.js](http://tau-prolog.org/manual/compatibility-with-nodejs)
 * [Manipulating the DOM with Prolog](http://tau-prolog.org/manual/manipulating-the-dom-with-prolog)
 * [Making your own packages](http://tau-prolog.org/manual/making-your-own-packages)
+* [Promises interface](http://tau-prolog.org/manual/promises-interface)
 * [Prototypes and Prolog objects](http://tau-prolog.org/manual/prototypes-and-prolog-objects)
 
 ### [**Prolog Predicate Reference**](http://tau-prolog.org/documentation#prolog)

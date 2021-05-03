@@ -1,5 +1,31 @@
 # Release notes
 
+## Version 0.3.1 - May 3, 2021
+
+### Core (0.3.1)
+
+* ADDED: unicode escape sequences `\uXXXX`.
+* ADDED: `promises` package.
+* ADDED: `setMaxInferences` method to `Session` and `Thread` prototypes.
+
+### Module `system` (0.3.1)
+
+*  FIXED: `(=..)/2` built-in predicate when called with terms other than atoms or numbers.
+* ADDED: `variable_names/1` option to `write_term/2` built-in predicate.
+*  FIXED: `atom_chars/2` and `atom_codes/2` built-in predicates when containing variables in the second argument.
+
+### Module `dom` (0.3.1)
+
+* UPDATED: replaced `end_of_html` by `end_of_stream`. 
+
+### Module `statistics` (0.3.1)
+
+* ADDED: `walltime` statistics key.
+
+### Documentation and examples (0.3.1)
+
+* ADDED: [promises.js](examples/nodejs/promises.js) example.
+
 ## Version 0.3.0 - August 31, 2020
 
 > **Note:** This version introduces important incompatibilities w.r.t. previous versions.
