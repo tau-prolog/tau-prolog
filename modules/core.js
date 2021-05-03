@@ -4470,6 +4470,8 @@
 					thread.throw_warning( pl.error.type( "atom", type, atom.indicator ) );
 				} else if( !pl.type.is_list( operators ) ) {
 					thread.throw_warning( pl.error.type( "list", operators, atom.indicator ) );
+				} else if( pl.type.is_empty_list( operators ) ) {
+					thread.throw_warning( pl.error.permission( "create", "operator", operators, atom.indicator ) );
 				} else {
 					var pointer = operators;
 					while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
@@ -4484,6 +4486,8 @@
 						} else if( operator.id === "," ) {
 							thread.throw_error( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
 						} else if( operator.id === "{}" ) {
+							thread.throw_warning( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+						} else if( operator.id === "[]" ) {
 							thread.throw_warning( pl.error.permission( "create", "operator", operator, atom.indicator ) );
 						} else if( operator.id === "|" && priority.value !== 0 && (priority.value < 1001 || type.id.length !== 3 ) ) {
 							thread.throw_warning( pl.error.permission( "create", "operator", operator, atom.indicator ) );
@@ -5055,6 +5059,8 @@
 				thread.throw_error( pl.error.type( "atom", type, atom.indicator ) );
 			} else if( !pl.type.is_list( operators ) ) {
 				thread.throw_error( pl.error.type( "list", operators, atom.indicator ) );
+			} else if( pl.type.is_empty_list( operators ) ) {
+				thread.throw_warning( pl.error.permission( "create", "operator", operators, atom.indicator ) );
 			} else {
 				var pointer = operators;
 				while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
@@ -5073,6 +5079,9 @@
 						thread.throw_error( pl.error.permission( "modify", "operator", operator, atom.indicator ) );
 						return;
 					} else if( operator.id === "{}" ) {
+						thread.throw_error( pl.error.permission( "create", "operator", operator, atom.indicator ) );
+						return;
+					} else if( operator.id === "[]" ) {
 						thread.throw_error( pl.error.permission( "create", "operator", operator, atom.indicator ) );
 						return;
 					} else if( operator.id === "|" && priority.value !== 0 && (priority.value < 1001 || type.id.length !== 3 ) ) {
