@@ -1,12 +1,12 @@
 // Import Tau Prolog core
-// Looks like this when tau-prolog is installed without npm:
-// var pl = require("path/to/tau-prolog/modules/core.js");
-var pl = require("tau-prolog");
+// Looks like this when tau-prolog is installed with npm:
+// var pl = require("tau-prolog");
+var pl = require("../../modules/core");
 
 // Import the lists module
-// Looks like this when tau-prolog is installed without npm:
-// require("path/to/tau-prolog/modules/lists.js")(pl);
-require("tau-prolog/modules/lists")(pl);
+// Looks like this when tau-prolog is installed with npm:
+// require("tau-prolog/modules/lists")(pl);
+require("../../modules/lists")(pl);
 
 // Create a session
 var session = pl.create();

@@ -5,6 +5,7 @@
 	"main": "./modules/core.js",
 	"scripts": {
 		"example:fruit": "node examples/nodejs/fruit",
+		"example:promises": "node examples/nodejs/promises",
 		"test": "node_modules/.bin/qunit test"
 	},
 	"repository": {
