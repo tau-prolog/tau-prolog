@@ -5060,7 +5060,7 @@
 			} else if( !pl.type.is_list( operators ) ) {
 				thread.throw_error( pl.error.type( "list", operators, atom.indicator ) );
 			} else if( pl.type.is_empty_list( operators ) ) {
-				thread.throw_warning( pl.error.permission( "create", "operator", operators, atom.indicator ) );
+				thread.throw_error( pl.error.permission( "create", "operator", operators, atom.indicator ) );
 			} else {
 				var pointer = operators;
 				while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
