@@ -4125,6 +4125,36 @@
 					type_result: true,
 					fn: function( x, y, thread ) { return x === 0 && y === 0 ? pl.error.evaluation("undefined", thread.__call_indicator) : Math.atan2(x, y); }
 				},
+				"acosh/1": {
+					type_args: null,
+					type_result: true,
+					fn: function( x, thread ) { return x >= 1 ? Math.acosh(x) : pl.error.evaluation("undefined", thread.__call_indicator); }
+				},
+				"asinh/1": {
+					type_args: null,
+					type_result: true,
+					fn: function( x, _ ) { return Math.asinh( x ); }
+				},
+				"atanh/1": {
+					type_args: null,
+					type_result: true,
+					fn: function( x, thread ) { return Math.abs(x) < 1 ? Math.atanh(x) : pl.error.evaluation("undefined", thread.__call_indicator); }
+				},
+				"cosh/1": {
+					type_args: null,
+					type_result: true,
+					fn: function( x, _ ) { return Math.cosh( x ); }
+				},
+				"sinh/1": {
+					type_args: null,
+					type_result: true,
+					fn: function( x, _ ) { return Math.sinh( x ); }
+				},
+				"tanh/1": {
+					type_args: null,
+					type_result: true,
+					fn: function( x, _ ) { return Math.tanh( x ); }
+				},
 				"exp/1": {
 					type_args: null,
 					type_result: true,
@@ -4765,7 +4795,7 @@
 				if( pl.type.is_term( value ) ) {
 					return value;
 				} else if( value === Number.POSITIVE_INFINITY || value === Number.NEGATIVE_INFINITY ) {
-					return pl.error.evaluation( "overflow", thread.__call_indicator );
+					return pl.error.evaluation( "float_overflow", thread.__call_indicator );
 				} else if( type === false && thread.get_flag( "bounded" ).id === "true" && (value > thread.get_flag( "max_integer" ).value || value < thread.get_flag( "min_integer" ).value) ) {
 					return pl.error.evaluation( "int_overflow", thread.__call_indicator );
 				} else {
