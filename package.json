@@ -5,7 +5,18 @@
 	"main": "./modules/core.js",
 	"scripts": {
 		"example:fruit": "node examples/nodejs/fruit",
-		"example:promises": "node examples/nodejs/promises"
+		"example:promises": "node examples/nodejs/promises",
+		"lint": "semistandard",
+ 		"lint-fix": "semistandard --fix",
+		"test-node": "qunit --require ./test/setup test/",
+    "test-node-repl": "nodejs --require ./test/setup.js",
+		"test-node-cover": "nyc qunit --require ./test/setup test/",
+		"test-node-watch": "qunit --watch --require ./test/setup test/",
+		"test-browser": "karma start",
+		"test-browser-watch": "karma start --auto-watch --no-single-mode",
+		"test": "npm run test-node && npm run test-browser",
+		"cover": "npm run test-node-cover && npm run test-browser && nyc report",
+		"coveralls": "npm run cover && cat coverage/lcov.info | coveralls"
 	},
 	"repository": {
 		"type": "git",
@@ -20,7 +31,8 @@
 	],
 	"files": [
 		"modules",
-		"examples"
+		"examples",
+    "test"
 	],
 	"author": "José Antonio Riaza Valverde <riazavalverde@gmail.com> (http://jariaza.es)",
 	"license": "BSD-3-Clause",
@@ -29,7 +41,17 @@
 	},
 	"homepage": "http://tau-prolog.org/",
 	"dependencies": {
-		"qunit": "^2.11.1",
+		"karma-chrome-launcher": "^3.1.0",
+		"karma-coverage": "^2.0.3",
+		"karma-firefox-launcher": "^2.1.1",
+		"karma-qunit": "^4.1.2",
 		"readline-sync": "1.4.9"
+	},
+	"devDependencies": {
+		"coveralls": "^3.1.1",
+		"karma": "^6.3.4",
+		"nyc": "^15.1.0",
+		"qunit": "^2.17.2",
+		"semistandard": "^16.0.1"
 	}
 }
