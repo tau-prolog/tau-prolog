@@ -1876,7 +1876,11 @@
 			case "!/0":
 				return this.id;
 			case "{}/1":
-				return "{" + this.args[0].toString( options ) + "}";
+				if( options.ignore_ops === false ) {
+					return "{" + this.args[0].toString( options ) + "}";
+				} else {
+					return "{}(" + this.args[0].toString( options ) + ")";
+				}
 			case "./2":
 				if( options.ignore_ops === false ) {
 					var list = "[" + this.args[0].toString( options, arg_priority );
