@@ -7149,6 +7149,33 @@
 			}
 		},
 		
+		// atomic_concat/3
+		"atomic_concat/3": function( thread, point, atom ) {
+			var atomic1 = atom.args[0], atomic2 = atom.args[1], concat = atom.args[2];
+			if( pl.type.is_variable( atomic1 ) || pl.type.is_variable( atomic2 ) ) {
+				thread.throw_error( pl.error.instantiation( atom.indicator ) );
+			} else if( !pl.type.is_atomic( atomic1 ) ) {
+				thread.throw_error( pl.error.type( "atomic", atomic1, atom.indicator ) );
+			} else if( !pl.type.is_atomic( atomic2 ) ) {
+				thread.throw_error( pl.error.type( "atomic", atomic2, atom.indicator ) );
+			} else if( !pl.type.is_variable( concat ) && !pl.type.is_atom( concat ) ) {
+				thread.throw_error( pl.error.type( "atom", concat, atom.indicator ) );
+			} else {
+				var id = "";
+				if( pl.type.is_atom( atomic1 ) ) {
+					id += atomic1.id;
+				} else {
+					id += "" + atomic1.value;
+				}
+				if( pl.type.is_atom( atomic2 ) ) {
+					id += atomic2.id;
+				} else {
+					id += "" + atomic2.value;
+				}
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [id, concat] ) ), point.substitution, point )] );
+			}
+		},
+
 		// atomic_list_concat/2
 		"atomic_list_concat/2": function( thread, point, atom ) {
 			var list = atom.args[0], concat = atom.args[1];
