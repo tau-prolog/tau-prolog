@@ -5639,6 +5639,8 @@
 				thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
 			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
 				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
+			} else if( !pl.type.is_variable( tail ) && !pl.type.is_list( tail ) ) {
+				thread.throw_error( pl.error.type( "list", tail, atom.indicator ) );
 			} else {
 				if(!pl.type.is_variable(instances)) {
 					var pointer = instances;
@@ -5646,6 +5648,15 @@
 						pointer = pointer.args[1];
 					if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
 						thread.throw_error(pl.error.type("list", instances, atom.indicator));
+						return;
+					}
+				}
+				if(!pl.type.is_variable(tail)) {
+					var pointer_t = tail;
+					while(pl.type.is_term(pointer_t) && pointer_t.indicator === "./2")
+						pointer_t = pointer_t.args[1];
+					if(!pl.type.is_variable(pointer_t) && !pl.type.is_empty_list(pointer_t)) {
+						thread.throw_error(pl.error.type("list", tail, atom.indicator));
 						return;
 					}
 				}
