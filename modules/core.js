@@ -1820,6 +1820,15 @@
 		}
 		return null;
 	};
+
+	Stream.prototype.compare = function(obj) {
+		if(this.id < obj.id)
+			return -1;
+		else if(this.id === obj.id)
+			return 0;
+		else
+			return 1;
+	};
 	
 	
 
