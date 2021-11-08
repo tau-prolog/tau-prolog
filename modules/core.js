@@ -250,10 +250,10 @@
 				},
 				get_byte: function( position ) {
 					try {
-						var buffer = new Buffer(1);
-						fs.readSync(fd, buffer, 0, 1, position);
-						var text = buffer.toString();
-						var end_of_file = text[0] === "\u0000";
+						var buffer = Buffer.alloc(1);
+						var bytesRead = fs.readSync(fd, buffer, 0, 1, position);
+						//var _text = buffer.toString("utf8", 0, bytesRead);
+						var end_of_file = bytesRead < 1;
 						return end_of_file ? "end_of_stream" : buffer.readUInt8(0);
 					} catch(ex) {
 						return "end_of_stream";
@@ -3116,7 +3116,7 @@
 					return setTimeout(function() {
 						call.error(error);
 					}, 0);
-				})(error, options);
+				})(error, call);
 			// computed answer
 			} else {
 				if(this.debugger)
