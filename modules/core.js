@@ -3093,32 +3093,40 @@
 			var t1 = Date.now();
 			this.cpu_time_last = t1-t0;
 			this.cpu_time += this.cpu_time_last;
-			var options = this.__calls.shift();
+			var call = this.__calls.shift();
+			// limit of inferences
 			if(this.has_limit && this.current_limit <= 0) {
-				setTimeout(function() {
-					options.limit(null);
-				}, 0);
-			} else if(this.points.length === 0) {
-				setTimeout(function() {
-					options.fail(false);
-				}, 0);
-			} else if(pl.type.is_error(this.head_point().goal)) {
-				var answer = this.format_error(this.points.pop());
-				this.points = [];
-				(function(answer) {
+				(function(call) {
 					return setTimeout(function() {
-						options.error(answer);
+						call.limit(null);
 					}, 0);
-				})(answer);
+				})(call);
+			// no answer
+			} else if(this.points.length === 0) {
+				(function(call) {
+					return setTimeout(function() {
+						call.fail(false);
+					}, 0);
+				})(call);
+			// error
+			} else if(pl.type.is_error(this.head_point().goal)) {
+				var error = this.format_error(this.points.pop());
+				this.points = [];
+				(function(error, call) {
+					return setTimeout(function() {
+						call.error(error);
+					}, 0);
+				})(error, options);
+			// computed answer
 			} else {
 				if(this.debugger)
 					this.debugger_states.push(this.head_point());
 				var answer = this.format_success(this.points.pop());
-				(function(answer) {
+				(function(answer, call) {
 					return setTimeout(function() {
-						options.success(answer);
+						call.success(answer);
 					}, 0);
-				})(answer);
+				})(answer, call);
 			}
 		}
 	};
