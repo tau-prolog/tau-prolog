@@ -1856,7 +1856,7 @@
 		var e = str.indexOf("e");
 		if(e !== -1) {
 			if(str.indexOf(".") !== -1)
-				return str
+				return str;
 			else
 				return str.replace("e", ".0e");
 		}
@@ -1908,7 +1908,7 @@
 				var id = this.id;
 				var operator = options.session ? options.session.lookup_operator( this.id, this.args.length ) : null;
 				if( options.session === undefined || options.ignore_ops || operator === null ) {
-					if( options.quoted && (! /^(!|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+)$/.test( id ) && id !== "{}" && id !== "[]" || indexOf([".",",",";"], id) !== -1 ) )
+					if( options.quoted && (! /^(!|[a-z][0-9a-zA-Z_]*|[#\$\&\*\+\-\.\/\:\<\=\>\?\@\^\~\\]+)$/.test( id ) && id !== "{}" && id !== "[]" || indexOf([".",",",";"], id) !== -1 || id.substring(0,2) === "/*") )
 						id = "'" + redoEscape(id) + "'";
 					if( this.args.length === 0 && is_graphic_token(this.id) && priority.indicator !== "")
 						return "(" + id + ")";
