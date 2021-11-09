@@ -1836,6 +1836,7 @@
 	
 	// Variables
 	Var.prototype.toString = function( options ) {
+		options = options === undefined ? {} : options;
 		if(options.variable_names) {
 			var pointer = options.variable_names;
 			while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
@@ -7189,7 +7190,8 @@
 				} else {
 					id += "" + atomic2.value;
 				}
-				thread.prepend( [new State( point.goal.replace( new Term( "=", [id, concat] ) ), point.substitution, point )] );
+				var atom = new Term(id, []);
+				thread.prepend( [new State( point.goal.replace( new Term( "=", [atom, concat] ) ), point.substitution, point )] );
 			}
 		},
 
