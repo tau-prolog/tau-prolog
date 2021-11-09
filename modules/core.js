@@ -4235,12 +4235,12 @@
 				"**/2": {
 					type_args: null,
 					type_result: true,
-					fn: function( x, y, _ ) { return Math.pow(x, y); }
+					fn: function( x, y, thread ) { return x == 0 && y < 0 ? pl.error.evaluation("zero_divisor", thread.__call_indicator) : Math.pow(x, y); }
 				},
 				"^/2": {
 					type_args: null,
 					type_result: null,
-					fn: function( x, y, _ ) { return Math.pow(x, y); }
+					fn: function( x, y, thread ) { return x == 0 && y < 0 ? pl.error.evaluation("zero_divisor", thread.__call_indicator) : Math.pow(x, y); }
 				},
 				"<</2": {
 					type_args: false,
