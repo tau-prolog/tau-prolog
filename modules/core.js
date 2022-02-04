@@ -1003,7 +1003,7 @@
 				start++;
 				if( pl.type.is_term(expr.value) ) {
 					if(expr.value.indicator === ":-/2") {
-						rule = new pl.type.Rule(expr.value.args[0], body_conversion(expr.value.args[1]))
+						rule = new pl.type.Rule(expr.value.args[0], body_conversion(expr.value.args[1]));
 						obj = {
 							value: rule,
 							len: start,
@@ -1339,8 +1339,14 @@
 				begin = first_assign.args[1];
 				rule.body = rule.body.replace(null);
 			}
-			// add last variable
-			rule.head = new Term(rule.head.id, rule.head.args.concat([begin, dcg.variable]));
+			// add first and last variables to the head
+			if(rule.head.indicator === ":/2")
+				rule.head = new Term(":", [
+					new Term(rule.head.args[0].id, []),
+					new Term(rule.head.args[1].id, rule.head.args[1].args.concat([begin, dcg.variable]))
+				]);
+			else
+				rule.head = new Term(rule.head.id, rule.head.args.concat([begin, dcg.variable]));
 		}
 		return rule;
 	}
