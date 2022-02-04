@@ -95,6 +95,43 @@ var pl;
 				}
 			},
 
+			// new/3
+			"new/3": function(thread, point, atom) {
+				var obj = atom.args[0], args = atom.args[1], instance = atom.args[2];
+				if(pl.type.is_variable(obj) || pl.type.is_variable(args)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_js_object(obj)) {
+					thread.throw_error(pl.error.type("JsValueOBJECT", args, atom.indicator));
+				} else if(!pl.type.is_list(args)) {
+					thread.throw_error(pl.error.type("list", args, atom.indicator));
+				} else {
+					var arr_args = [];
+					var pointer = args;
+					while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+						arr_args.push(pointer.args[0].toJavaScript());
+						pointer = pointer.args[1];
+					}
+					if(!pl.type.is_term(pointer) || pointer.indicator !== "[]/0") {
+						thread.throw_error(pl.error.type("list", args, atom.indicator));
+						return;
+					}
+					try {
+						var result = pl.fromJavaScript.apply(
+							new (Function.prototype.bind.apply(obj.value, [null].concat(arr_args)))
+						);
+						thread.prepend([
+							new pl.type.State(
+								point.goal.replace(new pl.type.Term("=", [instance, result])),
+								point.substitution,
+								point
+							)
+						]);
+					} catch(error) {
+						thread.throw_error(pl.error.javascript(error.toString(), atom.indicator));
+					}
+				}
+			},
+
 			// json_prolog/2
 			"json_prolog/2": function( thread, point, atom ) {
 				var json = atom.args[0], prolog = atom.args[1];
@@ -366,7 +403,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "json_prolog/2", "json_atom/2", "ajax/3", "ajax/4"];
+	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "new/3", "json_prolog/2", "json_atom/2", "ajax/3", "ajax/4"];
 
 
 
