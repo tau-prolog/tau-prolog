@@ -1578,8 +1578,8 @@
 	
 	// Numbers
 	function Num( value, is_float ) {
-		this.is_float = is_float !== undefined ? is_float : parseInt( value ) !== value;
-		this.value = this.is_float ? value : parseInt( value );
+		this.is_float = is_float !== undefined ? is_float : Math.trunc(value) !== value;
+		this.value = this.is_float ? value : Math.trunc(value);
 	}
 	
 	// Terms
