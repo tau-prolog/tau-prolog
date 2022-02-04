@@ -2978,6 +2978,7 @@
 						context_module = "user";
 					}
 				}
+				atom.context_module = context_module;
 				if(atom.indicator === ",/2") {
 					this.prepend([new State(
 						point.goal.replace(new Term(",", [
@@ -6352,10 +6353,10 @@
 
 		// listing/0
 		"listing/0": function( thread, point, atom ) {
-			var from_module = atom.from_module ? atom.from_module : "user";
+			var context_module = atom.context_module ? atom.context_module : "user";
 			var rules = {};
-			if(pl.type.is_module(thread.session.modules[from_module])) {
-				rules = thread.session.modules[from_module].rules;
+			if(pl.type.is_module(thread.session.modules[context_module])) {
+				rules = thread.session.modules[context_module].rules;
 			}
 			var str = "";
 			for(var indicator in rules) {
@@ -6380,15 +6381,19 @@
 		// listing/1
 		"listing/1": function( thread, point, atom ) {
 			var indicator = atom.args[0];
+			var context_module = "user";
+			if(indicator.indicator === ":/2") {
+				context_module = indicator.args[0].id;
+				indicator = indicator.args[1];
+			}
 			if(pl.type.is_variable(indicator)) {
 				thread.throw_error( pl.error.instantiation( atom.indicator ) );
 			} else if(!pl.type.is_predicate_indicator(indicator)) {
 				thread.throw_error( pl.error.type( "predicate_indicator", indicator, atom.indicator ) );
 			} else {
-				var from_module = atom.from_module ? atom.from_module : "user";
 				var rules = {};
-				if(pl.type.is_module(thread.session.modules[from_module])) {
-					rules = thread.session.modules[from_module].rules;
+				if(pl.type.is_module(thread.session.modules[context_module])) {
+					rules = thread.session.modules[context_module].rules;
 				}
 				var str = "";
 				var str_indicator = indicator.args[0].id + "/" + indicator.args[1].value;
@@ -8996,6 +9001,8 @@
 			"findall/4": new Term("findall", [new Term("?"), new Num(0, false), new Term("-"), new Term("?")]),
 			// forall(0, 0)
 			"forall/2": new Term("forall", [new Num(0, false), new Num(0, false)]),
+			// listing(:)
+			"listing/1": new Term("listing", [new Term(":")]),
 			// once(0)
 			"once/1": new Term("once", [new Num(0, false)]),
 			// phrase(:, ?)
