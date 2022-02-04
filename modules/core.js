@@ -1010,9 +1010,9 @@
 							type: SUCCESS
 						};
 					} else if(expr.value.indicator === "-->/2") {
-						rule = new pl.type.Rule(expr.value.args[0], expr.value.args[1]);
-						rule.body = body_conversion(rule.body);
+						rule = new pl.type.Rule(expr.value.args[0], body_conversion(expr.value.args[1]));
 						rule = rule_to_dcg(rule, thread);
+						rule.body = body_conversion(rule.body);
 						if(!pl.type.is_rule(rule))
 							return {
 								value: rule,
