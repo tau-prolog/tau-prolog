@@ -1211,10 +1211,21 @@
 			/*if(async)
 				parseProgram(thread, options.string, options);*/
 		} else {
-			indicator = expr.value.head.indicator;
-			if(options.reconsult !== false && reconsulted[indicator] !== true && !thread.is_multifile_predicate(indicator)) {
-				thread.session.modules[options.context_module].rules[indicator] = filter(thread.session.rules[indicator] || [], function(rule) { return rule.dynamic; });
-				reconsulted[indicator] = true;
+			var context_module = options.context_module;
+			var indicator = expr.value.head.indicator;
+			if(expr.value.head.indicator === ":/2") {
+				context_module = expr.value.head.args[0].id;
+				indicator = expr.value.head.args[1].indicator;
+			}
+			if(!reconsulted.hasOwnProperty(context_module))
+				reconsulted[context_module] = {};
+			if(options.reconsult !== false && reconsulted[context_module][indicator] !== true && !thread.is_multifile_predicate(indicator)) {
+				var get_module = thread.session.modules[context_module];
+				if(context_module !== "system" && get_module && get_module.rules[indicator])
+					get_module.rules[indicator] = filter(get_module.rules[indicator], function(rule) {
+						return rule.dynamic;
+					});
+				reconsulted[context_module][indicator] = true;
 			}
 			var goal_expansion = thread.session.modules.user.rules["goal_expansion/2"];
 			if(expr.value.body !== null && goal_expansion && goal_expansion.length > 0) {
