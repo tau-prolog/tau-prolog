@@ -667,22 +667,32 @@
 						token.value = escapeAtom( token.value.substring(1, token.value.length - 1), "'" );
 						if( token.value === null ) {
 							token.name = "lexical";
-							token.value = "unknown escape sequence";
+							token.value = token.raw;
+							token.error = "unknown_escape_sequence";
 						}
 					}
 					break;
 				case "number":
 					var substr = token.value.substring(0,2);
+					token.raw = token.value;
 					token.float = substr !== "0x" && substr !== "0'" && token.value.match(/[.eE]/) !== null;
 					token.value = convertNum( token.value );
 					token.blank = last_is_blank;
+					console.log(pl, token);
+					if(!token.float && pl.flag.bounded.value.indicator === "true/0" && token.value > pl.flag.max_integer.value.value) {
+						token.name = "lexical";
+						token.value = token.raw;
+						token.error = "int_overflow";
+					}
 					break;
 				case "string":
 					var del = token.value.charAt(0);
+					token.raw = token.value;
 					token.value = escapeAtom( token.value.substring(1, token.value.length - 1), del );
 					if( token.value === null ) {
 						token.name = "lexical";
-						token.value = "unknown escape sequence";
+						token.value = token.raw;
+						token.error = "unknown_escape_sequence"
 					}
 					break;
 				case "whitespace":
@@ -775,7 +785,7 @@
 			if(result.type === SUCCESS || result.derived)
 				return result;
 			// Unexpected
-			return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start], "unexpected token")};
+			return {type: ERROR, derived: false, value: pl.error.syntax(tokens[start], token.error || "unexpected token")};
 		}
 
 		var max_priority = thread.__get_max_priority();
@@ -1292,7 +1302,7 @@
 						new Term("throw", [
 							pl.error.syntax(
 								token ? token : tokens[expr_position-1],
-								". or operator expected",
+								token && token.error ? token.error : ". or operator expected",
 								!token
 							)
 						])
