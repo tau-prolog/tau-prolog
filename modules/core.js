@@ -678,7 +678,6 @@
 					token.float = substr !== "0x" && substr !== "0'" && token.value.match(/[.eE]/) !== null;
 					token.value = convertNum( token.value );
 					token.blank = last_is_blank;
-					console.log(pl, token);
 					if(!token.float && pl.flag.bounded.value.indicator === "true/0" && token.value > pl.flag.max_integer.value.value) {
 						token.name = "lexical";
 						token.value = token.raw;
