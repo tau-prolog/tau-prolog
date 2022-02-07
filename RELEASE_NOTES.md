@@ -1,6 +1,6 @@
 # Release notes
 
-## Version 0.3.2 - Febrary 2, 2022
+## Version 0.3.2 - Febrary 7, 2022
 
 ### Core (0.3.2)
 
