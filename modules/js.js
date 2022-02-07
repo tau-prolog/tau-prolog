@@ -58,14 +58,24 @@ var pl;
 					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [value, result] ) ), point.substitution, point )] );
 				}
 			},
-			
-			// prop/2:
+
+			// prop/2 (deprecated)
 			"prop/2": [
-				new pl.type.Rule(new pl.type.Term("prop", [new pl.type.Var("X"),new pl.type.Var("Y")]), new pl.type.Term(",", [new pl.type.Term("global", [new pl.type.Var("G")]),new pl.type.Term("prop", [new pl.type.Var("G"),new pl.type.Var("X"),new pl.type.Var("Y")])]))
+				new pl.type.Rule(new pl.type.Term("prop", [new pl.type.Var("X"),new pl.type.Var("Y")]), new pl.type.Term("get_prop", [new pl.type.Var("X"),new pl.type.Var("Y")]))
+			],
+
+			// prop/3 (deprecated)
+			"prop/3": [
+				new pl.type.Rule(new pl.type.Term("prop", [new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z")]), new pl.type.Term("get_prop", [new pl.type.Var("X"),new pl.type.Var("Y"),new pl.type.Var("Z")]))
 			],
 			
-			// prop/3
-			"prop/3": function( thread, point, atom ) {
+			// get_prop/2:
+			"get_prop/2": [
+				new pl.type.Rule(new pl.type.Term("get_prop", [new pl.type.Var("X"),new pl.type.Var("Y")]), new pl.type.Term(",", [new pl.type.Term("global", [new pl.type.Var("G")]),new pl.type.Term("get_prop", [new pl.type.Var("G"),new pl.type.Var("X"),new pl.type.Var("Y")])]))
+			],
+			
+			// get_prop/3
+			"get_prop/3": function( thread, point, atom ) {
 				var context = atom.args[0], name = atom.args[1], result = atom.args[2];
 				if( pl.type.is_variable( context ) ) {
 					thread.throw_error( pl.error.instantiation( atom.indicator ) );
@@ -91,6 +101,27 @@ var pl;
 							}
 						}
 						thread.prepend( states );
+					}
+				}
+			},
+
+			// set_prop/2:
+			"set_prop/2": [
+				new pl.type.Rule(new pl.type.Term("set_prop", [new pl.type.Var("X"),new pl.type.Var("Y")]), new pl.type.Term(",", [new pl.type.Term("global", [new pl.type.Var("G")]),new pl.type.Term("set_prop", [new pl.type.Var("G"),new pl.type.Var("X"),new pl.type.Var("Y")])]))
+			],
+
+			// set_prop/3
+			"set_prop/3": function(thread, point, atom) {
+				var context = atom.args[0], key = atom.args[1], value = atom.args[2];
+				if(pl.type.is_variable(context) || pl.type.is_variable(key)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(key)) {
+					thread.throw_error(pl.error.type("atom", key, atom.indicator));
+				} else {
+					var obj = context.toJavaScript();
+					if(obj !== undefined) {
+						obj[key.id] = value.toJavaScript();
+						thread.success(point);
 					}
 				}
 			},
@@ -403,7 +434,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "new/3", "json_prolog/2", "json_atom/2", "ajax/3", "ajax/4"];
+	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "get_prop/2", "get_prop/3", "set_prop/2", "set_prop/3", "new/3", "json_prolog/2", "json_atom/2", "ajax/3", "ajax/4"];
 
 
 
