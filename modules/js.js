@@ -212,7 +212,6 @@ var pl;
 						} catch(ex) {}
 					} else {
 						try {
-							console.log(JSON.parse(prolog.id));
 							var obj = pl.fromJavaScript.apply(JSON.parse(prolog.id));
 							thread.prepend([new pl.type.State(
 								point.goal.replace(new pl.type.Term("=", [json, obj])),
