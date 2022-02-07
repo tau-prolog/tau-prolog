@@ -5720,7 +5720,8 @@
 				var answers = [];
 				var callback = function( answer ) {
 					if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-						answers.push( answer.links[variable.id] );
+						nthread.session.renamed_variables = {};
+						answers.push( answer.links[variable.id].rename(nthread) );
 						nthread.answer(callback);
 					} else {
 						var reset_limit = true;
@@ -5768,6 +5769,9 @@
 						return;
 					}
 				}
+				thread.session.renamed_variables = {};
+				template = template.rename(thread);
+				goal = goal.rename(thread);
 				var variable = thread.next_free_variable();
 				var template_vars = [];
 				while( goal.indicator === "^/2" ) {
@@ -5811,11 +5815,12 @@
 						}
 						arg_vars = arg_vars.apply(sub_template);
 						arg_template = arg_template.apply(sub_template);
+						nthread.session.renamed_variables = {};
 						for( var _elem in answers ) {
 							if(!answers.hasOwnProperty(_elem)) continue;
 							var elem = answers[_elem];
 							if( pl.is_rename(elem.variables, arg_vars) ) {
-								elem.answers.push( arg_template );
+								elem.answers.push( arg_template.rename(nthread) );
 								match = true;
 								break;
 							}
@@ -5874,6 +5879,9 @@
 						return;
 					}
 				}
+				thread.session.renamed_variables = {};
+				template = template.rename(thread);
+				goal = goal.rename(thread);
 				var variable = thread.next_free_variable();
 				var template_vars = [];
 				while( goal.indicator === "^/2" ) {
@@ -5917,11 +5925,12 @@
 						}
 						arg_vars = arg_vars.apply(sub_template);
 						arg_template = arg_template.apply(sub_template);
+						nthread.session.renamed_variables = {};
 						for( var _elem in answers ) {
 							if(!answers.hasOwnProperty(_elem)) continue;
 							var elem = answers[_elem];
 							if( pl.is_rename(elem.variables, arg_vars) ) {
-								elem.answers.push( arg_template );
+								elem.answers.push( arg_template.rename(nthread) );
 								match = true;
 								break;
 							}
