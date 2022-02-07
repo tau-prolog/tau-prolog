@@ -1,5 +1,45 @@
 # Release notes
 
+## Version 0.3.2 - Febrary 2, 2022
+
+### Core (0.3.2)
+
+* ADDED: hyperbolic arithmetic functions.
+* FIXED: `op/3` directive permission error with empty list.
+* FIXED: writing curly bracketed terms in canonical format.
+* FIXED: scope of calls in `Thread.prototype.again` method.
+* ADDED: `compare` method for `Stream` objects.
+* FIXED: writing with `quoted` option for multiline comment tokens `/*{...}`.
+* FIXED: exception when raising zero to a negative power.
+* FIXED: DCG's in user-defined modules.
+* FIXED: `reconsult` option for user-defined modules.
+* ADDED: check for integer overflow in parser.
+
+### Module `system` (0.3.2)
+
+* FIXED: `op/3` built-in predicate permission error with empty list.
+* FIXED: `findall/4` built-in predicate type-checking of the tail argument.
+* ADDED: `atomic_concat/3` built-in predicate.
+* FIXED: `listing/[0-1]` built-in predicates in user-defined modules.
+* FIXED: variable renaming in all solutions built-in predicates (`findall/[3-4]`, `setof/3` and `bagof/3`).
+* FIXED: `get_byte/2` built-in predicate in Node.js.
+
+### Module `js` (0.3.2)
+
+* ADDED: `new/3` predicate to create instances of JavaScript objects.
+* ADDED: `set_prop/[2-3]` predicates to set the value of a property on a JavaScript object. 
+* ADDED: `get_prop/[2-3]` predicates to retrieve the value of a property on a JavaScript object.
+* DEPRECATED: `prop/[2-3]` predicates (use `get_prop/[2-3]` instead).
+
+### Module `format` (0.3.2)
+
+* UPDATED: to the latest version (see [scryer-prolog/src/lib/format.pl](https://github.com/mthom/scryer-prolog/blob/master/src/lib/format.pl)).
+
+### Acknowledgments (0.3.2)
+
+* Thanks to **Paulo Moura** for his help in detecting and correcting errors and for adding new predicates to the `system` module.
+* Thanks to **Markus Triska** for his updates on the `format` module.
+
 ## Version 0.3.1 - May 3, 2021
 
 ### Core (0.3.1)
