@@ -7999,6 +7999,9 @@
 				if( stream2.position === "end_of_stream" ) {
 					stream_char = "end_of_file";
 					stream2.position = "past_end_of_stream";
+				} else if( stream2.position === "past_end_of_stream" ) {
+					stream_char = "end_of_file";
+					stream2.position = "past_end_of_stream";
 				} else {
 					stream_char = stream2.stream.get( 1, stream2.position );
 					if( stream_char === null ) {
@@ -8055,6 +8058,9 @@
 				if( stream2.position === "end_of_stream" ) {
 					stream_code = -1;
 					stream2.position = "past_end_of_stream";
+				} else if( stream2.position === "past_end_of_stream" ) {
+					stream_code = -1;
+					stream2.position = "past_end_of_stream";
 				} else {
 					stream_code = stream2.stream.get( 1, stream2.position );
 					if( stream_code === null ) {
@@ -8108,6 +8114,9 @@
 			} else {
 				var stream_char;
 				if( stream2.position === "end_of_stream" ) {
+					stream_char = "end_of_file";
+					stream2.position = "past_end_of_stream";
+				} else if( stream2.position === "past_end_of_stream" ) {
 					stream_char = "end_of_file";
 					stream2.position = "past_end_of_stream";
 				} else {
@@ -8433,6 +8442,12 @@
 				thread.throw_error( pl.error.permission( "input", "binary_stream", stream, atom.indicator ) );
 			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "error" ) {
 				thread.throw_error( pl.error.permission( "input", "past_end_of_stream", stream, atom.indicator ) );
+			} else if( stream2.position === "past_end_of_stream" && stream2.eof_action === "eof_code" ) {
+				expr = {
+					value: new Term("end_of_file", []),
+					type: SUCCESS,
+					len: -1
+				};
 			} else {
 				// Get options
 				var obj_options = {};
