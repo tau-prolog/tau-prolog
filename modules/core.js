@@ -1093,25 +1093,26 @@
 				return;
 			} else {
 				// Term expansion
-				var term_expansion = thread.session.modules.user.rules["term_expansion/2"];
+				var context_module = opts.context_module;
+				var term_expansion = thread.session.modules[context_module].rules["term_expansion/2"];
 				if(term_expansion && term_expansion.length > 0) {
 					opts.term_expansion = true;
 					var n_thread = new Thread(thread.session);
 					var term = expr.value.body ? new Term(":-", [expr.value.head, expr.value.body]) : expr.value.head;
 					thread.session.renamed_variables = {};
 					term = term.rename(thread.session);
-					n_thread.query("term_expansion(" + term.toString({
-						quoted: true
-					}) + ", X).");
-					n_thread.answer(function(answer) {
-						if(answer && !pl.type.is_error(answer) && pl.type.is_term(answer.links['X'])) {
-							var term = answer.links['X'];
-							var rule = term.indicator === ":-/2" ? new Rule(term.args[0], term.args[1]) : new Rule( term, null ) ;
-							parseProgramExpansion(thread, opts, reconsulted, {value: rule, len: expr.len, type: expr.type});
-						} else {
-							parseProgramExpansion(thread, opts, reconsulted, expr);
+					n_thread.query(context_module + ":term_expansion(" + term.toString({quoted: true}) + ", X).");
+					n_thread.answer((function(thread, opts, reconsulted, expr) {
+						return function(answer) {
+							if(answer && !pl.type.is_error(answer) && pl.type.is_term(answer.links['X'])) {
+								var term = answer.links['X'];
+								var rule = term.indicator === ":-/2" ? new Rule(term.args[0], term.args[1]) : new Rule(term, null);
+								parseProgramExpansion(thread, opts, reconsulted, {value: rule, len: expr.len, type: expr.type});
+							} else {
+								parseProgramExpansion(thread, opts, reconsulted, expr);
+							}
 						}
-					});
+					})(thread, opts, reconsulted, expr));
 					return;
 				} else {
 					opts.term_expansion = false;
@@ -1217,8 +1218,8 @@
 		} else if(expr.value.body === null && expr.value.head.indicator === ":-/1") {
 			var result = thread.run_directive(expr.value.head.args[0], options);
 			async = async || (result === true);
-			/*if(async)
-				parseProgram(thread, options.string, options);*/
+			if(async)
+				parseProgram(thread, options.string, options);
 		} else {
 			var context_module = options.context_module;
 			var indicator = expr.value.head.indicator;
@@ -1251,8 +1252,8 @@
 				parseGoalExpansion(thread, options, expr, body_conversion(expr.value.body), origin.set, origin);
 			} else {
 				thread.add_rule(expr.value, options);
-				/*if(async)
-					parseProgram(thread, options.string, options);*/
+				if(async)
+					parseProgram(thread, options.string, options);
 			}
 		}
 		return async;
