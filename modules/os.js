@@ -284,6 +284,52 @@ var pl;
 				}
 			},
 
+			// copy_file/2
+			"copy_file/2": function(thread, point, atom) {
+				var old_path = atom.args[0], new_path = atom.args[1];
+				if(pl.type.is_variable(old_path) || pl.type.is_variable(new_path)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_atom(old_path)) {
+					thread.throw_error(pl.error.type("atom", old_path, atom.indicator));
+				} else if(!pl.type.is_atom(new_path)) {
+					thread.throw_error(pl.error.type("atom", new_path, atom.indicator));
+				} else {
+					var old_absolute = thread.absolute_file_name(old_path.id);
+					var new_absolute = thread.absolute_file_name(new_path.id);
+					if(thread.get_flag("nodejs").indicator === "true/0") {
+						var fs = require('fs');
+						fs.stat(old_absolute, function(error, stat) {
+							if(error || !stat.isFile()) {
+								thread.throw_error(pl.error.existence("source_sink", old_path, atom.indicator));
+								thread.again();
+							} else {
+								fs.copyFile(old_absolute, new_absolute, function(error) { 
+									if(error)
+										thread.throw_error(pl.error.existence("source_sink", new_path, atom.indicator));
+									else
+										thread.success(point);
+									thread.again();
+								});
+							}
+						});
+						return true;
+					} else {
+						var old_file = thread.file_system_open(old_absolute, "text", "read");
+						if(old_file) {
+							var new_file = thread.file_system_open(new_absolute, "text", "write");
+							if(new_file) {
+								new_file.text = old_file.text;
+								thread.success(point);
+							} else {
+								thread.throw_error(pl.error.existence("source_sink", new_path, atom.indicator));
+							}
+						} else {
+							thread.throw_error(pl.error.existence("source_sink", old_path, atom.indicator));
+						}
+					}
+				}
+			},
+
 			// rename_file/2
 			"rename_file/2": function(thread, point, atom) {
 				var old_path = atom.args[0], new_path = atom.args[1];
@@ -706,7 +752,7 @@ var pl;
 		
 	};
 	
-	var exports = ["sleep/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "file_permission/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1", "pid/1"];
+	var exports = ["sleep/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "copy_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "file_permission/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1", "pid/1"];
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
