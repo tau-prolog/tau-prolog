@@ -1741,6 +1741,7 @@
 		this.warnings = [];
 		this.__calls = [];
 		this.__goal_expansion = false;
+		this.__stacks = {};
 	}
 	
 	// Modules
@@ -2420,6 +2421,30 @@
 	
 	
 	// PROLOG SESSIONS AND THREADS
+
+	// Push to a global stack
+	Session.prototype.push_global_stack = function(stack, value) {
+		return this.thread.push_global_stack(stack, value);
+	};
+	Thread.prototype.push_global_stack = function(stack, value) {
+		if(!this.__stacks.hasOwnProperty(stack))
+			this.__stacks[stack] = [];
+		this.__stacks[stack].push(value);
+	};
+
+	// Pop all from a global stack
+	Session.prototype.pop_global_stack = function(stack, tail) {
+		return this.thread.push_global_stack(stack, tail);
+	};
+	Thread.prototype.pop_global_stack = function(stack, tail) {
+		var list = tail || new Term("[]", []);
+		if(this.__stacks.hasOwnProperty(stack)) {
+			while(this.__stacks[stack].length > 0)
+				list = new Term(".", [this.__stacks[stack].pop(), list]);
+			delete this.__stacks[stack];
+		}
+		return list;
+	};
 
 	// Set max inferences
 	Session.prototype.setMaxInferences = function(max) {
@@ -5087,6 +5112,36 @@
 
 
 
+		// SYSTEM PREDICATES ($)
+
+		// '$push_global_stack'/2
+		"$push_global_stack/2": function(thread, point, atom) {
+			var stack = atom.args[0], value = atom.args[1];
+			if(!pl.type.is_variable(stack)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else {
+				thread.push_global_stack(stack.id, value);
+				thread.success(point);
+			}
+		},
+
+		// '$pop_global_stack'/3
+		"$pop_global_stack/3": function(thread, point, atom) {
+			var stack = atom.args[0], list = atom.args[1], tail = atom.args[2];
+			if(!pl.type.is_variable(stack)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else {
+				var values = thread.pop_global_stack(stack.id, tail);
+				thread.prepend([new State(
+					point.goal.replace(new Term("=", [list, values])),
+					point.substitution,
+					point
+				)]);
+			}
+		},
+
+
+
 		// ATTRIBUTED VARIABLES
 		
 		//put_attr/3
@@ -5676,76 +5731,41 @@
 		},
 
 		// findall/4
+
+		// findall(Template, Goal, Instances, Tail) :-
+		//     call(Goal),
+    	//     '$push_global_stack'(Var, Template),
+        //     false ; '$pop_global_stack'(Var, Instances, Tail).
+
 		"findall/4": function(thread, point, atom) {
 			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2], tail = atom.args[3];
-			if( pl.type.is_variable( goal ) ) {
-				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_callable( goal ) ) {
-				thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
-			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
-				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
-			} else if( !pl.type.is_variable( tail ) && !pl.type.is_list( tail ) ) {
-				thread.throw_error( pl.error.type( "list", tail, atom.indicator ) );
+			var proper_goal = goal;
+			if(pl.type.is_term(goal) && goal.indicator === ":/2")
+				proper_goal = goal.args[1];
+			if(pl.type.is_variable(proper_goal)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(proper_goal)) {
+				thread.throw_error(pl.error.type("callable", goal, atom.indicator));
+			} else if(!pl.type.is_variable(instances) && !pl.type.is_list(instances)) {
+				thread.throw_error(pl.error.type("list", instances, atom.indicator));
+			} else if(!pl.type.is_variable(tail) && !pl.type.is_list(tail)) {
+				thread.throw_error(pl.error.type("list", tail, atom.indicator));
 			} else {
-				if(!pl.type.is_variable(instances)) {
-					var pointer = instances;
-					while(pl.type.is_term(pointer) && pointer.indicator === "./2")
-						pointer = pointer.args[1];
-					if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
-						thread.throw_error(pl.error.type("list", instances, atom.indicator));
-						return;
-					}
-				}
-				if(!pl.type.is_variable(tail)) {
-					var pointer_t = tail;
-					while(pl.type.is_term(pointer_t) && pointer_t.indicator === "./2")
-						pointer_t = pointer_t.args[1];
-					if(!pl.type.is_variable(pointer_t) && !pl.type.is_empty_list(pointer_t)) {
-						thread.throw_error(pl.error.type("list", tail, atom.indicator));
-						return;
-					}
-				}
-				var variable = thread.next_free_variable();
-				var newGoal = new Term( ",", [
-					new Term("call", [goal]),
-					new Term( "=", [variable, template] )
-				]);
-				var nthread = new Thread(thread.session);
-				nthread.debugger = thread.debugger;
-				nthread.format_success = function(state) { return state.substitution; };
-				nthread.format_error = function(state) { return state.goal; };
-				nthread.add_goal( newGoal, true, point );
-				nthread.head_point().parent = point;
-				var answers = [];
-				var callback = function( answer ) {
-					if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-						nthread.session.renamed_variables = {};
-						answers.push( answer.links[variable.id].rename(nthread) );
-						nthread.answer(callback);
-					} else {
-						var reset_limit = true;
-						if( pl.type.is_error( answer ) ) {
-							thread.throw_error( answer.args[0] );
-						} else if( !nthread.has_limit || nthread.current_limit > 0 ) {
-							var list = arrayToList(answers, tail);
-							thread.prepend( [new State(
-								point.goal.replace( new Term( "=", [instances, list] ) ),
-								point.substitution,
-								point
-							)] );
-						} else {
-							thread.prepend( [point] );
-							if(thread.has_limit)
-								thread.current_limit = 0;
-							reset_limit = false;
-						}
-						if(reset_limit && nthread.debugger)
-							thread.debugger_states = thread.debugger_states.concat(nthread.debugger_states);
-						thread.again(reset_limit);
-					}
-				};
-				nthread.answer(callback);
-				return true;
+				var v = thread.next_free_variable();
+				thread.prepend([new State(
+					point.goal.replace(new Term(";", [
+						new Term(",", [
+							new Term("call", [goal]),
+							new Term(",", [
+								new Term("$push_global_stack", [v, template]),
+								new Term("false", [])
+							])
+						]),
+						new Term("$pop_global_stack", [v, instances, tail])
+					])),
+					point.substitution,
+					point
+				)]);
 			}
 		},
 		
