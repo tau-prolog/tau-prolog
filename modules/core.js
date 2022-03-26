@@ -2433,10 +2433,10 @@
 	};
 
 	// Pop all from a global stack
-	Session.prototype.pop_global_stack = function(stack, tail) {
+	Session.prototype.flush_global_stack = function(stack, tail) {
 		return this.thread.push_global_stack(stack, tail);
 	};
-	Thread.prototype.pop_global_stack = function(stack, tail) {
+	Thread.prototype.flush_global_stack = function(stack, tail) {
 		var list = tail || new Term("[]", []);
 		if(this.__stacks.hasOwnProperty(stack)) {
 			while(this.__stacks[stack].length > 0)
@@ -5125,13 +5125,13 @@
 			}
 		},
 
-		// '$pop_global_stack'/3
-		"$pop_global_stack/3": function(thread, point, atom) {
+		// '$flush_global_stack'/3
+		"$flush_global_stack/3": function(thread, point, atom) {
 			var stack = atom.args[0], list = atom.args[1], tail = atom.args[2];
 			if(!pl.type.is_variable(stack)) {
 				thread.throw_error(pl.error.instantiation(atom.indicator));
 			} else {
-				var values = thread.pop_global_stack(stack.id, tail);
+				var values = thread.flush_global_stack(stack.id, tail);
 				thread.prepend([new State(
 					point.goal.replace(new Term("=", [list, values])),
 					point.substitution,
@@ -5735,7 +5735,7 @@
 		// findall(Template, Goal, Instances, Tail) :-
 		//     call(Goal),
     	//     '$push_global_stack'(Var, Template),
-        //     false ; '$pop_global_stack'(Var, Instances, Tail).
+        //     false ; '$flush_global_stack'(Var, Instances, Tail).
 
 		"findall/4": function(thread, point, atom) {
 			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2], tail = atom.args[3];
@@ -5761,7 +5761,7 @@
 								new Term("false", [])
 							])
 						]),
-						new Term("$pop_global_stack", [v, instances, tail])
+						new Term("$flush_global_stack", [v, instances, tail])
 					])),
 					point.substitution,
 					point
