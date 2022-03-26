@@ -1823,18 +1823,20 @@
 		}
 		return null;
 	};
-	
+
 	// Terms
-	Term.prototype.unify = function( obj, occurs_check ) {
-		if( pl.type.is_term( obj ) && this.indicator === obj.indicator ) {
+	Term.prototype.unify = function(obj, occurs_check) {
+		if(!pl.type.is_term(obj) && obj.unify !== undefined) {
+			return obj.unify(this);
+		} else if(pl.type.is_term(obj) && this.indicator === obj.indicator) {
 			var subs = new Substitution();
-			for( var i = 0; i < this.args.length; i++ ) {
-				var mgu = pl.unify( this.args[i].apply( subs ), obj.args[i].apply( subs ), occurs_check );
-				if( mgu === null )
+			for(var i = 0; i < this.args.length; i++) {
+				var mgu = pl.unify(this.args[i].apply(subs), obj.args[i].apply(subs), occurs_check);
+				if(mgu === null)
 					return null;
-				for( var x in mgu.links )
+				for(var x in mgu.links)
 					subs.links[x] = mgu.links[x];
-				subs = subs.apply( mgu );
+				subs = subs.apply(mgu);
 			}
 			return subs;
 		}
@@ -4734,63 +4736,59 @@
 		},
 		
 		// Unify
-		unify: function( s, t, occurs_check ) {
+		unify: function(t1, t2, occurs_check) {
 			occurs_check = occurs_check === undefined ? false : occurs_check;
-			var G = [{left: s, right: t}], links = {};
-			while( G.length !== 0 ) {
-				var eq = G.pop();
-				s = eq.left;
-				t = eq.right;
+			var left = [t1], right = [t2];
+			var subs = new Substitution();
+			while(left.length > 0) {
+				var s = left.pop();
+				var t = right.pop();
+				if(pl.type.is_variable(s))
+					s = s.apply(subs);
+				if(pl.type.is_variable(t))
+					t = t.apply(subs);
+				// same object
 				if(s == t)
 					continue;
-				if( pl.type.is_term(s) && pl.type.is_term(t) ) {
-					if( s.indicator !== t.indicator )
+				// compound terms
+				if(pl.type.is_term(s) && pl.type.is_term(t)) {
+					if(s.indicator !== t.indicator)
 						return null;
-					// list
-					if(s.indicator === "./2") {
-						var pointer_s = s, pointer_t = t;
-						while(pointer_s.indicator === "./2" && pointer_t.indicator === "./2") {
-							G.push( {left: pointer_s.args[0], right: pointer_t.args[0]} );
-							pointer_s = pointer_s.args[1];
-							pointer_t = pointer_t.args[1];
-						}
-						G.push( {left: pointer_s, right: pointer_t} );
-					// compound term
-					} else {
-						for( var i = 0; i < s.args.length; i++ )
-							G.push( {left: s.args[i], right: t.args[i]} );
+					for(var i = s.args.length-1; i >= 0; i--) {
+						left.push(s.args[i]);
+						right.push(t.args[i]);
 					}
-				} else if( pl.type.is_number(s) && pl.type.is_number(t) ) {
-					if( s.value !== t.value || s.is_float !== t.is_float )
+				// numbers
+				} else if(pl.type.is_number(s) && pl.type.is_number(t)) {
+					if(s.value !== t.value || s.is_float !== t.is_float)
 						return null;
-				} else if( pl.type.is_variable(s) ) {
-					// X = X
-					if( pl.type.is_variable(t) && s.id === t.id )
+				// variable - term
+				} else if(pl.type.is_variable(s)) {
+					t = t.apply(subs);
+					// x = x
+					if(pl.type.is_variable(t) && s.id === t.id)
 						continue;
-					// Occurs check
-					if( occurs_check === true && indexOf( t.variables(), s.id ) !== -1 )
+					// occurs check
+					if(occurs_check === true && indexOf(t.variables(), s.id) !== -1)
 						return null;
-					if( s.id !== "_" ) {
-						var subs = new Substitution();
-						subs.add( s.id, t );
-						for( var i = 0; i < G.length; i++ ) {
-							G[i].left = G[i].left.apply( subs );
-							G[i].right = G[i].right.apply( subs );
-						}
-						for( var i in links )
-							links[i] = links[i].apply( subs );
-						links[s.id] = t;
-					}
-				} else if( pl.type.is_variable(t) ) {
-					G.push( {left: t, right: s} );
-				} else if( s.unify !== undefined ) {
-					if( !s.unify(t) )
+					// anonymous variable
+					if(s.id !== "_")
+						subs.add(s.id, t);
+				// term - variable
+				} else if(pl.type.is_variable(t)) {
+					left.push(t);
+					right.push(s);
+				// user-defined terms
+				} else if(s.unify !== undefined) {
+					var user_subs = s.unify(t, occurs_check);
+					if(user_subs == null)
 						return null;
+					subs = subs.apply(user_subs);
 				} else {
 					return null;
 				}
 			}
-			return new Substitution( links );
+			return subs.apply(subs);
 		},
 
 		// Is rename

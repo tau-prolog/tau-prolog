@@ -808,10 +808,9 @@ var pl;
 	};
 
 	// unify
-	pl.type.DOM.prototype.unify = function( obj, _ ) {
-		if( pl.type.is_dom_object( obj ) && this.object === obj.object ) {
-			return new pl.type.State( obj, new pl.type.Substitution() );
-		}
+	pl.type.DOM.prototype.unify = function(obj, _) {
+		if(pl.type.is_dom_object(obj) && this.object === obj.object)
+			return new pl.type.Substitution();
 		return null;
 	};
 
@@ -992,10 +991,9 @@ var pl;
 	};
 
 	// unify
-	pl.type.DOMEvent.prototype.unify = function( obj, _ ) {
-		if( pl.type.is_dom_event_object( obj ) && this.type === obj.type && this.epoch === obj.epoch ) {
-			return new pl.type.State( obj, new pl.type.Substitution() );
-		}
+	pl.type.DOMEvent.prototype.unify = function(obj, _) {
+		if(pl.type.is_dom_event_object(obj) && this.type === obj.type && this.epoch === obj.epoch)
+			return new pl.type.Substitution();
 		return null;
 	};
 

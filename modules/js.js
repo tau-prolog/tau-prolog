@@ -499,10 +499,9 @@ var pl;
 		};
 
 		// unify
-		pl.type.JSValue.prototype.unify = function( obj, _ ) {
-			if( pl.type.is_js_object( obj ) && this.value === obj.value ) {
-				return new pl.type.State( obj, new pl.type.Substitution() );
-			}
+		pl.type.JSValue.prototype.unify = function(obj, _) {
+			if(pl.type.is_js_object(obj) && this.value === obj.value)
+				return new pl.type.Substitution();
 			return null;
 		};
 
