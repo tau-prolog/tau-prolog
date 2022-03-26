@@ -1806,29 +1806,27 @@
 
 
 	// UNIFY PROLOG OBJECTS
-	
+
 	// Variables
-	Var.prototype.unify = function( obj, occurs_check ) {
-		if( occurs_check && indexOf( obj.variables(), this.id ) !== -1 && !pl.type.is_variable( obj ) ) {
+	Var.prototype.unify = function(obj, occurs_check) {
+		if(occurs_check && indexOf(obj.variables(), this.id) !== -1 && !pl.type.is_variable(obj))
 			return null;
-		}
 		var links = {};
 		links[this.id] = obj;
-		return new Substitution( links );
+		return new Substitution(links);
 	};
-	
+
 	// Numbers
-	Num.prototype.unify = function( obj, _ ) {
-		if( pl.type.is_number( obj ) && this.value === obj.value && this.is_float === obj.is_float ) {
+	Num.prototype.unify = function(obj, occurs_check) {
+		if(pl.type.is_number(obj) && this.value === obj.value && this.is_float === obj.is_float)
 			return new Substitution();
-		}
 		return null;
 	};
 
 	// Terms
 	Term.prototype.unify = function(obj, occurs_check) {
 		if(!pl.type.is_term(obj) && obj.unify !== undefined) {
-			return obj.unify(this);
+			return obj.unify(this, occurs_check);
 		} else if(pl.type.is_term(obj) && this.indicator === obj.indicator) {
 			var subs = new Substitution();
 			for(var i = 0; i < this.args.length; i++) {
@@ -1845,10 +1843,9 @@
 	};
 
 	// Streams
-	Stream.prototype.unify = function( obj, occurs_check ) {
-		if( pl.type.is_stream( obj ) && this.id === obj.id ) {
+	Stream.prototype.unify = function(obj, _occurs_check) {
+		if(pl.type.is_stream(obj) && this.id === obj.id)
 			return new Substitution();
-		}
 		return null;
 	};
 
