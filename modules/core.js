@@ -4763,7 +4763,10 @@
 		// Unify
 		unify: function(t1, t2, occurs_check) {
 			occurs_check = occurs_check === undefined ? false : occurs_check;
-			var left = [t1], right = [t2];
+			var left = Array.isArray(t1) ? t1 : [t1];
+			var right = Array.isArray(t2) ? t2 : [t2];
+			if(left.length !== right.length)
+				return null;
 			var subs = new Substitution();
 			while(left.length > 0) {
 				var s = left.pop();
@@ -4805,10 +4808,11 @@
 					right.push(s);
 				// user-defined terms
 				} else if(s.unify !== undefined) {
-					var user_subs = s.unify(t, occurs_check);
+					var user_subs = s.apply(subs).unify(t.apply(subs), occurs_check);
 					if(user_subs == null)
 						return null;
-					subs = subs.apply(user_subs);
+					for(var i in user_subs.links)
+						subs.add(i, user_subs.links[i]);
 				} else {
 					return null;
 				}
@@ -5732,10 +5736,12 @@
 
 		// findall/4
 
-		// findall(Template, Goal, Instances, Tail) :-
-		//     call(Goal),
-    	//     '$push_global_stack'(Var, Template),
-        //     false ; '$flush_global_stack'(Var, Instances, Tail).
+		/*
+		findall(Template, Goal, Instances, Tail) :-
+			call(Goal),
+    		'$push_global_stack'(Var, Template),
+        	false ; '$flush_global_stack'(Var, Instances, Tail).
+		*/
 
 		"findall/4": function(thread, point, atom) {
 			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2], tail = atom.args[3];

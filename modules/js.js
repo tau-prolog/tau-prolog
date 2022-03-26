@@ -433,28 +433,11 @@ var pl;
 		};
 	};
 	
-	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "get_prop/2", "get_prop/3", "set_prop/2", "set_prop/3", "new/3", "json_prolog/2", "json_atom/2", "ajax/3", "ajax/4"];
-
-
-
-	/*function prolog_to_json(prolog) {
-		var pointer = prolog;
-		var obj = {};
-		while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
-			var pair = pointer.args[0];
-			if(pl.type.is_variable(pair)) {
-				return pl.error.instantiation( atom.indicator );
-			} else if(!pl.type.is_term(pair) || pair.indicator !== "-/2" || !pl.type.is_atom(pair.args[0])) {
-				return pl.error.domain( "pair", pair, atom.indicator );
-			}
-			if()
-			obj[pair.args[0].id] = pair.args[1].toJavaScript();
-			pointer = pointer.args[1];
-		}
-	}*/
+	var exports = ["global/1", "apply/3", "apply/4", "prop/2", "prop/3", "get_prop/2", "get_prop/3", "set_prop/2", "set_prop/3", "new/3", "json_prolog/2", "json_atom/2", "ajax/3", "ajax/4"];	
 
 	// JS OBJECTS
 	function define_properties() {
+
 		// Is a JS object
 		pl.type.is_js_object = function( obj ) {
 			return obj instanceof pl.type.JSValue;
@@ -499,9 +482,31 @@ var pl;
 		};
 
 		// unify
-		pl.type.JSValue.prototype.unify = function(obj, _) {
+		pl.type.JSValue.prototype.unify = function(obj, occurs_check) {
 			if(pl.type.is_js_object(obj) && this.value === obj.value)
 				return new pl.type.Substitution();
+			if(pl.type.is_term(obj) && obj.indicator === "{}/1") {
+				var left = [], right = [];
+				var pointer = obj.args[0];
+				var props = [];
+				while(pl.type.is_term(pointer) && pointer.indicator === ",/2") {
+					props.push(pointer.args[0]);
+					pointer = pointer.args[1];
+				}
+				props.push(pointer);
+				for(var i = 0; i < props.length; i++) {
+					var bind = props[i];
+					if(!pl.type.is_term(bind) || bind.indicator !== ":/2")
+						return null;
+					var name = bind.args[0];
+					if(!pl.type.is_atom(name) || !this.value.hasOwnProperty(name.id))
+						return null;
+					var value = pl.fromJavaScript.apply(this.value[name.id]);
+					right.push(bind.args[1]);
+					left.push(value);
+				}
+				return pl.unify(left, right, occurs_check);
+			}
 			return null;
 		};
 
@@ -530,8 +535,6 @@ var pl;
 		pl.fromJavaScript.conversion.any = function( obj ) {
 			return new pl.type.JSValue( obj );
 		};
-
-
 
 		// JavaScript error
 		pl.error.javascript = function( error, indicator ) {
