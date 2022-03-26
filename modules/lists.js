@@ -179,17 +179,31 @@ var pl;
 			// length/2
 			"length/2": function( thread, point, atom ) {
 				var list = atom.args[0], length = atom.args[1];
-				if( !pl.type.is_variable( length ) && !pl.type.is_integer( length ) ) {
-					thread.throw_error( pl.error.type( "integer", length, atom.indicator ) );
-				} else if( !pl.type.is_variable( list ) && !pl.type.is_fully_list( list ) ) {
-					thread.throw_error( pl.error.type( "list", list, atom.indicator ) );
-				} else if( pl.type.is_integer( length ) && length.value < 0 ) {
-					thread.throw_error( pl.error.domain( "not_less_than_zero", length, atom.indicator ) );
+				if(!pl.type.is_variable(length) && !pl.type.is_integer(length)) {
+					thread.throw_error(pl.error.type("integer", length, atom.indicator));
+				} else if(pl.type.is_integer(length) && length.value < 0) {
+					thread.throw_error(pl.error.domain("not_less_than_zero", length, atom.indicator));
 				} else {
+					if(!pl.type.is_variable(length)) {
+						var max_length = 0;
+						var pointer = list;
+						while(pl.type.is_term(pointer) && pointer.indicator == "./2") {
+							max_length++;
+							pointer = pointer.args[1];
+						}
+						if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer))
+							return;
+						if(pl.type.is_integer(length) && max_length > length)
+							return;
+					}
 					var newgoal = new pl.type.Term("length", [list, new pl.type.Num(0, false), length]);
-					if( pl.type.is_integer( length ) )
-						newgoal = new pl.type.Term( ",", [newgoal, new pl.type.Term( "!", [] )] );
-					thread.prepend( [new pl.type.State(point.goal.replace(newgoal), point.substitution, point)] );
+					if(pl.type.is_integer(length))
+						newgoal = new pl.type.Term(",", [newgoal, new pl.type.Term("!", [])]);
+					thread.prepend([
+						new pl.type.State(point.goal.replace(newgoal),
+						point.substitution,
+						point)
+					]);
 				}
 			},
 			
