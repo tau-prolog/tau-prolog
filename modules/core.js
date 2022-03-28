@@ -2415,18 +2415,27 @@
 	// Select term
 	Term.prototype.select = function() {
 		var pointer = this;
-		while(pl.type.is_term(pointer) && pointer.indicator === ",/2")
-			pointer = pointer.args[0];
+		while(true) {
+			if(pl.type.is_term(pointer) && pointer.indicator === ":/2")
+				pointer = pointer.args[1];
+			if(pl.type.is_term(pointer) && pointer.indicator === ",/2")
+				pointer = pointer.args[0];
+			else
+				break;
+		}
 		return pointer;
 	};
 	
 	// Replace term
 	Term.prototype.replace = function( expr ) {
-		if( this.indicator === ",/2" ) {
-			if( this.args[0].indicator === ",/2" ) {
-				return new Term( ",", [this.args[0].replace( expr ), this.args[1]] );
+		var pointer = this;
+		if(pointer.indicator === ":/2")
+			pointer = pointer.args[1];
+		if(pointer.indicator === ",/2") {
+			if(pointer.args[0].indicator === ",/2") {
+				return new Term(",", [this.args[0].replace(expr), this.args[1]]);
 			} else {
-				return expr === null ? this.args[1] : new Term( ",", [expr, this.args[1]] );
+				return expr === null ? this.args[1] : new Term(",", [expr, this.args[1]]);
 			}
 		} else {
 			return expr;
@@ -2954,6 +2963,10 @@
 		return this.thread.lookup_module(atom, context_module);
 	};
 	Thread.prototype.lookup_module = function(atom) {
+		// system module
+		var get_module = this.session.modules.system;
+		if(get_module.rules.hasOwnProperty(atom.indicator) && get_module.exports_predicate(atom.indicator))
+			return get_module;
 		// module of parent clause
 		if(atom.parent_clause && atom.parent_clause.definition_module) {
 			var get_module = atom.parent_clause.definition_module;
@@ -5774,7 +5787,7 @@
         	false ; '$flush_global_stack'(Var, Instances, Tail).
 		*/
 
-		"findall/4": function(thread, point, atom) {
+		"findall/4": function findall_4(thread, point, atom) {
 			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2], tail = atom.args[3];
 			var proper_goal = goal;
 			if(pl.type.is_term(goal) && goal.indicator === ":/2")
@@ -5789,17 +5802,18 @@
 				thread.throw_error(pl.error.type("list", tail, atom.indicator));
 			} else {
 				var v = thread.next_free_variable();
-				thread.prepend([new State(
-					point.goal.replace(new Term(";", [
+				var goal = new Term(";", [
+					new Term(",", [
+						new Term("call", [goal]),
 						new Term(",", [
-							new Term("call", [goal]),
-							new Term(",", [
-								new Term("$push_global_stack", [v, template]),
-								new Term("false", [])
-							])
-						]),
-						new Term("$flush_global_stack", [v, instances, tail])
-					])),
+							new Term("$push_global_stack", [v, template]),
+							new Term("false", [])
+						])
+					]),
+					new Term("$flush_global_stack", [v, instances, tail])
+				]);
+				thread.prepend([new State(
+					point.goal.replace(goal),
 					point.substitution,
 					point
 				)]);
