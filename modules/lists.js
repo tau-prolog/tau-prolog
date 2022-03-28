@@ -177,7 +177,7 @@ var pl;
 			],
 			
 			// length/2
-			"length/2": function( thread, point, atom ) {
+			"length/2": function length_2(thread, point, atom) {
 				var list = atom.args[0], length = atom.args[1];
 				if(!pl.type.is_variable(length) && !pl.type.is_integer(length)) {
 					thread.throw_error(pl.error.type("integer", length, atom.indicator));
@@ -196,11 +196,15 @@ var pl;
 						if(pl.type.is_integer(length) && max_length > length)
 							return;
 					}
-					var newgoal = new pl.type.Term("length", [list, new pl.type.Num(0, false), length]);
-					if(pl.type.is_integer(length))
-						newgoal = new pl.type.Term(",", [newgoal, new pl.type.Term("!", [])]);
+					var zero = new pl.type.Num(0, false);
+					var goal = new pl.type.Term("length", [list, zero, length]);
+					if(pl.type.is_integer(length)) {
+						var cut = new pl.type.Term("!", []);
+						goal = new pl.type.Term(",", [newgoal, cut]);
+					}
+					goal.attach_parent_clause(length_2);
 					thread.prepend([
-						new pl.type.State(point.goal.replace(newgoal),
+						new pl.type.State(point.goal.replace(goal),
 						point.substitution,
 						point)
 					]);

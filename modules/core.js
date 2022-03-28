@@ -1594,13 +1594,15 @@
 	
 	// Terms
 	var term_ref = 0;
-	function Term( id, args, ref ) {
+	function Term(id, args, parent_clause, ref) {
 		term_ref++;
-		this.ref = ref || term_ref;
 		this.id = id;
+		this.ref = ref || term_ref;
+		this.parent_clause = parent_clause || null;
 		this.args = args || [];
 		this.indicator = id + "/" + this.args.length;
 	}
+	var TOP_LEVEL = new Term("top_level", []);
 
 	// Streams
 	var stream_ref = 0;
@@ -1629,36 +1631,47 @@
 	}
 	
 	// States
-	function State( goal, subs, parent ) {
+	function State(goal, subs, parent) {
 		subs = subs || new Substitution();
 		parent = parent || null;
 		this.goal = goal;
 		this.substitution = subs;
 		this.parent = parent;
+		this.definition_module = null;
+		this.leftmost_atom = null;
 	}
 	
 	// Rules
-	function Rule( head, body, dynamic ) {
+	function Rule(head, body, dynamic, definition_module) {
 		this.head = head;
 		this.body = body;
 		this.dynamic = dynamic ? dynamic : false;
+		this.definition_module = definition_module || null;
+		// attach parent information to terms
+		if(body)
+			body.attach_parent_clause(this);
 	}
 
+	Term.prototype.attach_parent_clause = function(clause) {
+		this.parent_clause = clause;
+		if(this.indicator === ",/2" || this.indicator === ";/2" || this.indicator === "->/2") {
+			this.args[0].attach_parent_clause(clause);
+			this.args[1].attach_parent_clause(clause);
+		}
+	};
+
 	// Session
-	function Session( limit ) {
+	function Session(limit) {
 		limit = typeof limit === "number" && limit > 0 ? limit : null;
 		this.rename = 0;
 		this.modules = {};
+		this.modules.system = pl.modules.system,
 		this.modules.user = new Module("user", {}, "all", {
 			session: this,
 			dependencies: ["system"]
 		});
-		this.modules.system = pl.modules.system;
-		this.rules = this.modules.user.rules;
 		this.total_threads = 0;
 		this.renamed_variables = {};
-		this.public_predicates = this.modules.user.public_predicates;
-		this.multifile_predicates = this.modules.user.multifile_predicates;
 		this.limit = limit;
 		this.streams = {
 			"user_input": new Stream(
@@ -1735,7 +1748,7 @@
 		this.points = [];
 		this.debugger = false;
 		this.debugger_states = [];
-		this.level = new Term("top_level");
+		this.level = TOP_LEVEL;
 		this.current_limit = this.session.limit;
 		this.has_limit = this.session.limit !== null;
 		this.warnings = [];
@@ -1777,6 +1790,15 @@
 				this.public_predicates[exports[i]] =
 					options.public_predicates.hasOwnProperty(exports[i]) &&
 					options.public_predicates[exports[i]] === true;
+			}
+		}
+		// add definition module
+		for(var indicator in rules) {
+			if(Array.isArray(this.rules[indicator])) {
+				for(var i = 0; i < this.rules[indicator].length; i++)
+					this.rules[indicator][i].definition_module = this;
+			} else {
+				this.rules[indicator].definition_module = this;
 			}
 		}
 	}
@@ -2045,11 +2067,9 @@
 	
 	// Terms
 	Term.prototype.clone = function() {
-		var term = new Term( this.id, map( this.args, function( arg ) {
+		var term = new Term(this.id, map(this.args, function(arg) {
 			return arg.clone();
-		} ) );
-		if(this.definition_module)
-			term.definition_module = this.definition_module;
+		}));
 		return term;
 	};
 
@@ -2084,7 +2104,11 @@
 	
 	// Rules
 	Rule.prototype.clone = function() {
-		return new Rule( this.head.clone(), this.body !== null ? this.body.clone() : null );
+		return new Rule(
+			this.head.clone(),
+			this.body !== null ? this.body.clone() : null,
+			this.dynamic,
+			this.definition_module);
 	};
 	
 	
@@ -2205,7 +2229,7 @@
 		}
 		/*if(eq)
 			return this;*/
-		return new Term(this.id, args);
+		return new Term(this.id, args, this.parent_clause);
 	};
 
 	// Streams
@@ -2215,7 +2239,11 @@
 	
 	// Rules
 	Rule.prototype.rename = function( thread ) {
-		return new Rule( this.head.rename( thread ), this.body !== null ? this.body.rename( thread ) : null );
+		return new Rule(
+			this.head.rename(thread),
+			this.body !== null ? this.body.rename(thread) : null,
+			this.dynamic,
+			this.definition_module);
 	};
 
 
@@ -2349,7 +2377,7 @@
 		}
 		if(eq)
 			return this;
-		return new Term(this.id, args, this.ref);
+		return new Term(this.id, args, this.parent_clause, this.ref);
 	};
 
 	// Streams
@@ -2592,7 +2620,7 @@
 		var module_id, get_module;
 		if(pl.type.is_term(rule.head) && rule.head.indicator === ":/2") {
 			if(!pl.type.is_atom(rule.head.args[0])) {
-				this.throw_warning(pl.error.type("module", rule.head.args[0], "top_level/0"));
+				this.throw_warning(pl.error.type("module", rule.head.args[0], TOP_LEVEL.indicator));
 				return;
 			}
 			module_id = rule.head.args[0].id;
@@ -2612,6 +2640,7 @@
 			get_module.rules[rule.head.indicator] = [];
 		}
 		get_module.rules[rule.head.indicator].push(rule);
+		rule.definition_module = get_module;
 		if(!get_module.public_predicates.hasOwnProperty(rule.head.indicator))
 			get_module.public_predicates[rule.head.indicator] = false;
 		return true;
@@ -2795,7 +2824,7 @@
 					break;
 			}
 		} else {
-			opts.error(pl.error.existence("source_sink", new Term(string), "top_level/0"));
+			opts.error(pl.error.existence("source_sink", new Term(string), TOP_LEVEL.indicator));
 		}
 		this.warnings = [];
 		parseProgram(this, string, opts);
@@ -2808,7 +2837,7 @@
 	Thread.prototype.query = function(string, options) {
 		this.points = [];
 		this.debugger_states = [];
-		this.level = new Term("top_level");
+		this.level = TOP_LEVEL;
 		return parseQuery(this, string, options);
 	};
 	
@@ -2923,38 +2952,47 @@
 	// Get the module of a predicate
 	Session.prototype.lookup_module = function(atom, context_module) {
 		return this.thread.lookup_module(atom, context_module);
-	}
-	Thread.prototype.lookup_module = function(atom, context_module) {
-		var get_module = this.session.modules[context_module];
-		if(!pl.type.is_module(get_module))
-			get_module = this.session.modules.user;
-		if(get_module.rules.hasOwnProperty(atom.indicator) && (
-			get_module.exports_predicate(atom.indicator) ||
-			get_module.rules.hasOwnProperty(this.level.indicator) ||
-			context_module === get_module.id))
+	};
+	Thread.prototype.lookup_module = function(atom) {
+		// module of parent clause
+		if(atom.parent_clause && atom.parent_clause.definition_module) {
+			var get_module = atom.parent_clause.definition_module;
+			if(get_module.rules.hasOwnProperty(atom.indicator))
 				return get_module;
-		get_module.modules.system = pl.modules.system;
-		get_module.modules.user = this.session.modules.user;
-		for(var prop in get_module.modules) {
+		}
+		// current level
+		if(atom.parent_clause && atom.parent_clause.definition_module) {
+			var get_module = atom.parent_clause.definition_module;
+			if(get_module.rules.hasOwnProperty(atom.indicator))
+				return get_module;
+		}
+		// context module
+		if(atom.context_module && this.session.modules[atom.context_module]) {
+			var get_module = this.session.modules[atom.context_module];
+			if(get_module.rules.hasOwnProperty(atom.indicator))
+				return get_module;
+		}
+		// user module
+		var get_module = this.session.modules.user;
+		if(get_module.rules.hasOwnProperty(atom.indicator) && get_module.exports_predicate(atom.indicator))
+			return get_module;
+		// any module
+		for(var prop in this.session.modules) {
 			if(!this.session.modules.hasOwnProperty(prop))
 				continue;
-			var get_module = this.session.modules[prop];
-			if(get_module.rules.hasOwnProperty(atom.indicator) && (
-				get_module.exports_predicate(atom.indicator) ||
-				get_module.rules.hasOwnProperty(this.level.indicator) ||
-				context_module === get_module.id))
-					return get_module;
+			get_module = this.session.modules[prop];
+			if(get_module.rules.hasOwnProperty(atom.indicator) && get_module.exports_predicate(atom.indicator))
+				return get_module;
 		}
 		return null;
 	};
 
 	// Expand a meta-predicate
-	Session.prototype.expand_meta_predicate = function(atom, definition_module, context_module) {
-		return this.thread.expand_meta_predicate(atom, definition_module, context_module);
+	Session.prototype.expand_meta_predicate = function(atom, get_module, context_module) {
+		return this.thread.expand_meta_predicate(atom, get_module, context_module);
 	};
-	Thread.prototype.expand_meta_predicate = function(atom, definition_module, context_module) {
-		var get_module = this.session.modules[definition_module];
-		if(!get_module)
+	Thread.prototype.expand_meta_predicate = function(atom, get_module, context_module) {
+		if(get_module === null)
 			return;
 		var meta = get_module.is_meta_predicate(atom.indicator);
 		if(!meta)
@@ -2994,21 +3032,31 @@
 		if(this.debugger)
 			this.debugger_states.push(point);
 		var atom = pl.type.is_term(point.goal) ? point.goal.select() : point.goal;
+		point.leftmost_atom = atom;
 		if(pl.type.is_term(atom) && (atom.indicator !== ":/2" || pl.type.is_term(atom.args[1]))) {
 			var context_module = null;
+			var parent_definition_module = null;
 			var states = [];
 			if(atom !== null) {
 				this.total_steps++;
-				var level = point;
-				while(level.parent !== null && level.parent.goal.search(atom))
-					level = level.parent;
-				if(level.parent === null) {
-					this.level = new Term("top_level");
+				// current level
+				if(atom.parent_clause && pl.type.is_rule(atom.parent_clause)) {
+					this.level = atom.parent_clause.head;
+					parent_definition_module = atom.parent_clause.definition_module;
 				} else {
-					this.level = level.parent.goal.select();
-					if(this.level.indicator === ":/2")
-						this.level = this.level.args[1];
+					var level = point;
+					while(level.parent !== null && level.parent.goal.search(atom))
+						level = level.parent;
+					if(level.parent === null) {
+						this.level = TOP_LEVEL;
+					} else {
+						this.level = level.parent.leftmost_atom;
+						parent_definition_module = level.parent.definition_module;
+						if(this.level.indicator === ":/2")
+							this.level = this.level.args[1];
+					}
 				}
+				// current context module
 				if(pl.type.is_term(atom) && atom.indicator === ":/2") {
 					context_module = atom.args[0];
 					atom = atom.args[1];
@@ -3018,40 +3066,27 @@
 					}
 					context_module = context_module.id;
 				} else {
-					if(this.level.definition_module) {
-						context_module = this.level.definition_module;
-					} else {
+					if(parent_definition_module !== null)
+						context_module = parent_definition_module.id;
+					else
 						context_module = "user";
-					}
 				}
 				atom.context_module = context_module;
-				if(atom.indicator === ",/2") {
-					this.prepend([new State(
-						point.goal.replace(new Term(",", [
-							new Term(":", [new Term(context_module), atom.args[0]]),
-							new Term(":", [new Term(context_module), atom.args[1]])])),
-						point.substitution,
-						point
-					)]);
-					return;
-				}
 				this.__call_indicator = atom.indicator;
-				var get_module = this.lookup_module(atom, context_module);
-				atom.definition_module = pl.type.is_module(get_module) ? get_module.id : "user";
-				this.expand_meta_predicate(atom, atom.definition_module, context_module);
+				var get_module = this.lookup_module(atom);
+				point.definition_module = get_module;
+				this.expand_meta_predicate(atom, get_module, context_module);
 				var get_rules = get_module === null ? null : get_module.rules[atom.indicator];
 				if(get_rules === null) {
-					if(!this.session.modules.user.rules.hasOwnProperty(atom.indicator)) {
-						if(this.get_flag("unknown").id === "error") {
-							this.throw_error( pl.error.existence( "procedure", atom.indicator, this.level.indicator));
-						} else if(this.get_flag("unknown").id === "warning") {
-							this.throw_warning("unknown procedure " + atom.indicator + " (from " + this.level.indicator + ")");
-						}
+					if(this.get_flag("unknown").id === "error") {
+						this.throw_error(pl.error.existence("procedure", atom.indicator, this.level.indicator));
+					} else if(this.get_flag("unknown").id === "warning") {
+						this.throw_warning("unknown procedure " + atom.indicator + " (from " + this.level.indicator + ")");
 					}
 				} else if(get_rules instanceof Function) {
 					asyn = get_rules(this, point, atom);
 				} else {
-					// Goal expansion
+					// goal expansion
 					if(this.__goal_expansion && atom.indicator === "goal_expansion/2")
 						get_rules = get_rules.concat(pl.builtin.rules["goal_expansion/2"]);
 					for(var _rule in get_rules) {
@@ -3059,18 +3094,17 @@
 							continue;
 						var rule = get_rules[_rule];
 						this.session.renamed_variables = {};
-						rule = rule.rename( this );
+						rule = rule.rename(this);
 						var occurs_check = this.get_flag("occurs_check").indicator === "true/0";
 						var state = new State();
-						var mgu = pl.unify( atom, rule.head, occurs_check );
+						var mgu = pl.unify(atom, rule.head, occurs_check);
 						if(mgu !== null) {
-							state.goal = point.goal.replace( rule.body );
-							if( state.goal !== null ) {
+							state.goal = point.goal.replace(rule.body);
+							if(state.goal !== null)
 								state.goal = state.goal.apply(mgu);
-							}
 							state.substitution = point.substitution.apply(mgu);
 							state.parent = point;
-							states.push( state );
+							states.push(state);
 						}
 					}
 					this.prepend(states);
