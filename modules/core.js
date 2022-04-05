@@ -1734,7 +1734,6 @@
 		this.format_error = session.format_error;
 		this.total_steps = 0;
 		this.cpu_time = 0;
-		this.cpu_time_last = 0;
 		this.points = [];
 		this.debugger = false;
 		this.debugger_states = [];
@@ -3190,7 +3189,6 @@
 		return this.thread.again(reset_limit);
 	};
 	Thread.prototype.again = function(reset_limit) {
-		var t0 = Date.now();
 		while(this.__calls.length > 0) {
 			this.warnings = [];
 			if(reset_limit !== false)
@@ -3198,12 +3196,13 @@
 			while((!this.has_limit || this.current_limit > 0) && this.points.length > 0 && this.head_point().goal !== null && !pl.type.is_error_state(this.head_point())) {
 				if(this.has_limit)
 					this.current_limit--;
-				if(this.step() === true)
+				var t0 = Date.now();
+				var asyn = this.step();
+				var t1 = Date.now();
+				this.cpu_time += t1-t0;
+				if(asyn === true)
 					return;
 			}
-			var t1 = Date.now();
-			this.cpu_time_last = t1-t0;
-			this.cpu_time += this.cpu_time_last;
 			var call = this.__calls.shift();
 			// limit of inferences
 			if(this.has_limit && this.current_limit <= 0) {

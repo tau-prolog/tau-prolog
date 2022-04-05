@@ -12,9 +12,9 @@ var pl;
 			
 			// statistics/0
 			"statistics/0": function( thread, point, atom ) {
-				var stats = "% Tau Prolog statistics";
+				var stats = "% Tau Prolog statistics\n";
 				for(var x in statistics)
-					stats += "\n%%% " + x + ": " + statistics[x](thread).toString();
+					stats += "%%% " + x + ": " + statistics[x](thread).toString() + "\n";
 				thread.prepend([new pl.type.State(
 					point.goal.replace(new pl.type.Term("write", [new pl.type.Term(stats)])),
 					point.substitution,
@@ -114,11 +114,6 @@ var pl;
 				total += module.exports.length;
 			}
 			return new pl.type.Num( total, false );
-		},
-		
-		// [CPU time, CPU time since last]
-		runtime: function( thread ) {
-			return new pl.type.Term( ".", [new pl.type.Num( thread.cpu_time, false ), new pl.type.Term( ".", [new pl.type.Num( thread.cpu_time_last, false ), new pl.type.Term( "[]", [] )] )] );
 		},
 		
 		// Total number of threads in current session
