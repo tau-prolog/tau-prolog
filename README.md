@@ -42,7 +42,7 @@ session.consult(`
 ```
 or
 ```javascript
-session.consult("path/to/src.pl" {
+session.consult("path/to/src.pl", {
     success: function() { /* Program loaded correctly */ },
     error: function(err) { /* Error parsing program */ }
 });
