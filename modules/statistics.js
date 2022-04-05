@@ -99,8 +99,11 @@ var pl;
 		},
 		
 		// Total number of defined modules
-		modules:  function( thread ) {
-			return new pl.type.Num( thread.session.modules.length, false );
+		modules:  function(thread) {
+			var nb_modules = 0;
+			for(var _module_id in thread.session.modules)
+				nb_modules++;
+			return new pl.type.Num(nb_modules, false);
 		},
 		
 		// Total number of predicates
