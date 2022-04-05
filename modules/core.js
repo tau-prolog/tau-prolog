@@ -1526,6 +1526,7 @@
 			for(var i = 0; i < get_module.rules[indicator].length; i++) {
 				if(get_module.rules[indicator][i] === rule) {
 					get_module.rules[indicator].splice(i, 1);
+					get_module.update_indices_predicate(indicator);
 					thread.success( point );
 					break;
 				}
@@ -1590,6 +1591,7 @@
 	function Num( value, is_float ) {
 		this.is_float = is_float !== undefined ? is_float : Math.trunc(value) !== value;
 		this.value = this.is_float ? value : Math.trunc(value);
+		this.index = this.value;
 	}
 	
 	// Terms
@@ -1600,6 +1602,7 @@
 		this.id = id;
 		this.args = args || [];
 		this.indicator = id + "/" + this.args.length;
+		this.index = this.indicator;
 	}
 
 	// Streams
@@ -1754,6 +1757,8 @@
 		options.dependencies = options.dependencies === undefined ? [] : options.dependencies;
 		this.id = id;
 		this.rules = rules;
+		this.indexed_clauses = {};
+		this.non_indexable_clauses = {};
 		this.public_predicates = options.public_predicates;
 		this.multifile_predicates = options.multifile_predicates;
 		this.meta_predicates = options.meta_predicates;
@@ -1779,6 +1784,7 @@
 					options.public_predicates[exports[i]] === true;
 			}
 		}
+		this.update_indices_clauses();
 	}
 	
 	// Check if a predicate is exported
@@ -1801,6 +1807,42 @@
 		if(this.meta_predicates.hasOwnProperty(indicator))
 			return this.meta_predicates[indicator];
 		return null;
+	};
+
+	// Update indices of all predicates
+	Module.prototype.update_indices_clauses = function() {
+		this.indexed_clauses = {};
+		this.non_indexable_clauses = {};
+		for(var indicator in this.rules)
+			this.update_indices_predicate(indicator);
+	};
+
+	// Update indices of a predicate
+	Module.prototype.update_indices_predicate = function(indicator) {
+		this.indexed_clauses[indicator] = {};
+		this.non_indexable_clauses[indicator] = [];
+		if(!Array.isArray(this.rules[indicator]))
+			return;
+		for(var i = 0; i < this.rules[indicator].length; i++) {
+			var clause = this.rules[indicator][i];
+			var index = clause.head.args.length > 0 ? clause.head.args[0].index : undefined;
+			if(index) {
+				if(!this.indexed_clauses.hasOwnProperty(indicator))
+					this.indexed_clauses[indicator] = {};
+				if(!this.indexed_clauses[indicator].hasOwnProperty(index)) {
+					this.indexed_clauses[indicator][index] = [];
+					for(var j = 0; j < this.non_indexable_clauses.length; j++)
+						this.indexed_clauses[indicator][index].push(this.non_indexable_clauses[j]);
+				}
+				this.indexed_clauses[indicator][index].push(clause);
+			} else {
+				if(!this.non_indexable_clauses.hasOwnProperty(indicator))
+					this.non_indexable_clauses[indicator] = [];
+				this.non_indexable_clauses[indicator].push(clause);
+				for(var index in this.indexed_clauses[indicator])
+					this.indexed_clauses[indicator][index].push(clause);
+			}
+		}
 	};
 
 
@@ -2614,6 +2656,8 @@
 		get_module.rules[rule.head.indicator].push(rule);
 		if(!get_module.public_predicates.hasOwnProperty(rule.head.indicator))
 			get_module.public_predicates[rule.head.indicator] = false;
+		// update term indexing
+		get_module.update_indices_predicate(rule.head.indicator);
 		return true;
 	};
 
@@ -3039,7 +3083,11 @@
 				var get_module = this.lookup_module(atom, context_module);
 				atom.definition_module = pl.type.is_module(get_module) ? get_module.id : "user";
 				this.expand_meta_predicate(atom, atom.definition_module, context_module);
-				var get_rules = get_module === null ? null : get_module.rules[atom.indicator];
+				var get_rules = null;
+				if(get_module && atom.args.length > 0 && atom.args[0].index && get_module.indexed_clauses.hasOwnProperty(atom.indicator) && get_module.indexed_clauses[atom.indicator].hasOwnProperty(atom.args[0].index))
+					get_rules = get_module.indexed_clauses[atom.indicator][atom.args[0].index];
+				else
+					get_rules = get_module === null ? null : get_module.rules[atom.indicator];
 				if(get_rules === null) {
 					if(!this.session.modules.user.rules.hasOwnProperty(atom.indicator)) {
 						if(this.get_flag("unknown").id === "error") {
@@ -6600,6 +6648,7 @@
 						get_module.rules[head.indicator] = [];
 					get_module.public_predicates[head.indicator] = true;
 					get_module.rules[head.indicator] = [new Rule(head, body, true)].concat(get_module.rules[head.indicator]);
+					get_module.update_indices_predicate(head.indicator);
 					thread.success(point);
 				} else {
 					thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
@@ -6648,6 +6697,7 @@
 						get_module.rules[head.indicator] = [];
 					get_module.public_predicates[head.indicator] = true;
 					get_module.rules[head.indicator].push(new Rule(head, body, true));
+					get_module.update_indices_predicate(head.indicator);
 					thread.success(point);
 				} else {
 					thread.throw_error(pl.error.permission("modify", "static_procedure", str_indicator(head.indicator), atom.indicator));
@@ -6802,6 +6852,8 @@
 					&& indicator !== ",/2"
 					&& !thread.session.modules.system.rules.hasOwnProperty(indicator)) {
 						delete get_module.rules[indicator];
+						delete get_module.indexed_clauses[indicator];
+						delete get_module.non_indexable_clauses[indicator];
 						delete get_module.public_predicates[indicator];
 						delete get_module.multifile_predicates[indicator];
 						thread.success(point);
