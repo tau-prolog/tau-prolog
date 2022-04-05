@@ -6,53 +6,9 @@ var pl;
 		return {
 			
 			// time/1
-			"time/1": function( thread, point, atom ) {
-				var goal = atom.args[0];
-				if( pl.type.is_variable( goal ) ) {
-					thread.throw_error( pl.error.instantiation( thread.level ) );
-				} else if( !pl.type.is_callable( goal ) ) {
-					thread.throw_error( pl.error.type( "callable", goal, thread.level ) );
-				} else {
-					var points = thread.points;
-					thread.points = [new pl.type.State( goal, point.substitution, point )];
-					var t0 = Date.now();
-					var c0 = pl.statistics.getCountTerms();
-					var i0 = thread.total_steps;
-					var format_success = thread.session.format_success;
-					var format_error = thread.session.format_error;
-					thread.session.format_success = function(x) { return x.substitution; };
-					thread.session.format_error = function(x) { return x.goal; };
-					var callback = function( answer ) {
-						var t1 = Date.now();
-						var c1 = pl.statistics.getCountTerms();
-						var i1 = thread.total_steps;
-						var newpoints = thread.points;
-						thread.points = points;
-						thread.session.format_success = format_success;
-						thread.session.format_error = format_error;
-						if( pl.type.is_error( answer ) ) {
-							thread.throw_error( answer.args[0] );
-						} else if( answer === null ) {
-							thread.points = points;
-							thread.prepend( [point] );
-							thread.__calls.shift()( null );
-						} else {
-							console.log( "% Tau Prolog: executed in " + (t1-t0) + " milliseconds, " + (c1-c0) + " atoms created, " + (i1-i0) + " resolution steps performed.");
-							if( answer !== false ) {
-								for( var i = 0; i < newpoints.length; i++ ) {
-									if( newpoints[i].goal === null )
-										newpoints[i].goal = new pl.type.Term( "true", [] );
-									newpoints[i].goal = point.goal.replace( new pl.type.Term( "time", [newpoints[i].goal] ) );
-								}
-								thread.points = points;
-								thread.prepend( newpoints );
-								thread.prepend( [ new pl.type.State( point.goal.apply(answer).replace(null), answer, point ) ] );
-							}
-						}
-					};
-					thread.__calls.unshift( callback );
-				}
-			},
+			"time/1": [
+				new pl.type.Rule(new pl.type.Term("time", [new pl.type.Var("Goal")]), new pl.type.Term(",", [new pl.type.Term("get_time", [new pl.type.Var("T0")]),new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal")]),new pl.type.Term(",", [new pl.type.Term("get_time", [new pl.type.Var("T1")]),new pl.type.Term(",", [new pl.type.Term("!", []),new pl.type.Term(",", [new pl.type.Term("is", [new pl.type.Var("T"),new pl.type.Term("-", [new pl.type.Var("T1"),new pl.type.Var("T0")])]),new pl.type.Term("write", [new pl.type.Var("T")])])])])])]))
+			],
 			
 			// statistics/0
 			"statistics/0": function( thread, point, atom ) {
