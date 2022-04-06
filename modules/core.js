@@ -1585,6 +1585,7 @@
 	// Variables
 	function Var( id ) {
 		this.id = id;
+		this.ground = false;
 	}
 	
 	// Numbers
@@ -1592,6 +1593,7 @@
 		this.is_float = is_float !== undefined ? is_float : Math.trunc(value) !== value;
 		this.value = this.is_float ? value : Math.trunc(value);
 		this.index = this.value;
+		this.ground = true;
 	}
 	
 	// Terms
@@ -1603,6 +1605,13 @@
 		this.args = args || [];
 		this.indicator = id + "/" + this.args.length;
 		this.index = this.indicator;
+		this.ground = true;
+		for(var i = 0; i < this.args.length; i++) {
+			if(this.args[i].hasOwnProperty("ground") && this.args[i].ground === false) {
+				this.ground = false;
+				break;
+			}
+		}
 	}
 
 	// Streams
@@ -2210,6 +2219,9 @@
 		// atom
 		/*if(this.args.length === 0)
 			return this;*/
+		// ground
+		if(this.ground)
+			return new Term(this.id, this.args);
 		// list
 		if( this.indicator === "./2" ) {
 			var arr = [], pointer = this;
@@ -2313,6 +2325,8 @@
 	
 	// Terms
 	Term.prototype.variables = function() {
+		if(this.ground)
+			return [];
 		return [].concat.apply( [], map( this.args, function( arg ) {
 			return arg.variables();
 		} ) );
@@ -2351,8 +2365,8 @@
 	
 	// Terms
 	Term.prototype.apply = function( subs ) {
-		// atom
-		if(this.args.length === 0)
+		// ground atom
+		if(this.ground)
 			return this;
 		// list
 		if( this.indicator === "./2" ) {
