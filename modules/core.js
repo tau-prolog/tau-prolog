@@ -1497,6 +1497,16 @@
 			list = new Term( ".", [array[i], list] );
 		return list;
 	}
+
+	// Array difference
+	function difference(xs, ys) {
+		var zs = [];
+		for(var i = 0; i < xs.length; i++) {
+			if(indexOf(zs, xs[i]) === -1 && indexOf(ys, xs[i]) === -1)
+				zs.push(xs[i]);
+		}
+		return zs;
+	}
 	
 	// Remove element from array
 	function remove( array, element ) {
@@ -5167,7 +5177,53 @@
 			}
 		},
 
+		// '$free_variable_set'/3
+		"$free_variable_set/3": function(thread, point, atom) {
+			var goal_in = atom.args[0], goal_out = atom.args[1], vars = atom.args[2];
+			var bv = [];
+			var pointer = goal_in;
+			while(pl.type.is_term(pointer) && pointer.indicator === "^/2") {
+				bv = bv.concat(pointer.args[0].variables());
+				pointer = pointer.args[1];
+			}
+			var gv = pointer.variables();
+			var fv = arrayToList(map(difference(gv, bv), function(v) {
+				return new Var(v);
+			}));
+			thread.prepend([
+				new State(
+					point.goal.replace(new Term(",", [
+						new Term("=", [goal_out, pointer]),
+						new Term("=", [vars, fv]) 
+					])),
+					point.substitution,
+					point
+				)
+			]);
+		},
 
+		// '$member'/2
+		"$member/2": [
+			new pl.type.Rule(new pl.type.Term("$member", [new pl.type.Var("X"),new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("_")])]), null),
+			new pl.type.Rule(new pl.type.Term("$member", [new pl.type.Var("X"),new pl.type.Term(".", [new pl.type.Var("_"),new pl.type.Var("Xs")])]), new pl.type.Term("$member", [new pl.type.Var("X"),new pl.type.Var("Xs")]))
+		],
+
+		// '$findall'/4
+		"$findall/4": [
+			new pl.type.Rule(new pl.type.Term("$findall", [new pl.type.Var("Template0"),new pl.type.Var("Goal0"),new pl.type.Var("Instances"),new pl.type.Var("Tail")]), new pl.type.Term(";", [new pl.type.Term(",", [new pl.type.Term("copy_term", [new pl.type.Term("-", [new pl.type.Var("Template0"),new pl.type.Var("Goal0")]),new pl.type.Term("-", [new pl.type.Var("Template1"),new pl.type.Var("Goal1")])]),new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal1")]),new pl.type.Term(",", [new pl.type.Term("$push_global_stack", [new pl.type.Var("Var"),new pl.type.Var("Template1")]),new pl.type.Term("false", [])])])]),new pl.type.Term("$flush_global_stack", [new pl.type.Var("Var"),new pl.type.Var("Instances"),new pl.type.Var("Tail")])]))
+		],
+
+		// '$bagof'/3
+		"$bagof/3": [
+			new pl.type.Rule(new pl.type.Term("$bagof", [new pl.type.Var("Template"),new pl.type.Var("Goal0"),new pl.type.Var("Answer")]), new pl.type.Term(",", [new pl.type.Term("$free_variable_set", [new pl.type.Term("^", [new pl.type.Var("Template"),new pl.type.Var("Goal0")]),new pl.type.Var("Goal1"),new pl.type.Var("FV")]),new pl.type.Term(",", [new pl.type.Term("findall", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Template")]),new pl.type.Var("Goal1"),new pl.type.Var("Answers"),new pl.type.Term("[]", [])]),new pl.type.Term(",", [new pl.type.Term("keygroup", [new pl.type.Var("Answers"),new pl.type.Var("KeyGroups")]),new pl.type.Term(",", [new pl.type.Term("keysort", [new pl.type.Var("KeyGroups"),new pl.type.Var("KeySorted")]),new pl.type.Term("$member", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Answer")]),new pl.type.Var("KeySorted")])])])])]))
+		],
+
+		// '$setof'/3
+		"$setof/3": [
+			new pl.type.Rule(new pl.type.Term("$setof", [new pl.type.Var("Template"),new pl.type.Var("Goal0"),new pl.type.Var("Answer")]), new pl.type.Term(",", [new pl.type.Term("$free_variable_set", [new pl.type.Term("^", [new pl.type.Var("Template"),new pl.type.Var("Goal0")]),new pl.type.Var("Goal1"),new pl.type.Var("FV")]),new pl.type.Term(",", [new pl.type.Term("findall", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Template")]),new pl.type.Var("Goal1"),new pl.type.Var("Answers"),new pl.type.Term("[]", [])]),new pl.type.Term(",", [new pl.type.Term("keygroup", [new pl.type.Var("Answers"),new pl.type.Var("KeyGroups")]),new pl.type.Term(",", [new pl.type.Term("keysort", [new pl.type.Var("KeyGroups"),new pl.type.Var("KeySorted")]),new pl.type.Term(",", [new pl.type.Term("$member", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Unsorted")]),new pl.type.Var("KeySorted")]),new pl.type.Term("sort", [new pl.type.Var("Unsorted"),new pl.type.Var("Answer")])])])])])]))
+		],
+
+		
 
 		// ATTRIBUTED VARIABLES
 		
@@ -5758,14 +5814,6 @@
 		},
 
 		// findall/4
-
-		/*
-		findall(Template, Goal, Instances, Tail) :-
-			call(Goal),
-    		'$push_global_stack'(Var, Template),
-        	false ; '$flush_global_stack'(Var, Instances, Tail).
-		*/
-
 		"findall/4": function(thread, point, atom) {
 			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2], tail = atom.args[3];
 			var proper_goal = goal;
@@ -5780,18 +5828,8 @@
 			} else if(!pl.type.is_variable(tail) && !pl.type.is_list(tail)) {
 				thread.throw_error(pl.error.type("list", tail, atom.indicator));
 			} else {
-				var v = thread.next_free_variable();
 				thread.prepend([new State(
-					point.goal.replace(new Term(";", [
-						new Term(",", [
-							new Term("call", [goal]),
-							new Term(",", [
-								new Term("$push_global_stack", [v, template]),
-								new Term("false", [])
-							])
-						]),
-						new Term("$flush_global_stack", [v, instances, tail])
-					])),
+					point.goal.replace(new Term("$findall", [template, goal, instances, tail])),
 					point.substitution,
 					point
 				)]);
@@ -5799,230 +5837,38 @@
 		},
 		
 		// bagof/3
-		"bagof/3": function( thread, point, atom ) {
+		"bagof/3": function(thread, point, atom) {
 			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
-			if( pl.type.is_variable( goal ) ) {
-				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_callable( goal ) ) {
-				thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
-			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
-				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
+			if(pl.type.is_variable(goal)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(goal)) {
+				thread.throw_error(pl.error.type("callable", goal, atom.indicator));
+			} else if(!pl.type.is_variable(instances) && !pl.type.is_list(instances)) {
+				thread.throw_error( pl.error.type("list", instances, atom.indicator));
 			} else {
-				if(!pl.type.is_variable(instances)) {
-					var pointer = instances;
-					while(pl.type.is_term(pointer) && pointer.indicator === "./2")
-						pointer = pointer.args[1];
-					if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
-						thread.throw_error(pl.error.type("list", instances, atom.indicator));
-						return;
-					}
-				}
-				thread.session.renamed_variables = {};
-				template = template.rename(thread);
-				goal = goal.rename(thread);
-				var variable = thread.next_free_variable();
-				var template_vars = [];
-				while( goal.indicator === "^/2" ) {
-					template_vars = template_vars.concat(goal.args[0].variables());
-					goal = goal.args[1];
-				}
-				template_vars = template_vars.concat( template.variables() );
-				var free_vars = goal.variables().filter( function( v ){
-					return indexOf( template_vars, v ) === -1;
-				} );
-				var list_vars = new Term( "[]" );
-				for( var i = free_vars.length - 1; i >= 0; i-- ) {
-					list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
-				}
-				var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
-				var nthread = new Thread(thread.session);
-				nthread.debugger = thread.debugger;
-				nthread.format_success = function(state) { return state.substitution; };
-				nthread.format_error = function(state) { return state.goal; };
-				nthread.add_goal( newGoal, true, point );
-				nthread.head_point().parent = point;
-				var answers = [];
-				var callback = function( answer ) {
-					if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-						var match = false;
-						var arg_vars = answer.links[variable.id].args[0];
-						var arg_template = answer.links[variable.id].args[1];
-						var var_template = arg_template.variables();
-						var sub_template = new Substitution();
-						for(var prop in answer.links) {
-							if(!answer.links.hasOwnProperty(prop))
-								continue;
-							var value = answer.links[prop];
-							var index = indexOf(var_template, value.id);
-							if(pl.type.is_variable(value) && index !== -1
-							&& !sub_template.links.hasOwnProperty(var_template[index])
-							&& indexOf(template_vars, prop) === -1
-							&& indexOf(free_vars, var_template[index]) === -1) {
-								sub_template.add(var_template[index], new Var(prop));
-							}
-						}
-						arg_vars = arg_vars.apply(sub_template);
-						arg_template = arg_template.apply(sub_template);
-						nthread.session.renamed_variables = {};
-						for( var _elem in answers ) {
-							if(!answers.hasOwnProperty(_elem)) continue;
-							var elem = answers[_elem];
-							if( pl.is_rename(elem.variables, arg_vars) ) {
-								elem.answers.push( arg_template.rename(nthread) );
-								match = true;
-								break;
-							}
-						}
-						if( !match )
-							answers.push( {variables: arg_vars, answers: [arg_template]} );
-						nthread.answer(callback);
-					} else {
-						reset_limit = true;
-						if( pl.type.is_error( answer ) ) {
-							thread.throw_error( answer.args[0] );
-						} else if( !nthread.has_limit || nthread.current_limit > 0 ) {
-							var states = [];
-							for( var i = 0; i < answers.length; i++ ) {
-								answer = answers[i].answers;
-								var list = arrayToList(answer);
-								states.push( new State(
-									point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
-									point.substitution,
-									point
-								) );
-							}
-							thread.prepend( states );
-						} else {
-							thread.prepend( [point] );
-							if(thread.has_limit)
-								thread.current_limit = 0;
-							reset_limit = false;
-						}
-						if(reset_limit && nthread.debugger)
-							thread.debugger_states = thread.debugger_states.concat(nthread.debugger_states);
-						thread.again(reset_limit);
-					}
-				};
-				nthread.answer(callback);
-				return true;
+				thread.prepend([new State(
+					point.goal.replace(new Term("$bagof", [template, goal, instances])),
+					point.substitution,
+					point
+				)]);
 			}
 		},
 
 		// setof/3
-		"setof/3": function( thread, point, atom ) {
+		"setof/3": function(thread, point, atom) {
 			var template = atom.args[0], goal = atom.args[1], instances = atom.args[2];
-			if( pl.type.is_variable( goal ) ) {
-				thread.throw_error( pl.error.instantiation( atom.indicator ) );
-			} else if( !pl.type.is_callable( goal ) ) {
-				thread.throw_error( pl.error.type( "callable", goal, atom.indicator ) );
-			} else if( !pl.type.is_variable( instances ) && !pl.type.is_list( instances ) ) {
-				thread.throw_error( pl.error.type( "list", instances, atom.indicator ) );
+			if(pl.type.is_variable(goal)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_callable(goal)) {
+				thread.throw_error(pl.error.type("callable", goal, atom.indicator));
+			} else if(!pl.type.is_variable(instances) && !pl.type.is_list(instances)) {
+				thread.throw_error( pl.error.type("list", instances, atom.indicator));
 			} else {
-				if(!pl.type.is_variable(instances)) {
-					var pointer = instances;
-					while(pl.type.is_term(pointer) && pointer.indicator === "./2")
-						pointer = pointer.args[1];
-					if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
-						thread.throw_error(pl.error.type("list", instances, atom.indicator));
-						return;
-					}
-				}
-				thread.session.renamed_variables = {};
-				template = template.rename(thread);
-				goal = goal.rename(thread);
-				var variable = thread.next_free_variable();
-				var template_vars = [];
-				while( goal.indicator === "^/2" ) {
-					template_vars = template_vars.concat(goal.args[0].variables());
-					goal = goal.args[1];
-				}
-				template_vars = template_vars.concat( template.variables() );
-				var free_vars = goal.variables().filter( function( v ){
-					return indexOf( template_vars, v ) === -1;
-				} );
-				var list_vars = new Term( "[]" );
-				for( var i = free_vars.length - 1; i >= 0; i-- ) {
-					list_vars = new Term( ".", [ new Var( free_vars[i] ), list_vars ] );
-				}
-				var newGoal = new Term( ",", [goal, new Term( "=", [variable, new Term( ",", [list_vars, template] )] )] );
-				var nthread = new Thread(thread.session);
-				nthread.debugger = thread.debugger;
-				nthread.format_success = function(state) { return state.substitution; };
-				nthread.format_error = function(state) { return state.goal; };
-				nthread.add_goal( newGoal, true, point );
-				nthread.head_point().parent = point;
-				var answers = [];
-				var callback = function( answer ) {
-					if( answer !== false && answer !== null && !pl.type.is_error( answer ) ) {
-						var match = false;
-						var arg_vars = answer.links[variable.id].args[0];
-						var arg_template = answer.links[variable.id].args[1];
-						var var_template = arg_template.variables();
-						var sub_template = new Substitution();
-						for(var prop in answer.links) {
-							if(!answer.links.hasOwnProperty(prop))
-								continue;
-							var value = answer.links[prop];
-							var index = indexOf(var_template, value.id);
-							if(pl.type.is_variable(value) && index !== -1
-							&& !sub_template.links.hasOwnProperty(var_template[index])
-							&& indexOf(template_vars, prop) === -1
-							&& indexOf(free_vars, var_template[index]) === -1) {
-								sub_template.add(var_template[index], new Var(prop));
-							}
-						}
-						arg_vars = arg_vars.apply(sub_template);
-						arg_template = arg_template.apply(sub_template);
-						nthread.session.renamed_variables = {};
-						for( var _elem in answers ) {
-							if(!answers.hasOwnProperty(_elem)) continue;
-							var elem = answers[_elem];
-							if( pl.is_rename(elem.variables, arg_vars) ) {
-								elem.answers.push( arg_template.rename(nthread) );
-								match = true;
-								break;
-							}
-						}
-						if( !match )
-							answers.push( {variables: arg_vars, answers: [arg_template]} );
-						nthread.answer(callback);
-					} else {
-						reset_limit = true;
-						if( pl.type.is_error( answer ) ) {
-							thread.throw_error( answer.args[0] );
-						} else if( !nthread.has_limit || nthread.current_limit > 0 ) {
-							var states = [];
-							for( var i = 0; i < answers.length; i++ ) {
-								var arr_sorted = answers[i].answers.sort( pl.compare );
-								var arr_filter = [];
-								var last = null;
-								for(var j = 0; j < arr_sorted.length; j++) {
-									if(!last || pl.compare(last, arr_sorted[j]) !== 0) {
-										last = arr_sorted[j];
-										arr_filter.push(last);
-									}
-								}
-								var list = arrayToList(arr_filter);
-								states.push( new State(
-									point.goal.replace( new Term( ",", [new Term( "=", [list_vars, answers[i].variables] ), new Term( "=", [instances, list] )] ) ),
-									point.substitution,
-									point
-								) );
-							}
-							thread.prepend( states );
-						} else {
-							thread.prepend( [point] );
-							if(thread.has_limit)
-								thread.current_limit = 0;
-							reset_limit = false;
-						}
-						if(reset_limit && nthread.debugger)
-							thread.debugger_states = thread.debugger_states.concat(nthread.debugger_states);
-						thread.again(reset_limit);
-					}
-				};
-				nthread.answer(callback);
-				return true;
+				thread.prepend([new State(
+					point.goal.replace(new Term("$setof", [template, goal, instances])),
+					point.substitution,
+					point
+				)]);
 			}
 		},
 		
@@ -6579,6 +6425,76 @@
 						delete sorted_arr[i].pair;
 					}
 					thread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( "=", [sorted_list, expected] ) ), point.substitution, point )] );
+				}
+			}
+		},
+
+		// keygroup
+		"keygroup/2": function(thread, point, atom) {
+			var list = atom.args[0], expected = atom.args[1];
+			if(pl.type.is_variable(list)) {
+				thread.throw_error(pl.error.instantiation(atom.indicator));
+			} else if(!pl.type.is_variable(expected) && !pl.type.is_fully_list(expected)) {
+				thread.throw_error(pl.error.type("list", expected, atom.indicator));
+			} else {
+				var keys = [];
+				var values = [];
+				var pointer = list
+				while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+					var elem = pointer.args[0];
+					if(pl.type.is_variable(elem)) {
+						thread.throw_error(pl.error.instantiation(atom.indicator));
+						return;
+					} else if(!pl.type.is_term(elem) || elem.indicator !== "-/2") {
+						thread.throw_error(pl.error.type("pair", elem, atom.indicator));
+						return;
+					}
+					var key = elem.args[0], value = elem.args[1];
+					var index = -1;
+					for(var i = 0; i < keys.length; i++) {
+						if(pl.compare(key, keys[i]) === 0) {
+							index = i;
+							break;
+						}
+					}
+					if(index === -1) {
+						index = keys.length;
+						keys.push(key);
+						values.push([]);
+					}
+					values[index].push(value);
+					pointer = pointer.args[1];
+				}
+				if(pl.type.is_variable(pointer)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_empty_list(pointer)) {
+					thread.throw_error(pl.error.type("list", list, atom.indicator));
+				} else {
+					if(!pl.type.is_variable(expected)) {
+						var pointer = expected;
+						while(pl.type.is_term(pointer) && pointer.indicator === "./2") {
+							var head = pointer.args[0];
+							if(!pl.type.is_variable(head) && (!pl.type.is_term(head) || head.indicator !== "-/2")) {
+								thread.throw_error(pl.error.type("pair", head, atom.indicator));
+								return;
+							}
+							pointer = pointer.args[1];
+						}
+						if(!pl.type.is_variable(pointer) && !pl.type.is_empty_list(pointer)) {
+							thread.throw_error(pl.error.type("list", expected, atom.indicator));
+							return;
+						}
+					}
+					group = new Term("[]", []);
+					for(var i = keys.length-1; i >= 0; i--)
+						group = new Term(".", [new Term("-", [keys[i], arrayToList(values[i])]), group]);
+					thread.prepend([
+						new State(
+							point.goal.replace(new pl.type.Term("=", [expected, group])),
+							point.substitution,
+							point
+						)
+					]);
 				}
 			}
 		},
