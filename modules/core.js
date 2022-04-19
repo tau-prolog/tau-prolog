@@ -2216,48 +2216,29 @@
 	
 	// Terms
 	Term.prototype.rename = function( thread ) {
-		// atom
-		/*if(this.args.length === 0)
-			return this;*/
 		// ground
 		if(this.ground)
 			return new Term(this.id, this.args);
 		// list
-		if( this.indicator === "./2" ) {
-			var arr = [], pointer = this;
-			var last_neq = -1, pointer_neq = null, i = 0;
-			while( pointer.indicator === "./2" ) {
+		if(this.indicator === "./2") {
+			var arr = [];
+			var pointer = this;
+			while(pointer.indicator === "./2" && !pointer.ground) {
 				var app = pointer.args[0].rename(thread);
-				var cmp = app == pointer.args[0];
 				arr.push(app);
 				pointer = pointer.args[1];
-				if(!cmp) {
-					last_neq = i;
-					pointer_neq = pointer;
-				}
-				i++;
 			}
 			var list = pointer.rename(thread);
-			var cmp = list == pointer;
-			if(last_neq === -1 && cmp)
-				return this;
-			var start = cmp ? last_neq : arr.length-1;
-			var list = cmp ? pointer_neq : list;
-			for(var i = start; i >= 0; i--) {
-				list = new Term( ".", [arr[i], list] );
-			}
+			for(var i = arr.length-1; i >= 0; i--)
+				list = new Term(".", [arr[i], list]);
 			return list;
 		}
 		// compound term
-		var eq = true;
 		var args = [];
 		for(var i = 0; i < this.args.length; i++) {
 			var app = this.args[i].rename(thread);
-			eq = eq && this.args[i] == app;
 			args.push(app);
 		}
-		/*if(eq)
-			return this;*/
 		return new Term(this.id, args);
 	};
 
@@ -2369,41 +2350,25 @@
 		if(this.ground)
 			return this;
 		// list
-		if( this.indicator === "./2" ) {
-			var arr = [], pointer = this;
-			var last_neq = -1, pointer_neq = null, i = 0;
-			while( pointer.indicator === "./2" ) {
+		if(this.indicator === "./2") {
+			var arr = [];
+			var pointer = this;
+			while(pointer.indicator === "./2" && !pointer.ground) {
 				var app = pointer.args[0].apply(subs);
-				var cmp = app == pointer.args[0];
 				arr.push(app);
 				pointer = pointer.args[1];
-				if(!cmp) {
-					last_neq = i;
-					pointer_neq = pointer;
-				}
-				i++;
 			}
 			var list = pointer.apply(subs);
-			var cmp = list == pointer;
-			if(last_neq === -1 && cmp)
-				return this;
-			var start = cmp ? last_neq : arr.length-1;
-			var list = cmp ? pointer_neq : list;
-			for(var i = start; i >= 0; i--) {
-				list = new Term( ".", [arr[i], list] );
-			}
+			for(var i = arr.length-1; i >= 0; i--)
+				list = new Term(".", [arr[i], list]);
 			return list;
 		}
 		// compound term
-		var eq = true;
 		var args = [];
 		for(var i = 0; i < this.args.length; i++) {
 			var app = this.args[i].apply(subs);
-			eq = eq && this.args[i] == app;
 			args.push(app);
 		}
-		if(eq)
-			return this;
 		return new Term(this.id, args, this.ref);
 	};
 
