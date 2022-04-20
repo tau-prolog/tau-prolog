@@ -1,5 +1,10 @@
 :- module(tau, ['$member'/2, '$findall'/4, '$bagof'/3, '$setof'/3]).
 
+:- meta_predicate
+    '$findall'(?, 0, -, ?),
+    '$bagof'(?, ^, -),
+    '$setof'(?, ^, -).
+
 %!  '$member'(?Element, ?List)
 %
 %   True if Element is a member of List.
@@ -23,7 +28,7 @@
 %   Unify Bag with the alternatives of Template for the goal Goal.
 
 '$bagof'(Template, Goal0, Answer) :-
-	'$free_variable_set'(Template^Goal0, Goal1, FV),
+    '$free_variable_set'(Template^Goal0, Goal1, FV),
     findall(FV-Template, Goal1, Answers, []),
     keygroup(Answers, KeyGroups),
     keysort(KeyGroups, KeySorted),
@@ -35,7 +40,7 @@
 %   list of alternatives without duplicates.
 
 '$setof'(Template, Goal0, Answer) :-
-	'$free_variable_set'(Template^Goal0, Goal1, FV),
+    '$free_variable_set'(Template^Goal0, Goal1, FV),
     findall(FV-Template, Goal1, Answers, []),
     keygroup(Answers, KeyGroups),
     keysort(KeyGroups, KeySorted),

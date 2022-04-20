@@ -5223,7 +5223,7 @@
 			new pl.type.Rule(new pl.type.Term("$setof", [new pl.type.Var("Template"),new pl.type.Var("Goal0"),new pl.type.Var("Answer")]), new pl.type.Term(",", [new pl.type.Term("$free_variable_set", [new pl.type.Term("^", [new pl.type.Var("Template"),new pl.type.Var("Goal0")]),new pl.type.Var("Goal1"),new pl.type.Var("FV")]),new pl.type.Term(",", [new pl.type.Term("findall", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Template")]),new pl.type.Var("Goal1"),new pl.type.Var("Answers"),new pl.type.Term("[]", [])]),new pl.type.Term(",", [new pl.type.Term("keygroup", [new pl.type.Var("Answers"),new pl.type.Var("KeyGroups")]),new pl.type.Term(",", [new pl.type.Term("keysort", [new pl.type.Var("KeyGroups"),new pl.type.Var("KeySorted")]),new pl.type.Term(",", [new pl.type.Term("$member", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Unsorted")]),new pl.type.Var("KeySorted")]),new pl.type.Term("sort", [new pl.type.Var("Unsorted"),new pl.type.Var("Answer")])])])])])]))
 		],
 
-		
+
 
 		// ATTRIBUTED VARIABLES
 		
@@ -8968,6 +8968,12 @@
 
 	}, "all", {
 		meta_predicates: {
+			// findall(?, 0, -, ?)
+			"$findall/4": new Term("$findall", [new Term("?"), new Num(0, false), new Term("-"), new Term("?")]),
+			// bagof(?, ^, -)
+			"$bagof/4": new Term("$bagof", [new Term("?"), new Term("^"), new Term("-")]),
+			// setof(?, ^, -)
+			"$setof/4": new Term("$setof", [new Term("?"), new Term("^"), new Term("-")]),
 			// (0;0)
 			";/2": new Term(";", [new Num(0, false), new Num(0, false)]),
 			// (0->0)
