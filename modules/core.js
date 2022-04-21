@@ -8968,12 +8968,12 @@
 
 	}, "all", {
 		meta_predicates: {
-			// findall(?, 0, -, ?)
+			// '$findall'(?, 0, -, ?)
 			"$findall/4": new Term("$findall", [new Term("?"), new Num(0, false), new Term("-"), new Term("?")]),
-			// bagof(?, ^, -)
-			"$bagof/4": new Term("$bagof", [new Term("?"), new Term("^"), new Term("-")]),
-			// setof(?, ^, -)
-			"$setof/4": new Term("$setof", [new Term("?"), new Term("^"), new Term("-")]),
+			// '$bagof'(?, ^, -)
+			"$bagof/3": new Term("$bagof", [new Term("?"), new Term("^"), new Term("-")]),
+			// '$setof'(?, ^, -)
+			"$setof/3": new Term("$setof", [new Term("?"), new Term("^"), new Term("-")]),
 			// (0;0)
 			";/2": new Term(";", [new Num(0, false), new Num(0, false)]),
 			// (0->0)
