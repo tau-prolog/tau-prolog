@@ -4,6 +4,7 @@
 [![twitter](https://img.shields.io/badge/twitter-%40tau__prolog-blue)](https://twitter.com/tau_prolog)
 [![license](https://img.shields.io/github/license/tau-prolog/tau-prolog?color=green)](http://tau-prolog.org/license)
 [![npm version](https://img.shields.io/npm/v/tau-prolog?color=red "npm version")](https://www.npmjs.com/tau-prolog)
+[![donate](https://img.shields.io/badge/donate-paypal-yellow)](https://www.paypal.com/donate/?hosted_button_id=JW48YT93SDLP8)
 
 # Tau Prolog
 
