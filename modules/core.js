@@ -3071,12 +3071,12 @@
 				var get_module = this.lookup_module(atom, context_module);
 				atom.definition_module = pl.type.is_module(get_module) ? get_module.id : "user";
 				this.expand_meta_predicate(atom, atom.definition_module, context_module);
-				var get_rules = null;
+				var clauses = null;
 				if(get_module && atom.args.length > 0 && atom.args[0].index && get_module.indexed_clauses.hasOwnProperty(atom.indicator) && get_module.indexed_clauses[atom.indicator].hasOwnProperty(atom.args[0].index))
-					get_rules = get_module.indexed_clauses[atom.indicator][atom.args[0].index];
+					clauses = get_module.indexed_clauses[atom.indicator][atom.args[0].index];
 				else
-					get_rules = get_module === null ? null : get_module.rules[atom.indicator];
-				if(get_rules === null) {
+					clauses = get_module === null ? null : get_module.rules[atom.indicator];
+				if(clauses === null) {
 					if(!this.session.modules.user.rules.hasOwnProperty(atom.indicator)) {
 						if(this.get_flag("unknown").id === "error") {
 							this.throw_error( pl.error.existence( "procedure", atom.indicator, this.level.indicator));
@@ -3084,29 +3084,25 @@
 							this.throw_warning("unknown procedure " + atom.indicator + " (from " + this.level.indicator + ")");
 						}
 					}
-				} else if(get_rules instanceof Function) {
-					asyn = get_rules(this, point, atom);
+				} else if(clauses instanceof Function) {
+					asyn = clauses(this, point, atom);
 				} else {
 					// Goal expansion
 					if(this.__goal_expansion && atom.indicator === "goal_expansion/2")
-						get_rules = get_rules.concat(pl.builtin.rules["goal_expansion/2"]);
-					for(var _rule in get_rules) {
-						if(!get_rules.hasOwnProperty(_rule))
-							continue;
-						var rule = get_rules[_rule];
+						clauses = clauses.concat(pl.builtin.rules["goal_expansion/2"]);
+					for(var i = 0; i < clauses.length; i++) {
 						this.session.renamed_variables = {};
-						rule = rule.rename( this );
+						var clause = clauses[i].rename(this);
 						var occurs_check = this.get_flag("occurs_check").indicator === "true/0";
-						var state = new State();
-						var mgu = pl.unify( atom, rule.head, occurs_check );
+						var mgu = pl.unify(atom, clause.head, occurs_check);
 						if(mgu !== null) {
-							state.goal = point.goal.replace( rule.body );
-							if( state.goal !== null ) {
+							var state = new State();
+							state.goal = point.goal.replace(clause.body);
+							if(state.goal !== null)
 								state.goal = state.goal.apply(mgu);
-							}
 							state.substitution = point.substitution.apply(mgu);
 							state.parent = point;
-							states.push( state );
+							states.push(state);
 						}
 					}
 					this.prepend(states);
