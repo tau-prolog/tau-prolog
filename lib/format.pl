@@ -448,5 +448,9 @@ unique_variable_names(Term, VNs) :-
         term_variables(Term, Vs),
         foldl(var_name, Vs, VNs, 0, _).
 
+var_name(V, Name=V, Num0, Num) :-
+        charsio:fabricate_var_name(numbervars, Name, Num0),
+        Num is Num0 + 1.
+
 seq([]) --> [].
 seq([E|Es]) --> [E], seq(Es).

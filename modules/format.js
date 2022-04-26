@@ -111,6 +111,9 @@ var pl;
 			"seq/3": [
 				new pl.type.Rule(new pl.type.Term("seq", [new pl.type.Term("[]", []),new pl.type.Var("_32563"),new pl.type.Var("_32563")]), new pl.type.Term("true", [])),
 				new pl.type.Rule(new pl.type.Term("seq", [new pl.type.Term(".", [new pl.type.Var("_32345"),new pl.type.Var("_32332")]),new pl.type.Term(".", [new pl.type.Var("_32345"),new pl.type.Var("_32565")]),new pl.type.Var("_32566")]), new pl.type.Term("seq", [new pl.type.Var("_32332"),new pl.type.Var("_32565"),new pl.type.Var("_32566")]))
+			],
+			"var_name/4": [
+				new pl.type.Rule(new pl.type.Term("var_name", [new pl.type.Var("V"),new pl.type.Term("=", [new pl.type.Var("Name"),new pl.type.Var("V")]),new pl.type.Var("Num0"),new pl.type.Var("Num")]), new pl.type.Term(",", [new pl.type.Term(":", [new pl.type.Term("charsio", []),new pl.type.Term("fabricate_var_name", [new pl.type.Term("numbervars", []),new pl.type.Var("Name"),new pl.type.Var("Num0")])]),new pl.type.Term("is", [new pl.type.Var("Num"),new pl.type.Term("+", [new pl.type.Var("Num0"),new pl.type.Num(1, false)])])]))
 			]
 		};
 	};
