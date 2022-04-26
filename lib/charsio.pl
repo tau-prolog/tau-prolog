@@ -4,38 +4,26 @@
 
 %!  write_to_chars(+Term, ?Chars)
 %
-%   Write a term to a code list.
+%   Write a term to a char list.
 
 write_to_chars(Term, Chars) :-
-    write_term_to_chars(
-        Term,
-        [quoted(false), ignore_ops(false), numbervars(true)],
-        Chars
-    ).
+    write_term_to_chars(Term, [quoted(false), ignore_ops(false), numbervars(true)], Chars).
 
 %!  writeq_to_chars(+Term, ?Chars)
 %
-%   Write a term to a code list, using brackets and operators where appropriate.
+%   Write a term to a char list, using brackets and operators where appropriate.
 %   Atoms that need quotes are quoted.
 
 writeq_to_chars(Term, Chars) :-
-    write_term_to_chars(
-        Term,
-        [quoted(true), ignore_ops(false), numbervars(true)],
-        Chars
-    ).
+    write_term_to_chars(Term, [quoted(true), ignore_ops(false), numbervars(true)], Chars).
 
 %!  write_canonical_to_chars(+Term, ?Chars)
 %
-%   Write a term to a code list, using standard parenthesised prefix notation.
+%   Write a term to a char list, using standard parenthesised prefix notation.
 %   Atoms that need quotes are quoted.
 
 write_canonical_to_chars(Term, Chars) :-
-    write_term_to_chars(
-        Term,
-        [quoted(true), ignore_ops(true), numbervars(false)],
-        Chars
-    ).
+    write_term_to_chars(Term, [quoted(true), ignore_ops(true), numbervars(false)], Chars).
 
 %!  fabricate_var_name(+Type, ?Name, +Number)
 %
