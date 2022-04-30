@@ -56,7 +56,7 @@ var pl;
 					thread.throw_error( pl.error.type( "HTMLObject", elem, atom.indicator ) );
 				} else if( !pl.type.is_atom( type ) ) {
 					thread.throw_error( pl.error.type( "atom", type, atom.indicator ) );
-				} else if( !pl.type.is_variable( goal ) ) {
+				} else {
 					if( elem.object.tau_events && elem.object.tau_events[type.id] ) {
 						var event = elem.object.tau_events[type.id];
 						for( var i = 0; i < event.length; i++ ) {
