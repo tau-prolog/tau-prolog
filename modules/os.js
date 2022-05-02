@@ -23,6 +23,98 @@ var pl;
 				}
 			},
 
+			// set_interval/3
+			"set_interval/3": function(thread, point, atom) {
+				var time = atom.args[0], goal = atom.args[1], varid = atom.args[2];
+				if(pl.type.is_variable(time) || pl.type.is_variable(goal) || !pl.type.is_variable(varid)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_integer(time)) {
+					thread.throw_error(pl.error.type("integer", time, atom.indicator));
+				} else if(!pl.type.is_callable(goal)) {
+					thread.throw_error(pl.error.type("callable", goal, atom.indicator));
+				} else {
+					var id = setInterval((function(goal, thread) {
+						return function() {
+							var nthread = new pl.type.Thread(thread.session);
+							nthread.add_goal(goal);
+							nthread.answer();
+						};
+					})(goal, thread), time.value);
+					tau_last_interval_id++;
+					tau_intervals[tau_last_interval_id] = id;
+					thread.prepend([new pl.type.State(
+						point.goal.replace(new pl.type.Term("=", [
+							varid,
+							new pl.type.Num(tau_last_interval_id, false)
+						])),
+						point.substitution,
+						point
+					)]);
+				}
+			},
+
+			// set_timeout/3
+			"set_timeout/3": function(thread, point, atom) {
+				var time = atom.args[0], goal = atom.args[1], varid = atom.args[2];
+				if(pl.type.is_variable(time) || pl.type.is_variable(goal) || !pl.type.is_variable(varid)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_integer(time)) {
+					thread.throw_error(pl.error.type("integer", time, atom.indicator));
+				} else if(!pl.type.is_callable(goal)) {
+					thread.throw_error(pl.error.type("callable", goal, atom.indicator));
+				} else {
+					var id = setTimeout((function(goal, thread) {
+						return function() {
+							var nthread = new pl.type.Thread(thread.session);
+							nthread.add_goal(goal);
+							nthread.answer();
+						};
+					})(goal, thread), time.value);
+					tau_last_timeout_id++;
+					tau_timeouts[tau_last_timeout_id] = id;
+					thread.prepend([new pl.type.State(
+						point.goal.replace(new pl.type.Term("=", [
+							varid,
+							new pl.type.Num(tau_last_timeout_id, false)
+						])),
+						point.substitution,
+						point
+					)]);
+				}
+			},
+
+			// clear_interval/1
+			"clear_interval/1": function(thread, point, atom) {
+				var id = atom.args[0];
+				if(pl.type.is_variable(id)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_integer(id)) {
+					thread.throw_error(pl.error.type("integer", id, atom.indicator));
+				} else {
+					if(tau_intervals[id.value]) {
+						clearInterval(tau_intervals[id.value]);
+						thread.success(point);
+						delete tau_intervals[id.value];
+					}
+				}
+			},
+
+			// clear_timeout/1
+			"clear_timeout/1": function(thread, point, atom) {
+				var id = atom.args[0];
+				if(pl.type.is_variable(id)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_integer(id)) {
+					thread.throw_error(pl.error.type("integer", id, atom.indicator));
+				} else {
+					if(tau_timeouts[id.value]) {
+						clearInterval(tau_timeouts[id.value]);
+						thread.success(point);
+						delete tau_timeouts[id.value];
+					}
+				}
+			},
+
 			// shell/1
 			"shell/1": function( thread, point, atom ) {
 				var command = atom.args[0];
@@ -752,7 +844,12 @@ var pl;
 		
 	};
 	
-	var exports = ["sleep/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "copy_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "file_permission/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1", "pid/1"];
+	var exports = ["sleep/1", "set_interval/3", "set_timeout/3", "clear_interval/1", "clear_timeout/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "copy_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "file_permission/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1", "pid/1"];
+
+	var tau_last_interval_id = 0;
+	var tau_last_timeout_id = 0;
+	var tau_intervals = {};
+	var tau_timeouts = {};
 
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
