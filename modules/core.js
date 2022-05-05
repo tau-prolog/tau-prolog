@@ -1394,9 +1394,10 @@
 		} else if( pl.type.is_term( expr ) && expr.indicator === "\\+/1" ) {
 			var left = body_to_dcg(expr.args[0], last, thread);
 			if( left.error ) return left;
+			free = thread.next_free_variable();
 			return {
-				value: new Term(expr.id, [left.value]),
-				variable: left.variable,
+				value: new Term(",", [new Term(expr.id, [left.value]), new Term("=", [last, free])]),
+				variable: free,
 				error: false
 			};
 		} else if( pl.type.is_term( expr ) && (expr.indicator === ",/2" || expr.indicator === "->/2") ) {
