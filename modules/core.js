@@ -1396,7 +1396,7 @@
 			if( left.error ) return left;
 			return {
 				value: new Term(expr.id, [left.value]),
-				variable: last,
+				variable: left.variable,
 				error: false
 			};
 		} else if( pl.type.is_term( expr ) && (expr.indicator === ",/2" || expr.indicator === "->/2") ) {
