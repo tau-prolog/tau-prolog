@@ -4,21 +4,6 @@ var pl;
 	var predicates = function() {
 		return {
 
-            // write_to_chars/2
-            "write_to_chars/2": [
-                new pl.type.Rule(new pl.type.Term("write_to_chars", [new pl.type.Var("Term"),new pl.type.Var("Chars")]), new pl.type.Term("write_term_to_chars", [new pl.type.Var("Term"),new pl.type.Term(".", [new pl.type.Term("quoted", [new pl.type.Term("false", [])]),new pl.type.Term(".", [new pl.type.Term("ignore_ops", [new pl.type.Term("false", [])]),new pl.type.Term(".", [new pl.type.Term("numbervars", [new pl.type.Term("true", [])]),new pl.type.Term("[]", [])])])]),new pl.type.Var("Chars")]))
-            ],
-
-            // writeq_to_chars/2
-            "writeq_to_chars/2": [
-                new pl.type.Rule(new pl.type.Term("writeq_to_chars", [new pl.type.Var("Term"),new pl.type.Var("Chars")]), new pl.type.Term("write_term_to_chars", [new pl.type.Var("Term"),new pl.type.Term(".", [new pl.type.Term("quoted", [new pl.type.Term("true", [])]),new pl.type.Term(".", [new pl.type.Term("ignore_ops", [new pl.type.Term("false", [])]),new pl.type.Term(".", [new pl.type.Term("numbervars", [new pl.type.Term("true", [])]),new pl.type.Term("[]", [])])])]),new pl.type.Var("Chars")]))
-            ],
-            
-            // write_canonical_to_chars/2
-            "write_canonical_to_chars/2": [
-                new pl.type.Rule(new pl.type.Term("write_canonical_to_chars", [new pl.type.Var("Term"),new pl.type.Var("Chars")]), new pl.type.Term("write_term_to_chars", [new pl.type.Var("Term"),new pl.type.Term(".", [new pl.type.Term("quoted", [new pl.type.Term("true", [])]),new pl.type.Term(".", [new pl.type.Term("ignore_ops", [new pl.type.Term("true", [])]),new pl.type.Term(".", [new pl.type.Term("numbervars", [new pl.type.Term("false", [])]),new pl.type.Term("[]", [])])])]),new pl.type.Var("Chars")]))
-            ],
-
             // write_term_to_chars/3
             "write_term_to_chars/3": function(thread, point, atom) {
                 var term = atom.args[0], options = atom.args[1], chars = atom.args[2];
@@ -87,7 +72,7 @@ var pl;
 
         };
     };
-	var exports = ["write_to_chars/2", "writeq_to_chars/2", "write_canonical_to_chars/2", "write_term_to_chars/3"];
+	var exports = ["write_term_to_chars/3"];
 	if(typeof module !== 'undefined') {
 		module.exports = function(p) {
 			pl = p;

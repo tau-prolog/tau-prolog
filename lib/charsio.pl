@@ -1,10 +1,13 @@
-:- module(charsio, [write_to_chars/2,
-                    writeq_to_chars/2,
-                    write_canonical_to_chars/2]).
+:- module(charsio, []).
 
 %!  write_to_chars(+Term, ?Chars)
 %
 %   Write a term to a char list.
+%
+%   Equivalent to:
+%   phrase(format_("~w", [Term]), Chars)
+%
+%   Not included in the compiled version of the charsio library.
 
 write_to_chars(Term, Chars) :-
     write_term_to_chars(Term, [quoted(false), ignore_ops(false), numbervars(true)], Chars).
@@ -13,6 +16,11 @@ write_to_chars(Term, Chars) :-
 %
 %   Write a term to a char list, using brackets and operators where appropriate.
 %   Atoms that need quotes are quoted.
+%
+%   Equivalent to:
+%   phrase(format_("~q", [Term]), Chars)
+%
+%   Not included in the compiled version of the charsio library.
 
 writeq_to_chars(Term, Chars) :-
     write_term_to_chars(Term, [quoted(true), ignore_ops(false), numbervars(true)], Chars).
@@ -21,6 +29,11 @@ writeq_to_chars(Term, Chars) :-
 %
 %   Write a term to a char list, using standard parenthesised prefix notation.
 %   Atoms that need quotes are quoted.
+%
+%   It has no format specifier yet:
+%   https://github.com/tau-prolog/tau-prolog/commit/4835c964e049d1774ea34781d19ef18a6562d98b#commitcomment-72245190
+%
+%   Not included in the compiled version of the charsio library.
 
 write_canonical_to_chars(Term, Chars) :-
     write_term_to_chars(Term, [quoted(true), ignore_ops(true), numbervars(false)], Chars).
