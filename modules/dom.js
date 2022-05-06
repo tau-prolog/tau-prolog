@@ -724,6 +724,14 @@ var pl;
 	
 	var exports = ["document/1", "head/1", "body/1", "show/1", "hide/1", "toggle/1", "create/2", "get_by_id/2", "get_by_tag/2", "get_by_tag/3", "get_by_class/2", "get_by_class/3", "get_by_name/2", "attr/3", "set_attr/3", "get_attr/3", "style/3", "set_style/3", "get_style/3", "html/2", "set_html/2", "get_html/2", "parent_of/2", "insert_after/2", "insert_before/2", "append_child/2", "prepend_child/2", "sibling/2", "remove/1", "add_class/2", "remove_class/2", "has_class/2", "bind/4", "unbind/2", "unbind/3", "event_property/3", "prevent_default/1"];
 	
+	var options = function() {
+		return {
+			meta_predicates: {
+				// bind(+, +, -, 0)
+				"bind/4": new pl.type.Term("bind", [new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-"), new pl.type.Num(0)])
+			}
+		};
+	};
 	
 	
 	// DOM HTML OBJECTS
@@ -1110,10 +1118,10 @@ var pl;
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
 			pl = p;
-			new pl.type.Module( "dom", predicates(), exports );
+			new pl.type.Module("dom", predicates(), exports, options());
 		};
 	} else {
-		new pl.type.Module( "dom", predicates(), exports );
+		new pl.type.Module("dom", predicates(), exports, options());
 	}
 	
 

@@ -846,6 +846,17 @@ var pl;
 	
 	var exports = ["sleep/1", "set_interval/3", "set_timeout/3", "clear_interval/1", "clear_timeout/1", "shell/1", "shell/2", "directory_files/2", "working_directory/2", "delete_file/1", "delete_directory/1", "rename_file/2", "copy_file/2", "make_directory/1", "exists_file/1", "exists_directory/1", "same_file/2", "absolute_file_name/2", "is_absolute_file_name/1", "size_file/2", "file_permission/2", "time_file/2", "getenv/2", "setenv/2", "unsetenv/1", "pid/1"];
 
+	var options = function() {
+		return {
+			meta_predicates: {
+				// set_interval(+, 0, -)
+				"set_interval/3": new pl.type.Term("set_interval", [new pl.type.Term("+"), new pl.type.Num(0), new pl.type.Term("-")]),
+				// set_timeout(+, 0, -)
+				"set_timeout/3": new pl.type.Term("set_timeout", [new pl.type.Term("+"), new pl.type.Num(0), new pl.type.Term("-")])
+			}
+		};
+	};
+
 	var tau_last_interval_id = 0;
 	var tau_last_timeout_id = 0;
 	var tau_intervals = {};
@@ -854,10 +865,10 @@ var pl;
 	if( typeof module !== 'undefined' ) {
 		module.exports = function( p ) {
 			pl = p;
-			new pl.type.Module( "os", predicates(), exports );
+			new pl.type.Module( "os", predicates(), exports, options() );
 		};
 	} else {
-		new pl.type.Module( "os", predicates(), exports );
+		new pl.type.Module( "os", predicates(), exports, options() );
 	}
 
 })( pl );
