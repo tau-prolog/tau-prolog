@@ -1725,7 +1725,7 @@
 			1200: { ":-": ["fx", "xfx"],  "-->": ["xfx"], "?-": ["fx"] },
 			1150: { "meta_predicate": ["fx"] },
 			1100: { ";": ["xfy"] },
-			1050: { "->": ["xfy"] },
+			1050: { "->": ["xfy"], "*->": ["xfy"] },
 			1000: { ",": ["xfy"] },
 			900: { "\\+": ["fy"] },
 			700: {
@@ -5220,6 +5220,10 @@
 			new pl.type.Rule(new pl.type.Term("$setof", [new pl.type.Var("Template"),new pl.type.Var("Goal0"),new pl.type.Var("Answer")]), new pl.type.Term(",", [new pl.type.Term("$free_variable_set", [new pl.type.Term("^", [new pl.type.Var("Template"),new pl.type.Var("Goal0")]),new pl.type.Var("Goal1"),new pl.type.Var("FV")]),new pl.type.Term(",", [new pl.type.Term("findall", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Template")]),new pl.type.Var("Goal1"),new pl.type.Var("Answers"),new pl.type.Term("[]", [])]),new pl.type.Term(",", [new pl.type.Term("keygroup", [new pl.type.Var("Answers"),new pl.type.Var("KeyGroups")]),new pl.type.Term(",", [new pl.type.Term("keysort", [new pl.type.Var("KeyGroups"),new pl.type.Var("KeySorted")]),new pl.type.Term(",", [new pl.type.Term("$member", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Unsorted")]),new pl.type.Var("KeySorted")]),new pl.type.Term("sort", [new pl.type.Var("Unsorted"),new pl.type.Var("Answer")])])])])])]))
 		],
 
+		// '$if/3'
+		"$if/3": [
+			new pl.type.Rule(new pl.type.Term("$if", [new pl.type.Var("If"),new pl.type.Var("Then"),new pl.type.Var("Else")]), new pl.type.Term(";", [new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("If")]),new pl.type.Term(",", [new pl.type.Term("$push_global_stack", [new pl.type.Var("Stack"),new pl.type.Var("_")]),new pl.type.Term("call", [new pl.type.Var("Then")])])]),new pl.type.Term(",", [new pl.type.Term("$flush_global_stack", [new pl.type.Var("Stack"),new pl.type.Term("[]", []),new pl.type.Term("[]", [])]),new pl.type.Term("call", [new pl.type.Var("Else")])])]))
+		],
 
 
 		// ATTRIBUTED VARIABLES
@@ -5399,16 +5403,28 @@
 			var left = atom.args[0], right = atom.args[1];
 			var context_left = left.args[0];
 			var free_left = left.indicator === ":/2" ? left.args[1] : left;
-			if(pl.type.is_term( free_left ) && free_left.indicator === "->/2") {
+			// if then else
+			if(pl.type.is_term(free_left) && free_left.indicator === "->/2") {
 				var cond = left.indicator === ":/2" ? new Term(":", [context_left, new Term("call", [free_left.args[0]])]) : free_left.args[0];
 				var then = left.indicator === ":/2" ? new Term(":", [context_left, free_left.args[1]]) : free_left.args[1];
 				var otherwise = right;
 				var goal_fst = point.goal.replace(new Term( ",", [cond, new Term(",", [new Term("!"), then])] ) );
 				var goal_snd = point.goal.replace(new Term( ",", [new Term("!"), otherwise]));
-				thread.prepend( [
+				thread.prepend([
 					new State(goal_fst, point.substitution, point),
 					new State(goal_snd, point.substitution, point)
-				] );
+				]);
+			// soft-cut
+			} else if(pl.type.is_term(free_left) && free_left.indicator === "*->/2") {
+				var cond = left.indicator === ":/2" ? new Term(":", [context_left, free_left.args[0]]) : free_left.args[0];
+				var then = left.indicator === ":/2" ? new Term(":", [context_left, free_left.args[1]]) : free_left.args[1];
+				var otherwise = right;
+				thread.prepend([new State(
+					point.goal.replace(new Term("$if", [cond, then, otherwise])),
+					point.substitution,
+					point
+				)]);
+			// otherwise
 			} else {
 				thread.prepend([
 					new State(point.goal.replace(left), point.substitution, point),
@@ -5502,6 +5518,14 @@
 				new Term(",", [new Term("!"), then])
 			]));
 			thread.prepend( [new State( goal, point.substitution, point )] );
+		},
+
+		// *->/2 (soft-cut)
+		"*->/2": function(thread, point, atom) {
+			var cond = atom.args[0], then = atom.args[1];
+			var goal = point.goal.replace(new Term(",", [
+				new Term("call", [cond]), then]));
+			thread.prepend([new State(goal, point.substitution, point)]);
 		},
 		
 		// fail/0
@@ -8971,10 +8995,14 @@
 			"$bagof/3": new Term("$bagof", [new Term("?"), new Term("^"), new Term("-")]),
 			// '$setof'(?, ^, -)
 			"$setof/3": new Term("$setof", [new Term("?"), new Term("^"), new Term("-")]),
+			// '$if'(0, 0, 0)
+			"$if/3": new Term("$if", [new Num(0, false), new Num(0, false), new Num(0, false)]),
 			// (0;0)
 			";/2": new Term(";", [new Num(0, false), new Num(0, false)]),
 			// (0->0)
 			"->/2": new Term("->", [new Num(0, false), new Num(0, false)]),
+			// (0->0)
+			"*->/2": new Term("*->", [new Num(0, false), new Num(0, false)]),
 			// (\+0)
 			"\\+/1": new Term("\\+", [new Num(0, false)]),
 			// abolish(:)

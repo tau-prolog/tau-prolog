@@ -1,9 +1,10 @@
-:- module(tau, ['$member'/2, '$findall'/4, '$bagof'/3, '$setof'/3]).
+:- module(tau, ['$member'/2, '$findall'/4, '$bagof'/3, '$setof'/3, '$if'/3]).
 
 :- meta_predicate
     '$findall'(?, 0, -, ?),
     '$bagof'(?, ^, -),
-    '$setof'(?, ^, -).
+    '$setof'(?, ^, -),
+    '$if'(0, 0, 0).
 
 %!  '$member'(?Element, ?List)
 %
@@ -46,3 +47,15 @@
     keysort(KeyGroups, KeySorted),
     '$member'(FV-Unsorted, KeySorted),
     sort(Unsorted, Answer).
+
+%!  '$if'(:Condition, :Action, :Else)
+%
+%   This construct implements the so-called soft-cut.
+
+'$if'(If, Then, Else) :-
+	( call(If),
+      '$push_global_stack'(Stack, _),
+      call(Then)
+    ; '$flush_global_stack'(Stack, [], []),
+      call(Else)
+    ).
