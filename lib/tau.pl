@@ -53,7 +53,7 @@
 %   This construct implements the so-called soft-cut.
 
 '$if'(If, Then, Else) :-
-	( call(If),
+    ( call(If),
       '$push_global_stack'(Stack, _),
       call(Then)
     ; '$flush_global_stack'(Stack, [], []),
