@@ -4,8 +4,7 @@
 	"description": "An open source Prolog interpreter in JavaScript",
 	"main": "./modules/core.js",
 	"scripts": {
-		"example:fruit": "node examples/nodejs/fruit",
-		"example:promises": "node examples/nodejs/promises"
+		"taupl": "node taupl.js"
 	},
 	"repository": {
 		"type": "git",
@@ -20,7 +19,7 @@
 	],
 	"files": [
 		"modules",
-		"examples"
+		"taupl.js"
 	],
 	"author": "José Antonio Riaza Valverde <riazavalverde@gmail.com> (http://jariaza.es)",
 	"license": "BSD-3-Clause",
