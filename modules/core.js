@@ -5016,7 +5016,7 @@
 			} else if( answer === false ) {
 				return "false.";
 			} else if( answer === null ) {
-				return "limit exceeded ;";
+				return "limit exceeded ";
 			} else {
 				var i = 0;
 				var str = "";
@@ -5057,7 +5057,7 @@
 							answer.links[link].toString( options, {priority: "700", class: "xfx", indicator: "=/2"}, "right" );
 					}
 				}
-				var delimiter = typeof thread === "undefined" || thread.points.length > 0 ? " ;" : "."; 
+				var delimiter = typeof thread === "undefined" || thread.points.length > 0 ? " " : "."; 
 				if( i === 0 ) {
 					return "true" + delimiter;
 				} else {
@@ -8973,7 +8973,7 @@
 		// license/0
 		"license/0": function( thread, point, atom ) {
 			var msg = "Tau Prolog. A Prolog interpreter in JavaScript.\n";
-			msg += "Copyright (C) 2017 - 2020 José Antonio Riaza Valverde\n\n";
+			msg += "Copyright (C) 2017 - 2022 José Antonio Riaza Valverde\n\n";
 			msg += "Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\n";
 			msg += "1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\n";
 			msg += "2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.\n";
