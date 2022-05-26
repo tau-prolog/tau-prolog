@@ -60,7 +60,7 @@ function show(answer) {
 
 // Manage the REPL actions.
 function action(callback) {
-    var input = readlineSync.question("", {keepWhitespace: true}).trim();
+    var input = readlineSync.question(" ", {keepWhitespace: true}).trim();
     switch(input) {
         // next answer
         case ";":
@@ -92,7 +92,7 @@ function next_answer(callback) {
     return function(answer) {
         show(answer);
         if(answer === false || pl.type.is_error(answer) || session.thread.points.length === 0) {
-            write("\n\n");
+            write(".\n\n");
             callback();
         } else {
             action(callback);
@@ -108,7 +108,7 @@ function query(goal, callback) {
     }
     session.query(goal, {
         success: function(_goal) { session.answer(next_answer(callback)); },
-        error: compose(repl, compose(function(){ write("\n\n"); }, show))
+        error: compose(repl, compose(function(){ write(".\n\n"); }, show))
     });
 }
 

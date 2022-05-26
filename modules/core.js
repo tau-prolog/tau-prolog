@@ -5014,9 +5014,9 @@
 			if( pl.type.is_error( answer ) ) {
 				return "uncaught exception: " + answer.args[0].toString(options);
 			} else if( answer === false ) {
-				return "false.";
+				return "false";
 			} else if( answer === null ) {
-				return "limit exceeded ";
+				return "limit exceeded";
 			} else {
 				var i = 0;
 				var str = "";
@@ -5057,11 +5057,10 @@
 							answer.links[link].toString( options, {priority: "700", class: "xfx", indicator: "=/2"}, "right" );
 					}
 				}
-				var delimiter = typeof thread === "undefined" || thread.points.length > 0 ? " " : "."; 
 				if( i === 0 ) {
-					return "true" + delimiter;
+					return "true";
 				} else {
-					return str + delimiter;
+					return str;
 				}
 			}
 		},
