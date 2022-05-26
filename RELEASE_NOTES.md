@@ -1,5 +1,55 @@
 # Release notes
 
+## Version 0.3.3 - May 26, 2022
+
+### Core (0.3.3)
+
+* FIXED: term expansion mechanism.
+* IMPROVED: unification mechanism.
+* ADDED: clause indexing on first argument.
+* IMPROVED: performance and efficiency on ground terms.
+* FIXED: DCG translation for negation.
+* UPDATED: `format_answer` (removed `.` and `;` at the end of the strings).
+
+### Module `system` (0.3.3)
+
+* FIXED: crashes in the `get_char/2`, `get_code/2`, `peek_char/2`, and `read_term/3` predicates when `eof_action` is set to `eof_code`.
+* IMPROVED: efficiency of `findall/[3-4]`, `setof/3` and `bagof/3` built-in predicates.
+* ADDED: soft-cut `(*->)/2` control construct.
+* ADDED: `keygroup/2` built-in predicate.
+
+### Module `js` (0.3.3)
+
+* ADDED: direct JavaScript object unification (see https://github.com/tau-prolog/tau-prolog/issues/295).
+
+### Module `os` (0.3.3)
+
+* ADDED: `copy_file/2` predicate.
+* ADDED: `set_interval/3`, `set_timeout/3`, `clear_interval/1` and `clear_timeout/1` predicates.
+
+### Module `dom` (0.3.3)
+
+* FIXED: `unbind/2` predicate.
+
+### Module `statistics` (0.3.3)
+
+* FIXED: `time/1` predicate.
+* FIXED: `modules` stat.
+* FIXED: `cputime` stat in Node.js.
+
+### Module `charsio` (0.3.3)
+
+* REMOVED: `write_to_chars/2`, `writeq_to_chars/2` and `write_canonical_to_chars/2` predicates from compiled version.
+
+### Documentation and examples (0.3.3)
+
+* REMOVED: outdated tests.
+* ADDED: REPL script (`taupl.js`).
+
+### Acknowledgments (0.3.3)
+
+* Thanks to **Paulo Moura** for his help in detecting and correcting errors.
+
 ## Version 0.3.2 - Febrary 7, 2022
 
 ### Core (0.3.2)
