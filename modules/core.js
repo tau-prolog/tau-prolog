@@ -1844,23 +1844,29 @@
 			return;
 		for(var i = 0; i < this.rules[indicator].length; i++) {
 			var clause = this.rules[indicator][i];
-			var index = clause.head.args.length > 0 ? clause.head.args[0].index : undefined;
-			if(index) {
-				if(!this.indexed_clauses.hasOwnProperty(indicator))
-					this.indexed_clauses[indicator] = {};
-				if(!this.indexed_clauses[indicator].hasOwnProperty(index)) {
-					this.indexed_clauses[indicator][index] = [];
-					for(var j = 0; j < this.non_indexable_clauses.length; j++)
-						this.indexed_clauses[indicator][index].push(this.non_indexable_clauses[j]);
-				}
-				this.indexed_clauses[indicator][index].push(clause);
-			} else {
-				if(!this.non_indexable_clauses.hasOwnProperty(indicator))
-					this.non_indexable_clauses[indicator] = [];
-				this.non_indexable_clauses[indicator].push(clause);
-				for(var index in this.indexed_clauses[indicator])
-					this.indexed_clauses[indicator][index].push(clause);
+			this.add_index_predicate(clause);
+		}
+	};
+
+	// Add indexed cluuse to a predicate
+	Module.prototype.add_index_predicate = function(clause) {
+		var indicator = clause.head.indicator;
+		var index = clause.head.args.length > 0 ? clause.head.args[0].index : undefined;
+		if(index) {
+			if(!this.indexed_clauses.hasOwnProperty(indicator))
+				this.indexed_clauses[indicator] = {};
+			if(!this.indexed_clauses[indicator].hasOwnProperty(index)) {
+				this.indexed_clauses[indicator][index] = [];
+				for(var j = 0; j < this.non_indexable_clauses.length; j++)
+					this.indexed_clauses[indicator][index].push(this.non_indexable_clauses[j]);
 			}
+			this.indexed_clauses[indicator][index].push(clause);
+		} else {
+			if(!this.non_indexable_clauses.hasOwnProperty(indicator))
+				this.non_indexable_clauses[indicator] = [];
+			this.non_indexable_clauses[indicator].push(clause);
+			for(var index in this.indexed_clauses[indicator])
+				this.indexed_clauses[indicator][index].push(clause);
 		}
 	};
 
@@ -2646,7 +2652,7 @@
 		if(!get_module.public_predicates.hasOwnProperty(rule.head.indicator))
 			get_module.public_predicates[rule.head.indicator] = false;
 		// update term indexing
-		get_module.update_indices_predicate(rule.head.indicator);
+		get_module.add_index_predicate(rule);
 		return true;
 	};
 
