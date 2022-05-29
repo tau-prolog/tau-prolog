@@ -5212,7 +5212,7 @@
 
 		// '$findall'/4
 		"$findall/4": [
-			new pl.type.Rule(new pl.type.Term("$findall", [new pl.type.Var("Template0"),new pl.type.Var("Goal0"),new pl.type.Var("Instances"),new pl.type.Var("Tail")]), new pl.type.Term(";", [new pl.type.Term(",", [new pl.type.Term("copy_term", [new pl.type.Term("-", [new pl.type.Var("Template0"),new pl.type.Var("Goal0")]),new pl.type.Term("-", [new pl.type.Var("Template1"),new pl.type.Var("Goal1")])]),new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal1")]),new pl.type.Term(",", [new pl.type.Term("$push_global_stack", [new pl.type.Var("Var"),new pl.type.Var("Template1")]),new pl.type.Term("false", [])])])]),new pl.type.Term("$flush_global_stack", [new pl.type.Var("Var"),new pl.type.Var("Instances"),new pl.type.Var("Tail")])]))
+			new pl.type.Rule(new pl.type.Term("$findall", [new pl.type.Var("Template0"),new pl.type.Var("Goal0"),new pl.type.Var("Instances"),new pl.type.Var("Tail")]), new pl.type.Term(";", [new pl.type.Term(",", [new pl.type.Term("copy_term", [new pl.type.Term("-", [new pl.type.Var("Template0"),new pl.type.Var("Goal0")]),new pl.type.Term("-", [new pl.type.Var("Template1"),new pl.type.Var("Goal1")])]),new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal1")]),new pl.type.Term(",", [new pl.type.Term("copy_term", [new pl.type.Var("Template1"),new pl.type.Var("Template2")]),new pl.type.Term(",", [new pl.type.Term("$push_global_stack", [new pl.type.Var("Var"),new pl.type.Var("Template2")]),new pl.type.Term("false", [])])])])]),new pl.type.Term("$flush_global_stack", [new pl.type.Var("Var"),new pl.type.Var("Instances"),new pl.type.Var("Tail")])]))
 		],
 
 		// '$bagof'/3

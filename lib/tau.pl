@@ -21,7 +21,8 @@
 '$findall'(Template0, Goal0, Instances, Tail) :-
     copy_term(Template0-Goal0, Template1-Goal1),
     call(Goal1),
-    '$push_global_stack'(Var, Template1),
+    copy_term(Template1, Template2),
+    '$push_global_stack'(Var, Template2),
     false ; '$flush_global_stack'(Var, Instances, Tail).
 
 %!  '$bagof'(+Template, :Goal, -Bag)
