@@ -113,20 +113,24 @@ var pl;
                     var templates = [];
                     for(var i = 0; i < arr_futures.length; i++) {
                         arr_futures[i].then(
-                            function(answer) {
-                                templates.push(answer);
-                                future.expected--;
-                                if(future.state === FUTURE_PENDING && future.expected === 0) {
-                                    var list = new pl.type.Term("[]", []);
-                                    for(var j = templates.length-1; j >= 0; j--)
-                                        list = new pl.type.Term(".", [templates[j], list]);
-                                    future.done(list, FUTURE_FULFILLED);
-                                }
-                            },
+                            (function(i) {
+                                return function(answer) {
+                                    templates[i] = answer;
+                                    future.expected--;
+                                    if(future.state === FUTURE_PENDING && future.expected === 0) {
+                                        var list = new pl.type.Term("[]", []);
+                                        for(var j = templates.length-1; j >= 0; j--)
+                                            list = new pl.type.Term(".", [templates[j], list]);
+                                        future.done(list, FUTURE_FULFILLED);
+                                    }
+                                };
+                            })(i),
                             function(error) {
+                                future.expected--;
                                 future.done(error, FUTURE_REJECTED);
                             },
                             function() {
+                                future.expected--;
                                 future.done(null, FUTURE_FAILED);
                             }
                         );
