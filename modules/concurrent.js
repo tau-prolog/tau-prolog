@@ -214,112 +214,116 @@ var pl;
 
 	var exports = ["future/3", "await/2", "future_all/2", "future_any/2"];
 
-	// Is a Future object
-	pl.type.is_future_object = function(obj) {
-		return obj instanceof pl.type.Future;
-	};
+	var extend = function(pl) {
 
-	// Ordering relation
-	pl.type.order.push(pl.type.Future);
+		// Is a Future object
+		pl.type.is_future_object = function(obj) {
+			return obj instanceof pl.type.Future;
+		};
 
-	// DOM Prolog object
-	pl.type.Future = function() {
-		this.value = null;
-		this.state = FUTURE_PENDING;
-		this.tasks = [];
-	};
+		// Ordering relation
+		pl.type.order.push(pl.type.Future);
 
-    pl.type.Future.prototype.done = function(value, state) {
-        this.value = value;
-		this.state = state;
-        if(state === FUTURE_FULFILLED) {
-            while(this.tasks.length > 0) {
-                var task = this.tasks.shift();
-                task.resolve(this.value);
-            }
-        } else if(state === FUTURE_REJECTED) {
-            while(this.tasks.length > 0) {
-                var task = this.tasks.shift();
-                task.reject(this.value);
-            }
-        } else if(state === FUTURE_FAILED) {
-            while(this.tasks.length > 0) {
-                var task = this.tasks.shift();
-                task.fail();
-            }
-        }
-    }
+		// DOM Prolog object
+		pl.type.Future = function() {
+			this.value = null;
+			this.state = FUTURE_PENDING;
+			this.tasks = [];
+		};
 
-	pl.type.Future.prototype.then = function(resolve, reject, fail) {
-		if(this.state === FUTURE_FULFILLED)
-			resolve(this.value);
-		else if(this.state === FUTURE_REJECTED)
-			reject(this.value);
-		else if(this.state === FUTURE_FAILED)
-			fail();
-		else
-			this.tasks.push({
-				resolve: resolve,
-				reject: reject,
-				fail: fail
-			});
-	};
-
-	// toString
-	pl.type.Future.prototype.toString = function(options) {
-		if(this.value !== null)
-			return "<future>(" + this.value.toString(options) + ")";
-		return "<future>(pending)";
-	};
-
-	// clone
-	pl.type.Future.prototype.clone = function() {
-		var p = new pl.type.Future();
-		p.state = this.state;
-		p.value = this.value;
-	};
-
-	// equals
-	pl.type.Future.prototype.equals = function(obj) {
-		return obj === this;
-	};
-
-	// rename
-	pl.type.Future.prototype.rename = function( _ ) {
-		return this;
-	};
-
-	// get variables
-	pl.type.Future.prototype.variables = function() {
-		return [];
-	};
-
-	// apply substitutions
-	pl.type.Future.prototype.apply = function( _ ) {
-		return this;
-	};
-
-	// unify
-	pl.type.Future.prototype.unify = function(obj, _) {
-		if(obj === this)
-			return new pl.type.Substitution();
-		return null;
-	};
-
-	// interpret
-	pl.type.Future.prototype.interpret = function( indicator ) {
-		return pl.error.instantiation( indicator );
-	};
-
-	// compare
-	pl.type.Future.prototype.compare = function( obj ) {
-		if(this === obj) {
-			return 0;
-		} else if(this < obj) {
-			return -1;
-		} else {
-			return 1;
+		pl.type.Future.prototype.done = function(value, state) {
+			this.value = value;
+			this.state = state;
+			if(state === FUTURE_FULFILLED) {
+				while(this.tasks.length > 0) {
+					var task = this.tasks.shift();
+					task.resolve(this.value);
+				}
+			} else if(state === FUTURE_REJECTED) {
+				while(this.tasks.length > 0) {
+					var task = this.tasks.shift();
+					task.reject(this.value);
+				}
+			} else if(state === FUTURE_FAILED) {
+				while(this.tasks.length > 0) {
+					var task = this.tasks.shift();
+					task.fail();
+				}
+			}
 		}
+
+		pl.type.Future.prototype.then = function(resolve, reject, fail) {
+			if(this.state === FUTURE_FULFILLED)
+				resolve(this.value);
+			else if(this.state === FUTURE_REJECTED)
+				reject(this.value);
+			else if(this.state === FUTURE_FAILED)
+				fail();
+			else
+				this.tasks.push({
+					resolve: resolve,
+					reject: reject,
+					fail: fail
+				});
+		};
+
+		// toString
+		pl.type.Future.prototype.toString = function(options) {
+			if(this.value !== null)
+				return "<future>(" + this.value.toString(options) + ")";
+			return "<future>(pending)";
+		};
+
+		// clone
+		pl.type.Future.prototype.clone = function() {
+			var p = new pl.type.Future();
+			p.state = this.state;
+			p.value = this.value;
+		};
+
+		// equals
+		pl.type.Future.prototype.equals = function(obj) {
+			return obj === this;
+		};
+
+		// rename
+		pl.type.Future.prototype.rename = function( _ ) {
+			return this;
+		};
+
+		// get variables
+		pl.type.Future.prototype.variables = function() {
+			return [];
+		};
+
+		// apply substitutions
+		pl.type.Future.prototype.apply = function( _ ) {
+			return this;
+		};
+
+		// unify
+		pl.type.Future.prototype.unify = function(obj, _) {
+			if(obj === this)
+				return new pl.type.Substitution();
+			return null;
+		};
+
+		// interpret
+		pl.type.Future.prototype.interpret = function( indicator ) {
+			return pl.error.instantiation( indicator );
+		};
+
+		// compare
+		pl.type.Future.prototype.compare = function( obj ) {
+			if(this === obj) {
+				return 0;
+			} else if(this < obj) {
+				return -1;
+			} else {
+				return 1;
+			}
+		};
+
 	};
 
 	var options = function() {
@@ -334,9 +338,11 @@ var pl;
 	if(typeof module !== 'undefined') {
 		module.exports = function(p) {
 			pl = p;
+			extend(pl);
 			new pl.type.Module("concurrent", predicates(), exports, options());
 		};
 	} else {
+		extend(pl);
 		new pl.type.Module("concurrent", predicates(), exports, options());
 	}
 
