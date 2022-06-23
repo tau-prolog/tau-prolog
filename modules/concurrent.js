@@ -47,6 +47,20 @@ var pl;
 				}
 			},
 
+			// future_done/1
+			"future_done/1": function(thread, point, atom) {
+				var future = atom.args[0];
+				if(pl.type.is_variable(future)) {
+					thread.throw_error(pl.error.instantiation(atom.indicator));
+				} else if(!pl.type.is_future_object(future)) {
+					thread.throw_error(pl.error.type("future", future, atom.indicator));
+				} else {
+					if(future.state !== FUTURE_PENDING) {
+						thread.success(point);
+					}
+				}
+			},
+
 			// await/2
 			"await/2": function(thread, point, atom) {
 				var future = atom.args[0], value = atom.args[1];
@@ -212,7 +226,7 @@ var pl;
 
 	};
 
-	var exports = ["future/3", "await/2", "future_all/2", "future_any/2"];
+	var exports = ["future/3", "await/2", "future_done/1", "future_all/2", "future_any/2"];
 
 	var extend = function(pl) {
 
