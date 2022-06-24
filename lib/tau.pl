@@ -13,6 +13,15 @@
 '$member'(X, [X|_]).
 '$member'(X, [_|Xs]) :- '$member'(X, Xs).
 
+%!  '$bind_bagof_keys'(+VarsTemplPairs, -Variables)
+%
+%   Establish a canonical binding of the variables.
+
+'$bind_bagof_keys'([], _).
+'$bind_bagof_keys'([Key-_|Bag], Vars) :-
+    term_variables(Key, Vars, _),
+    '$bind_bagof_keys'(Bag, Vars).
+
 %!  '$findall'(+Template, :Goal, -Bag, +Tail)
 %
 %   True if Bag is a list of values in the form Template that would make the
@@ -32,6 +41,7 @@
 '$bagof'(Template, Goal0, Answer) :-
     '$free_variable_set'(Template^Goal0, Goal1, FV),
     findall(FV-Template, Goal1, Answers, []),
+    '$bind_bagof_keys'(Answers, _),
     keygroup(Answers, KeyGroups),
     keysort(KeyGroups, KeySorted),
     '$member'(FV-Answer, KeySorted).
@@ -44,6 +54,7 @@
 '$setof'(Template, Goal0, Answer) :-
     '$free_variable_set'(Template^Goal0, Goal1, FV),
     findall(FV-Template, Goal1, Answers, []),
+    '$bind_bagof_keys'(Answers, _),
     keygroup(Answers, KeyGroups),
     keysort(KeyGroups, KeySorted),
     '$member'(FV-Unsorted, KeySorted),

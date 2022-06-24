@@ -1322,7 +1322,8 @@
 
 	// Rule to DCG
 	function rule_to_dcg(rule, thread) {
-		rule = rule.rename( thread );
+		thread.session.renamed_variables = {};
+		rule = rule.rename(thread);
 		var begin = thread.next_free_variable();
 		var dcg = body_to_dcg( rule.body, begin, thread );
 		if( dcg.error )
@@ -5210,6 +5211,12 @@
 			new pl.type.Rule(new pl.type.Term("$member", [new pl.type.Var("X"),new pl.type.Term(".", [new pl.type.Var("_"),new pl.type.Var("Xs")])]), new pl.type.Term("$member", [new pl.type.Var("X"),new pl.type.Var("Xs")]))
 		],
 
+		// '$bind_bagof_keys/2'/2
+		"$bind_bagof_keys/2": [
+			new pl.type.Rule(new pl.type.Term("$bind_bagof_keys", [new pl.type.Term("[]", []),new pl.type.Var("_")]), null),
+			new pl.type.Rule(new pl.type.Term("$bind_bagof_keys", [new pl.type.Term(".", [new pl.type.Term("-", [new pl.type.Var("Key"),new pl.type.Var("_")]),new pl.type.Var("Bag")]),new pl.type.Var("Vars")]), new pl.type.Term(",", [new pl.type.Term("term_variables", [new pl.type.Var("Key"),new pl.type.Var("Vars"),new pl.type.Var("_")]),new pl.type.Term("$bind_bagof_keys", [new pl.type.Var("Bag"),new pl.type.Var("Vars")])]))
+		],
+
 		// '$findall'/4
 		"$findall/4": [
 			new pl.type.Rule(new pl.type.Term("$findall", [new pl.type.Var("Template0"),new pl.type.Var("Goal0"),new pl.type.Var("Instances"),new pl.type.Var("Tail")]), new pl.type.Term(";", [new pl.type.Term(",", [new pl.type.Term("copy_term", [new pl.type.Term("-", [new pl.type.Var("Template0"),new pl.type.Var("Goal0")]),new pl.type.Term("-", [new pl.type.Var("Template1"),new pl.type.Var("Goal1")])]),new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal1")]),new pl.type.Term(",", [new pl.type.Term("copy_term", [new pl.type.Var("Template1"),new pl.type.Var("Template2")]),new pl.type.Term(",", [new pl.type.Term("$push_global_stack", [new pl.type.Var("Var"),new pl.type.Var("Template2")]),new pl.type.Term("false", [])])])])]),new pl.type.Term("$flush_global_stack", [new pl.type.Var("Var"),new pl.type.Var("Instances"),new pl.type.Var("Tail")])]))
@@ -5217,12 +5224,12 @@
 
 		// '$bagof'/3
 		"$bagof/3": [
-			new pl.type.Rule(new pl.type.Term("$bagof", [new pl.type.Var("Template"),new pl.type.Var("Goal0"),new pl.type.Var("Answer")]), new pl.type.Term(",", [new pl.type.Term("$free_variable_set", [new pl.type.Term("^", [new pl.type.Var("Template"),new pl.type.Var("Goal0")]),new pl.type.Var("Goal1"),new pl.type.Var("FV")]),new pl.type.Term(",", [new pl.type.Term("findall", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Template")]),new pl.type.Var("Goal1"),new pl.type.Var("Answers"),new pl.type.Term("[]", [])]),new pl.type.Term(",", [new pl.type.Term("keygroup", [new pl.type.Var("Answers"),new pl.type.Var("KeyGroups")]),new pl.type.Term(",", [new pl.type.Term("keysort", [new pl.type.Var("KeyGroups"),new pl.type.Var("KeySorted")]),new pl.type.Term("$member", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Answer")]),new pl.type.Var("KeySorted")])])])])]))
+			new pl.type.Rule(new pl.type.Term("$bagof", [new pl.type.Var("Template"),new pl.type.Var("Goal0"),new pl.type.Var("Answer")]), new pl.type.Term(",", [new pl.type.Term("$free_variable_set", [new pl.type.Term("^", [new pl.type.Var("Template"),new pl.type.Var("Goal0")]),new pl.type.Var("Goal1"),new pl.type.Var("FV")]),new pl.type.Term(",", [new pl.type.Term("findall", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Template")]),new pl.type.Var("Goal1"),new pl.type.Var("Answers"),new pl.type.Term("[]", [])]),new pl.type.Term(",", [new pl.type.Term("$bind_bagof_keys", [new pl.type.Var("Answers"),new pl.type.Var("_")]),new pl.type.Term(",", [new pl.type.Term("keygroup", [new pl.type.Var("Answers"),new pl.type.Var("KeyGroups")]),new pl.type.Term(",", [new pl.type.Term("keysort", [new pl.type.Var("KeyGroups"),new pl.type.Var("KeySorted")]),new pl.type.Term("$member", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Answer")]),new pl.type.Var("KeySorted")])])])])])]))
 		],
 
 		// '$setof'/3
 		"$setof/3": [
-			new pl.type.Rule(new pl.type.Term("$setof", [new pl.type.Var("Template"),new pl.type.Var("Goal0"),new pl.type.Var("Answer")]), new pl.type.Term(",", [new pl.type.Term("$free_variable_set", [new pl.type.Term("^", [new pl.type.Var("Template"),new pl.type.Var("Goal0")]),new pl.type.Var("Goal1"),new pl.type.Var("FV")]),new pl.type.Term(",", [new pl.type.Term("findall", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Template")]),new pl.type.Var("Goal1"),new pl.type.Var("Answers"),new pl.type.Term("[]", [])]),new pl.type.Term(",", [new pl.type.Term("keygroup", [new pl.type.Var("Answers"),new pl.type.Var("KeyGroups")]),new pl.type.Term(",", [new pl.type.Term("keysort", [new pl.type.Var("KeyGroups"),new pl.type.Var("KeySorted")]),new pl.type.Term(",", [new pl.type.Term("$member", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Unsorted")]),new pl.type.Var("KeySorted")]),new pl.type.Term("sort", [new pl.type.Var("Unsorted"),new pl.type.Var("Answer")])])])])])]))
+			new pl.type.Rule(new pl.type.Term("$setof", [new pl.type.Var("Template"),new pl.type.Var("Goal0"),new pl.type.Var("Answer")]), new pl.type.Term(",", [new pl.type.Term("$free_variable_set", [new pl.type.Term("^", [new pl.type.Var("Template"),new pl.type.Var("Goal0")]),new pl.type.Var("Goal1"),new pl.type.Var("FV")]),new pl.type.Term(",", [new pl.type.Term("findall", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Template")]),new pl.type.Var("Goal1"),new pl.type.Var("Answers"),new pl.type.Term("[]", [])]),new pl.type.Term(",", [new pl.type.Term("$bind_bagof_keys", [new pl.type.Var("Answers"),new pl.type.Var("_")]),new pl.type.Term(",", [new pl.type.Term("keygroup", [new pl.type.Var("Answers"),new pl.type.Var("KeyGroups")]),new pl.type.Term(",", [new pl.type.Term("keysort", [new pl.type.Var("KeyGroups"),new pl.type.Var("KeySorted")]),new pl.type.Term(",", [new pl.type.Term("$member", [new pl.type.Term("-", [new pl.type.Var("FV"),new pl.type.Var("Unsorted")]),new pl.type.Var("KeySorted")]),new pl.type.Term("sort", [new pl.type.Var("Unsorted"),new pl.type.Var("Answer")])])])])])])]))
 		],
 
 		// '$if/3'
@@ -5994,22 +6001,39 @@
 		},
 		
 		// copy_term/2
-		"copy_term/2": function( thread, point, atom ) {
+		"copy_term/2": function(thread, point, atom) {
+			var original_term = atom.args[0], renamed_term = atom.args[1];
 			thread.session.renamed_variables = {};
-			var renamed = atom.args[0].rename( thread );
-			thread.prepend( [new State( point.goal.replace( new Term( "=", [renamed, atom.args[1]] ) ), point.substitution, point.parent )] );
+			var new_term = original_term.rename(thread);
+			thread.session.renamed_variables = {};
+			thread.prepend([
+				new State(
+					point.goal.replace(new Term("=", [renamed_term, new_term])),
+					point.substitution,
+					point)
+				]
+			);
 		},
 		
 		// term_variables/2
-		"term_variables/2": function( thread, point, atom ) {
-			var term = atom.args[0], vars = atom.args[1];
+		"term_variables/2": [
+			new pl.type.Rule(new pl.type.Term("term_variables", [new pl.type.Var("Term"),new pl.type.Var("Vars")]), new pl.type.Term("term_variables", [new pl.type.Var("Term"),new pl.type.Var("Vars"),new pl.type.Term("[]", [])]))
+		],
+
+		// term_variables/3
+		"term_variables/3": function(thread, point, atom) {
+			var term = atom.args[0], vars = atom.args[1], tail = atom.args[2];
 			if( !pl.type.is_fully_list( vars ) ) {
 				thread.throw_error( pl.error.type( "list", vars, atom.indicator ) );
 			} else {
-				var list = arrayToList( map( nub( term.variables() ), function(v) {
+				var list = arrayToList(map(nub(term.variables()), function(v) {
 					return new Var(v);
-				} ) );
-				thread.prepend( [new State( point.goal.replace( new Term( "=", [vars, list] ) ), point.substitution, point )] );
+				}), tail);
+				thread.prepend([new State(
+					point.goal.replace(new Term("=", [vars, list])),
+					point.substitution,
+					point
+				)]);
 			}
 		},
 

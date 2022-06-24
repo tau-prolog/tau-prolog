@@ -14,7 +14,7 @@
 :- use_module(library(concurrent)).
 
 top(X) :-
-	future(a, sleep(2000), F1),
+    future(a, sleep(2000), F1),
     future(b, throw(b),    F2),
     future(c, sleep(1000), F3),
     future_all([F1,F2,F3], F),
