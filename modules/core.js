@@ -1,7 +1,7 @@
 (function() {
 	
 	// VERSION
-	var version = { major: 0, minor: 3, patch: 3, status: "beta" };
+	var version = { major: 0, minor: 3, patch: 4, status: "beta" };
 
 
 
