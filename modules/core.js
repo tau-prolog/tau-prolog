@@ -1231,10 +1231,12 @@
 				reconsulted[context_module] = {};
 			if(options.reconsult !== false && reconsulted[context_module][indicator] !== true && !thread.is_multifile_predicate(indicator)) {
 				var get_module = thread.session.modules[context_module];
-				if(context_module !== "system" && get_module && get_module.rules[indicator])
+				if(context_module !== "system" && get_module && get_module.rules[indicator]) {
 					get_module.rules[indicator] = filter(get_module.rules[indicator], function(rule) {
 						return rule.dynamic;
 					});
+					get_module.update_indices_predicate(indicator);
+				}
 				reconsulted[context_module][indicator] = true;
 			}
 			var goal_expansion = thread.session.modules.user.rules["goal_expansion/2"];
@@ -1858,8 +1860,9 @@
 				this.indexed_clauses[indicator] = {};
 			if(!this.indexed_clauses[indicator].hasOwnProperty(index)) {
 				this.indexed_clauses[indicator][index] = [];
-				for(var j = 0; j < this.non_indexable_clauses.length; j++)
-					this.indexed_clauses[indicator][index].push(this.non_indexable_clauses[j]);
+				if(this.non_indexable_clauses.hasOwnProperty(indicator))
+					for(var j = 0; j < this.non_indexable_clauses[indicator].length; j++)
+						this.indexed_clauses[indicator][index].push(this.non_indexable_clauses[indicator][j]);
 			}
 			this.indexed_clauses[indicator][index].push(clause);
 		} else {
