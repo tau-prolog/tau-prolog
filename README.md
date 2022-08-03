@@ -125,6 +125,7 @@ $ npm install tau-prolog
 * [OS module](http://tau-prolog.org/documentation#os)
 * [CharsIO module](http://tau-prolog.org/documentation#charsio)
 * [Format module](http://tau-prolog.org/documentation#format)
+* [Concurrent module](http://tau-prolog.org/documentation#concurrent)
 
 ## License
 Tau Prolog source code is released under the terms of the [BSD 3-Clause License](http://tau-prolog.org/license).
