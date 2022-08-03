@@ -1,5 +1,22 @@
 # Release notes
 
+## Version 0.3.4 - August 3, 2022
+
+### Core (0.3.4)
+
+* FIXED: clause indexing when reconsulting programs.
+* IMPROVED: performance parsing large programs.
+* ADDED: `concurrent` library.
+
+### Module `system` (0.3.4)
+
+* FIXED: missing instantiation errors in the `atomic_list_concat/[2-3]` predicate.
+* FIXED: variable bindings in `bagof/3` predicate.
+
+### Acknowledgments (0.3.4)
+
+* Thanks to **Paulo Moura** for his help in detecting and correcting errors.
+
 ## Version 0.3.3 - May 26, 2022
 
 ### Core (0.3.3)
