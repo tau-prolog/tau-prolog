@@ -1442,6 +1442,7 @@
 			var prev;
 			while( pointer.indicator === "./2" ) {
 				prev = pointer;
+				pointer.ground = false;
 				pointer = pointer.args[1];
 			}
 			if( pl.type.is_variable( pointer ) ) {
