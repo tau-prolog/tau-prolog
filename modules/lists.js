@@ -416,7 +416,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["append/2", "append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "foldl/5", "foldl/6", "foldl/7", "foldr/4", "foldr/5", "foldr/6", "foldr/7", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "prefix/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "msort/2", "take/3", "drop/3", "reverse/2", "list_to_set/2"];
+	var exports = ["append/2", "append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "foldl/5", "foldl/6", "foldl/7", "foldl/8", "foldr/4", "foldr/5", "foldr/6", "foldr/7", "foldr/8", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "prefix/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "msort/2", "take/3", "drop/3", "reverse/2", "list_to_set/2"];
 	
 	var options = function() {
 		return {
