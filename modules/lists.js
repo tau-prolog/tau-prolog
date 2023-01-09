@@ -7,7 +7,8 @@ var pl;
 			
 			// append/2
 			"append/2": [
-				new pl.type.Rule(new pl.type.Term("append", [new pl.type.Var("X"),new pl.type.Var("L")]), new pl.type.Term("foldl", [new pl.type.Term("append", []),new pl.type.Var("X"),new pl.type.Term("[]", []),new pl.type.Var("L")]))
+				new pl.type.Rule(new pl.type.Term("append", [new pl.type.Term("[]", []),new pl.type.Term("[]", [])]), null),
+				new pl.type.Rule(new pl.type.Term("append", [new pl.type.Term(".", [new pl.type.Var("X"),new pl.type.Var("Xs")]),new pl.type.Var("Zs")]), new pl.type.Term(",", [new pl.type.Term("append", [new pl.type.Var("X"),new pl.type.Var("Ys"),new pl.type.Var("Zs")]),new pl.type.Term("append", [new pl.type.Var("Xs"),new pl.type.Var("Ys")])]))
 			],
 
 			// append/3
@@ -86,26 +87,62 @@ var pl;
 			
 			// foldl/4
 			"foldl/4": [
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Var("V"),new pl.type.Var("V")]), null),
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Term(".", [new pl.type.Var("H"),new pl.type.Var("T")]),new pl.type.Var("V0"),new pl.type.Var("V")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal"),new pl.type.Var("H"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Var("T"),new pl.type.Var("V1"),new pl.type.Var("V")])]))
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("V0"),new pl.type.Var("A"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
 			],
-			
+
 			// foldl/5
 			"foldl/5": [
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V"),new pl.type.Var("V")]), null),
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Term(".", [new pl.type.Var("H1"),new pl.type.Var("T1")]),new pl.type.Term(".", [new pl.type.Var("H2"),new pl.type.Var("T2")]),new pl.type.Var("V0"),new pl.type.Var("V")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal"),new pl.type.Var("H1"),new pl.type.Var("H2"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Var("T1"),new pl.type.Var("T2"),new pl.type.Var("V1"),new pl.type.Var("V")])]))
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Term(".", [new pl.type.Var("B"),new pl.type.Var("Bs")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("V0"),new pl.type.Var("A"),new pl.type.Var("B"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("Bs"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
 			],
-			
+
 			// foldl/6
 			"foldl/6": [
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V"),new pl.type.Var("V")]), null),
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Term(".", [new pl.type.Var("H1"),new pl.type.Var("T1")]),new pl.type.Term(".", [new pl.type.Var("H2"),new pl.type.Var("T2")]),new pl.type.Term(".", [new pl.type.Var("H3"),new pl.type.Var("T3")]),new pl.type.Var("V0"),new pl.type.Var("V")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal"),new pl.type.Var("H1"),new pl.type.Var("H2"),new pl.type.Var("H3"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Var("T1"),new pl.type.Var("T2"),new pl.type.Var("T3"),new pl.type.Var("V1"),new pl.type.Var("V")])]))
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Term(".", [new pl.type.Var("B"),new pl.type.Var("Bs")]),new pl.type.Term(".", [new pl.type.Var("C"),new pl.type.Var("Cs")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("V0"),new pl.type.Var("A"),new pl.type.Var("B"),new pl.type.Var("C"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("Bs"),new pl.type.Var("Cs"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
 			],
-			
+
 			// foldl/7
 			"foldl/7": [
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V"),new pl.type.Var("V")]), null),
-				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Term(".", [new pl.type.Var("H1"),new pl.type.Var("T1")]),new pl.type.Term(".", [new pl.type.Var("H2"),new pl.type.Var("T2")]),new pl.type.Term(".", [new pl.type.Var("H3"),new pl.type.Var("T3")]),new pl.type.Term(".", [new pl.type.Var("H4"),new pl.type.Var("T4")]),new pl.type.Var("V0"),new pl.type.Var("V")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("Goal"),new pl.type.Var("H1"),new pl.type.Var("H2"),new pl.type.Var("H3"),new pl.type.Var("H4"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("Goal"),new pl.type.Var("T1"),new pl.type.Var("T2"),new pl.type.Var("T3"),new pl.type.Var("T4"),new pl.type.Var("V1"),new pl.type.Var("V")])]))
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Term(".", [new pl.type.Var("B"),new pl.type.Var("Bs")]),new pl.type.Term(".", [new pl.type.Var("C"),new pl.type.Var("Cs")]),new pl.type.Term(".", [new pl.type.Var("D"),new pl.type.Var("Ds")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("V0"),new pl.type.Var("A"),new pl.type.Var("B"),new pl.type.Var("C"),new pl.type.Var("D"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("Bs"),new pl.type.Var("Cs"),new pl.type.Var("Ds"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
+			],
+
+			// foldl/8
+			"foldl/8": [
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Term(".", [new pl.type.Var("B"),new pl.type.Var("Bs")]),new pl.type.Term(".", [new pl.type.Var("C"),new pl.type.Var("Cs")]),new pl.type.Term(".", [new pl.type.Var("D"),new pl.type.Var("Ds")]),new pl.type.Term(".", [new pl.type.Var("E"),new pl.type.Var("Es")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("V0"),new pl.type.Var("A"),new pl.type.Var("B"),new pl.type.Var("C"),new pl.type.Var("D"),new pl.type.Var("E"),new pl.type.Var("V1")]),new pl.type.Term("foldl", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("Bs"),new pl.type.Var("Cs"),new pl.type.Var("Ds"),new pl.type.Var("Es"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
+			],
+
+			// foldr/4
+			"foldr/4": [
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("A"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
+			],
+
+			// foldr/5
+			"foldr/5": [
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Term(".", [new pl.type.Var("B"),new pl.type.Var("Bs")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("Bs"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("A"),new pl.type.Var("B"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
+			],
+
+			// foldr/6
+			"foldr/6": [
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Term(".", [new pl.type.Var("B"),new pl.type.Var("Bs")]),new pl.type.Term(".", [new pl.type.Var("C"),new pl.type.Var("Cs")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("Bs"),new pl.type.Var("Cs"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("A"),new pl.type.Var("B"),new pl.type.Var("C"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
+			],
+
+			// foldr/7
+			"foldr/7": [
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Term(".", [new pl.type.Var("B"),new pl.type.Var("Bs")]),new pl.type.Term(".", [new pl.type.Var("C"),new pl.type.Var("Cs")]),new pl.type.Term(".", [new pl.type.Var("D"),new pl.type.Var("Ds")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("Bs"),new pl.type.Var("Cs"),new pl.type.Var("Ds"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("A"),new pl.type.Var("B"),new pl.type.Var("C"),new pl.type.Var("D"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
+			],
+
+			// foldr/8
+			"foldr/8": [
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("_"),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Term("[]", []),new pl.type.Var("V0"),new pl.type.Var("V0")]), null),
+				new pl.type.Rule(new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Term(".", [new pl.type.Var("A"),new pl.type.Var("As")]),new pl.type.Term(".", [new pl.type.Var("B"),new pl.type.Var("Bs")]),new pl.type.Term(".", [new pl.type.Var("C"),new pl.type.Var("Cs")]),new pl.type.Term(".", [new pl.type.Var("D"),new pl.type.Var("Ds")]),new pl.type.Term(".", [new pl.type.Var("E"),new pl.type.Var("Es")]),new pl.type.Var("V0"),new pl.type.Var("V2")]), new pl.type.Term(",", [new pl.type.Term("foldr", [new pl.type.Var("G"),new pl.type.Var("As"),new pl.type.Var("Bs"),new pl.type.Var("Cs"),new pl.type.Var("Ds"),new pl.type.Var("Es"),new pl.type.Var("V0"),new pl.type.Var("V1")]),new pl.type.Term("call", [new pl.type.Var("G"),new pl.type.Var("A"),new pl.type.Var("B"),new pl.type.Var("C"),new pl.type.Var("D"),new pl.type.Var("E"),new pl.type.Var("V1"),new pl.type.Var("V2")])]))
 			],
 			
 			// select/3
@@ -379,7 +416,7 @@ var pl;
 		};
 	};
 	
-	var exports = ["append/2", "append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "foldl/5", "foldl/6", "foldl/7", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "prefix/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "msort/2", "take/3", "drop/3", "reverse/2", "list_to_set/2"];
+	var exports = ["append/2", "append/3", "member/2", "permutation/2", "maplist/2", "maplist/3", "maplist/4", "maplist/5", "maplist/6", "maplist/7", "maplist/8", "include/3", "exclude/3", "foldl/4", "foldl/5", "foldl/6", "foldl/7", "foldr/4", "foldr/5", "foldr/6", "foldr/7", "sum_list/2", "max_list/2", "min_list/2", "prod_list/2", "last/2", "prefix/2", "nth0/3", "nth1/3", "nth0/4", "nth1/4", "length/2", "replicate/3", "select/3", "msort/2", "take/3", "drop/3", "reverse/2", "list_to_set/2"];
 	
 	var options = function() {
 		return {
@@ -394,6 +431,14 @@ var pl;
 				"foldl/6": new pl.type.Term("foldl", [new pl.type.Num(5, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
 				// foldl(6, +, +, +, +, +, -)
 				"foldl/7": new pl.type.Term("foldl", [new pl.type.Num(6, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
+				// foldr(3, +, +, -)
+				"foldr/4": new pl.type.Term("foldr", [new pl.type.Num(3, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
+				// foldr(4, +, +, +, -)
+				"foldr/5": new pl.type.Term("foldr", [new pl.type.Num(4, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
+				// foldr(5, +, +, +, +, -)
+				"foldr/6": new pl.type.Term("foldr", [new pl.type.Num(5, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
+				// foldr(6, +, +, +, +, +, -)
+				"foldr/7": new pl.type.Term("foldr", [new pl.type.Num(6, false), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("+"), new pl.type.Term("-")]),
 				// exclude(1, +, -)
 				"include/3": new pl.type.Term("include", [new pl.type.Num(1, false), new pl.type.Term("+"), new pl.type.Term("-")]), 
 				// maplist(1, ?)
